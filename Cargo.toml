@@ -1,0 +1,30 @@
+[package]
+name = "holomorph"
+version = "0.1.0"
+authors = ["scalexm <martin.alex32@hotmail.fr>"]
+
+[dependencies]
+rand = "*"
+log = "*"
+env_logger = "*"
+
+[dependencies.bytes]
+git = "https://github.com/carllerche/bytes"
+
+[dependencies.byteorder]
+git = "https://github.com/BurntSushi/byteorder"
+
+[dependencies.mio]
+git = "https://github.com/carllerche/mio"
+
+[[bin]]
+name = "auth"
+path = "src/auth/main.rs"
+
+[[bin]]
+name = "client"
+path = "src/client/main.rs"
+
+[lib]
+name = "shared"
+path = "src/shared/lib.rs"
