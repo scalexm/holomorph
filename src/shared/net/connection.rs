@@ -4,7 +4,10 @@ use std::io;
 use std::io::{Read, Cursor, Write};
 use ::io::{ReadExt, WriteExt};
 use mio;
+use mio::Sender;
 use std::collections::VecDeque;
+use super::server::Msg;
+use ::session::Session;
 
 type Buffer = (Vec<u8>, usize);
 
@@ -12,7 +15,8 @@ fn make_buffer(len: usize) -> Buffer {
     (vec![0; len], 0)
 }
 
-pub struct Connection {
+pub struct Connection<S: Session> {
+    session: S,
     pub socket: TcpStream,
     pub token: mio::Token,
     read_buffer: Option<Buffer>,
@@ -27,9 +31,10 @@ enum State {
     WaitingForData(u16, u32),
 }
 
-impl Connection {
-    pub fn new(socket: TcpStream, token: mio::Token) -> Connection {
+impl<S: Session> Connection<S> {
+    pub fn new(socket: TcpStream, token: mio::Token, sender: Sender<Msg>) -> Connection<S> {
         Connection {
+            session: S::new(token, sender),
             socket: socket,
             token:token,
             read_buffer: Some(make_buffer(2)),
@@ -68,16 +73,10 @@ impl Connection {
                 self.read_buffer = Some(make_buffer(len as usize));
             }
             State::WaitingForData(id, len) => {
-                println!("received data {} {}", id, len);
-                println!("{}", buf.read_string().unwrap());
                 self.state = State::WaitingForHeader;
                 self.read_buffer = Some(make_buffer(2));
 
-                let mut w = Vec::new();
-                w.write_string("yo ma gueule");
-                let mut buf = Vec::new();
-                buf.write_packet(10, &w);
-                self.write(buf);
+                try!(self.session.handle_packet(id, buf))
             }
         }
         Ok(())

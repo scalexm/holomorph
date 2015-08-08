@@ -20,13 +20,23 @@ pub fn write_all<W: io::Write + ?Sized>(wtr: &mut W, buf: &[u8]) -> Result<()> {
     wtr.write_all(buf).map_err(From::from)
 }
 
-const MASK_10000000: i32 = 128;
-const MASK_01111111: i32 = 127;
-const CHUNK_BIT_SIZE: i32 = 7;
-const INT_SIZE: i32 = 32;
-const SHORT_SIZE: i32 = 16;
-const SHORT_MAX_VALUE: i32 = 32767;
-const UNSIGNED_SHORT_MAX_VALUE: i32 = 65536;
+macro_rules! read_var {
+    ($rdr: expr, $t: ty, $size: expr) => {{
+        let mut value: $t = 0;
+        let mut offset = 0;
+
+        while offset < $size {
+          let b = try!(ReadExt::read_u8($rdr));
+          value |= ((b as $t) & 0x7F) << (offset);
+          if (b & 0x80) == 0 {
+              return Ok(value);
+          }
+          offset += 7;
+        }
+        Err(::byteorder::Error::Io(io::Error::new(io::ErrorKind::InvalidInput,
+            "ill formed var integer")))
+    }};
+}
 
 pub trait ReadExt: ReadBytesExt {
     #[inline]
@@ -85,23 +95,7 @@ pub trait ReadExt: ReadBytesExt {
     }
 
     fn read_var_i16(&mut self) -> Result<i16> {
-        let mut value = 0;
-        let mut offset = 0;
-        let mut has_next;
-        while offset < SHORT_SIZE {
-            let byte = try!(ReadExt::read_i8(self)) as i32;
-            has_next = (byte & MASK_10000000) == MASK_10000000;
-            value += (byte & MASK_01111111) << offset;
-            offset += CHUNK_BIT_SIZE;
-            if !has_next {
-                if value > SHORT_MAX_VALUE {
-                    value -= UNSIGNED_SHORT_MAX_VALUE;
-                }
-                return Ok(value as i16)
-            }
-        }
-        Err(::byteorder::Error::Io(io::Error::new(io::ErrorKind::InvalidInput,
-            "malformed var_i16")))
+        read_var!(self, i16, 16)
     }
 
     fn read_var_u16(&mut self) -> Result<u16> {
@@ -109,20 +103,7 @@ pub trait ReadExt: ReadBytesExt {
     }
 
     fn read_var_i32(&mut self) -> Result<i32> {
-        let mut value = 0;
-        let mut offset = 0;
-        let mut has_next;
-        while offset < INT_SIZE {
-            let byte = try!(ReadExt::read_i8(self)) as i32;
-            has_next = (byte & MASK_10000000) == MASK_10000000;
-            value += (byte & MASK_01111111) << offset;
-            offset += CHUNK_BIT_SIZE;
-            if !has_next {
-                return Ok(value)
-            }
-        }
-        Err(::byteorder::Error::Io(io::Error::new(io::ErrorKind::InvalidInput,
-            "malformed var_i32")))
+        read_var!(self, i32, 32)
     }
 
     fn read_var_u32(&mut self) -> Result<u32> {
@@ -200,34 +181,15 @@ pub trait WriteExt: WriteBytesExt {
     }
 
     fn write_var_i16(&mut self, data: i16) -> Result<()> {
-        if data >= 0 && data <= MASK_01111111 as i16 {
-            return WriteExt::write_u8(self, data as u8);
-        }
-        let mut udata = data as u32;
-        while udata != 0 {
-            let mut byte = (udata & (MASK_01111111 as u32)) as i32;
-            udata >>= CHUNK_BIT_SIZE as u32;
-            if udata > 0 {
-                byte |= MASK_10000000;
-            }
-            try!(WriteExt::write_i8(self, byte as i8));
-        }
-        Ok(())
+        self.write_var_i32(data as i32)
     }
 
-    fn write_var_i32(&mut self, data: i32) -> Result<()> {
-        if data >= 0 && data <= MASK_01111111 {
-            return WriteExt::write_u8(self, data as u8);
+    fn write_var_i32(&mut self, mut data: i32) -> Result<()> {
+        while data & !0x7F != 0 {
+            try!(WriteExt::write_u8(self, (0x80 | (data & 0x7F)) as u8));
+            data = data >> 7;
         }
-        let mut udata = data as u32;
-        while udata != 0 {
-            let mut byte = (udata & (MASK_01111111 as u32)) as i32;
-            udata >>= CHUNK_BIT_SIZE as u32;
-            if udata > 0 {
-                byte |= MASK_10000000;
-            }
-            try!(WriteExt::write_i8(self, byte as i8));
-        }
+        try!(WriteExt::write_u8(self, data as u8));
         Ok(())
     }
 

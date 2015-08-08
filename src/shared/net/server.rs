@@ -3,16 +3,24 @@ use std::io;
 use mio::util::Slab;
 use mio;
 use super::connection::Connection;
+use ::session::Session;
 
 const SERVER: mio::Token = mio::Token(0);
 
-pub struct Server {
+pub struct Server<S: Session> {
     server: TcpListener,
-    connections: Slab<Connection>,
+    connections: Slab<Connection<S>>,
 }
 
-impl Server {
-    pub fn new(event_loop: &mut mio::EventLoop<Server>, address: &str) -> io::Result<Server> {
+pub enum Msg {
+    Shutdown,
+    Write(mio::Token, Vec<u8>),
+}
+
+impl<S: Session> Server<S> {
+    pub fn new(event_loop: &mut mio::EventLoop<Server<S>>, address: &str)
+        -> io::Result<Server<S>> {
+
         let address = address.parse().unwrap();
         let server = try!(TcpListener::bind(&address));
         try!(event_loop.register_opt(&server, SERVER, mio::EventSet::readable(),
@@ -37,11 +45,11 @@ impl Server {
     }
 }
 
-impl mio::Handler for Server {
+impl<S: Session> mio::Handler for Server<S> {
     type Timeout = ();
-    type Message = ();
+    type Message = Msg;
 
-    fn ready(&mut self, event_loop: &mut mio::EventLoop<Server>, token: mio::Token,
+    fn ready(&mut self, event_loop: &mut mio::EventLoop<Server<S>>, token: mio::Token,
         events: mio::EventSet) {
 
         match token {
@@ -50,7 +58,8 @@ impl mio::Handler for Server {
                 match self.server.accept() {
                     Ok(Some(socket)) => {
                         let token = self.connections
-                            .insert_with(|token| Connection::new(socket, token))
+                            .insert_with(|token|
+                                Connection::new(socket, token, event_loop.channel()))
                             .unwrap();
                         debug!("connected {:?}", token);
                         event_loop.register_opt(
@@ -75,6 +84,13 @@ impl mio::Handler for Server {
                     debug!("logout {:?}", token);
                 }
             }
+        }
+    }
+
+    fn notify(&mut self, event_loop: &mut mio::EventLoop<Server<S>>, msg: Msg) {
+        match msg {
+            Msg::Shutdown => event_loop.shutdown(),
+            Msg::Write(tok, buf) => self.connections[tok].write(buf),
         }
     }
 }
