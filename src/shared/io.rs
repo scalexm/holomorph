@@ -111,6 +111,14 @@ pub trait ReadExt: ReadBytesExt {
         self.read_var_i32().map(|val| val as u32)
     }
 
+    fn read_var_i64(&mut self) -> Result<i64> {
+        read_var!(self, i64, 64)
+    }
+
+    fn read_var_u64(&mut self) -> Result<u64> {
+        read_var!(self, u64, 64)
+    }
+
     fn read_string(&mut self) -> Result<String> {
         let len = try!(ReadExt::read_u16(self));
         let mut buf = vec![0; len as usize];
@@ -183,21 +191,33 @@ pub trait WriteExt: WriteBytesExt {
     }
 
     fn write_var_i16(&mut self, data: i16) -> Result<()> {
-        self.write_var_i32(data as i32)
+        self.write_var_i64(data as i64)
+    }
+
+    fn write_var_u16(&mut self, data: u16) -> Result<()> {
+        self.write_var_i64(data as i64)
     }
 
     fn write_var_i32(&mut self, mut data: i32) -> Result<()> {
+        self.write_var_i64(data as i64)
+    }
+
+    fn write_var_u32(&mut self, data: u32) -> Result<()> {
+        self.write_var_i64(data as i64)
+    }
+
+    fn write_var_i64(&mut self, mut data: i64) -> Result<()> {
         while data & !0x7F != 0 {
             try!(WriteExt::write_u8(self, (0x80 | (data & 0x7F)) as u8));
             data = data >> 7;
         }
         try!(WriteExt::write_u8(self, data as u8));
-        
+
         Ok(())
     }
 
-    fn write_var_u32(&mut self, data: u32) -> Result<()> {
-        self.write_var_i32(data as i32)
+    fn write_var_u64(&mut self, data: u64) -> Result<()> {
+        self.write_var_i64(data as i64)
     }
 
     fn write_string(&mut self, data: &str) -> Result<()> {
