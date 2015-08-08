@@ -1,8 +1,8 @@
 use mio::{TryRead, TryWrite};
 use mio::tcp::*;
 use std::io;
-use std::io::{Read, Cursor, Write};
-use ::io::{ReadExt, WriteExt};
+use std::io::{Read, Cursor};
+use ::io::ReadExt;
 use mio;
 use mio::Sender;
 use std::collections::VecDeque;
@@ -27,8 +27,8 @@ pub struct Connection<S: Session> {
 #[derive(Debug)]
 enum State {
     WaitingForHeader,
-    WaitingForLen(u16, u8),
-    WaitingForData(u16, u32),
+    WaitingForLen(u16),
+    WaitingForData(u16),
 }
 
 impl<S: Session> Connection<S> {
@@ -61,27 +61,27 @@ impl<S: Session> Connection<S> {
                 let header = try!(buf.read_u16());
                 let id = header >> 2;
                 let nbytes = header & 3;
-                self.state = State::WaitingForLen(id, nbytes as u8);
+                self.state = State::WaitingForLen(id);
                 self.read_buffer = Some(make_buffer(nbytes as usize));
             }
 
-            State::WaitingForLen(id, nbytes) => {
+            State::WaitingForLen(id) => {
                 let mut len = 0u32;
-                for _ in (0..nbytes) {
+                for _ in (0..buf.get_ref().len()) {
                     len = (len << 8) + (try!(buf.read_u8()) as u32);
                 }
-                self.state = State::WaitingForData(id, len);
+                self.state = State::WaitingForData(id);
                 self.read_buffer = Some(make_buffer(len as usize));
             }
 
-            State::WaitingForData(id, len) => {
+            State::WaitingForData(id) => {
                 self.state = State::WaitingForHeader;
                 self.read_buffer = Some(make_buffer(2));
 
                 try!(self.session.handle_packet(id, buf))
             }
         }
-        
+
         Ok(())
     }
 
