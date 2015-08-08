@@ -8,9 +8,6 @@ rand = "*"
 log = "*"
 env_logger = "*"
 
-[dependencies.bytes]
-git = "https://github.com/carllerche/bytes"
-
 [dependencies.byteorder]
 git = "https://github.com/BurntSushi/byteorder"
 
