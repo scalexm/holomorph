@@ -33,6 +33,7 @@ macro_rules! read_var {
           }
           offset += 7;
         }
+
         Err(::byteorder::Error::Io(io::Error::new(io::ErrorKind::InvalidInput,
             "ill formed var integer")))
     }};
@@ -114,6 +115,7 @@ pub trait ReadExt: ReadBytesExt {
         let len = try!(ReadExt::read_u16(self));
         let mut buf = vec![0; len as usize];
         try!(read_full(self, &mut buf[0..]));
+
         match String::from_utf8(buf) {
             Ok(s) => Ok(s),
             Err(_) => Err(::byteorder::Error::Io(io::Error::new(io::ErrorKind::InvalidInput,
@@ -190,6 +192,7 @@ pub trait WriteExt: WriteBytesExt {
             data = data >> 7;
         }
         try!(WriteExt::write_u8(self, data as u8));
+        
         Ok(())
     }
 

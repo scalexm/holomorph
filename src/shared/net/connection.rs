@@ -36,7 +36,7 @@ impl<S: Session> Connection<S> {
         Connection {
             session: S::new(token, sender),
             socket: socket,
-            token:token,
+            token: token,
             read_buffer: Some(make_buffer(2)),
             write_buffer: VecDeque::new(),
             state: State::WaitingForHeader,
@@ -64,6 +64,7 @@ impl<S: Session> Connection<S> {
                 self.state = State::WaitingForLen(id, nbytes as u8);
                 self.read_buffer = Some(make_buffer(nbytes as usize));
             }
+
             State::WaitingForLen(id, nbytes) => {
                 let mut len = 0u32;
                 for _ in (0..nbytes) {
@@ -72,6 +73,7 @@ impl<S: Session> Connection<S> {
                 self.state = State::WaitingForData(id, len);
                 self.read_buffer = Some(make_buffer(len as usize));
             }
+
             State::WaitingForData(id, len) => {
                 self.state = State::WaitingForHeader;
                 self.read_buffer = Some(make_buffer(2));
@@ -79,6 +81,7 @@ impl<S: Session> Connection<S> {
                 try!(self.session.handle_packet(id, buf))
             }
         }
+        
         Ok(())
     }
 
