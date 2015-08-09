@@ -1,13 +1,11 @@
-use mio::{TryRead, TryWrite};
-use mio::tcp::*;
+use mio::{TryRead, TryWrite, Token};
+use std::sync::mpsc::Sender;
+use mio::tcp::TcpStream;
 use std::io;
+use pool;
 use std::io::{Read, Cursor};
 use ::io::ReadExt;
-use mio;
-use mio::Sender;
 use std::collections::VecDeque;
-use super::server::Msg;
-use ::session::Session;
 
 type Buffer = (Vec<u8>, usize);
 
@@ -15,13 +13,13 @@ fn make_buffer(len: usize) -> Buffer {
     (vec![0; len], 0)
 }
 
-pub struct Connection<S: Session> {
-    session: S,
+pub struct Connection {
     pub socket: TcpStream,
-    pub token: mio::Token,
+    pub token: Token,
     read_buffer: Option<Buffer>,
     write_buffer: VecDeque<Buffer>,
     state: State,
+    pool: Sender<::pool::Msg>,
 }
 
 #[derive(Debug)]
@@ -31,15 +29,17 @@ enum State {
     WaitingForData(u16),
 }
 
-impl<S: Session> Connection<S> {
-    pub fn new(socket: TcpStream, token: mio::Token, sender: Sender<Msg>) -> Connection<S> {
+impl Connection {
+    pub fn new(socket: TcpStream, token: Token, pool: Sender<::pool::Msg>)
+        -> Connection {
+
         Connection {
-            session: S::new(token, sender),
             socket: socket,
             token: token,
             read_buffer: Some(make_buffer(2)),
             write_buffer: VecDeque::new(),
             state: State::WaitingForHeader,
+            pool: pool,
         }
     }
 
@@ -78,7 +78,9 @@ impl<S: Session> Connection<S> {
                 self.state = State::WaitingForHeader;
                 self.read_buffer = Some(make_buffer(2));
 
-                try!(self.session.handle_packet(id, buf))
+                self.pool
+                    .send(pool::Msg::SessionPacket(self.token, id, buf))
+                    .unwrap();
             }
         }
 
@@ -107,7 +109,7 @@ impl<S: Session> Connection<S> {
         Ok(())
     }
 
-    pub fn write(&mut self, buffer: Vec<u8>) {
+    pub fn push(&mut self, buffer: Vec<u8>) {
         self.write_buffer.push_front((buffer, 0));
     }
 }

@@ -1,28 +1,38 @@
 use std::io::{Read, Write};
 use ::io::{ReadExt, WriteExt, Result};
 
-pub mod connection;
+pub struct VarInt(pub i32);
+pub struct VarUInt(pub u32);
+pub struct VarShort(pub i16);
+pub struct VarUShort(pub u16);
+pub struct VarLong(pub i64);
+pub struct VarULong(pub u64);
 
-struct VarInt(i32);
-struct VarUInt(u32);
-struct VarShort(i16);
-struct VarUShort(u16);
-struct VarLong(i64);
-struct VarULong(u64);
-
-struct VarIntVec<T>(Vec<T>);
+pub struct VarIntVec<T>(pub Vec<T>);
 
 pub trait Protocol {
     fn deserialize<R: Read>(&mut R) -> Result<Self>;
     fn serialize<W: Write>(&self, &mut W) -> Result<()>;
     fn id() -> i16;
+
+    fn as_packet_with_buf(&self, packet: &mut Vec<u8>) -> Result<()> {
+        let mut buf = Vec::new();
+        try!(self.serialize(&mut buf));
+        packet.write_packet(Self::id() as u16, &buf)
+    }
+
+    fn as_packet(&self) -> Result<Vec<u8>> {
+        let mut packet = Vec::new();
+        try!(self.as_packet_with_buf(&mut packet));
+        Ok(packet)
+    }
 }
 
 macro_rules! impl_type {
     ($name: ident, $id: expr, $($field_name: ident| $field_type: ty),*) => {
         pub struct $name {
             $(
-                $field_name: $field_type,
+                pub $field_name: $field_type,
             )*
         }
 
@@ -76,8 +86,7 @@ macro_rules! impl_var {
             }
 
             fn serialize<W: Write>(&self, wtr: &mut W) -> Result<()> {
-                let &$p(val) = self;
-                wtr.$write(val)
+                wtr.$write(self.0)
             }
 
             fn id() -> i16 {
@@ -153,7 +162,7 @@ impl<P: Protocol> Protocol for VarIntVec<P> {
     }
 
     fn serialize<W: Write>(&self, wtr: &mut W) -> Result<()> {
-        try!(wtr.write_i16(self.0.len() as i16));
+        try!(wtr.write_var_i32(self.0.len() as i32));
         for v in &self.0 {
             try!(P::serialize(&v, wtr));
         }
@@ -165,4 +174,6 @@ impl<P: Protocol> Protocol for VarIntVec<P> {
     }
 }
 
-impl_type!(HelloConnectMessage, 3, salt| String, key| VarIntVec<u8>);
+pub mod connection;
+pub mod version;
+pub mod handshake;

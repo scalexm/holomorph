@@ -1,3 +1,5 @@
 use std::io::{Read, Write};
 use ::io::{ReadExt, WriteExt, Result};
-use super::Protocol;
+use super::*;
+
+impl_type!(HelloConnectMessage, 3, salt| String, key| VarIntVec<u8>);

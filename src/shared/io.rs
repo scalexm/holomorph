@@ -198,7 +198,7 @@ pub trait WriteExt: WriteBytesExt {
         self.write_var_i64(data as i64)
     }
 
-    fn write_var_i32(&mut self, mut data: i32) -> Result<()> {
+    fn write_var_i32(&mut self, data: i32) -> Result<()> {
         self.write_var_i64(data as i64)
     }
 
