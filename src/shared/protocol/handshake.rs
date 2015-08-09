@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use ::io::{ReadExt, WriteExt, Result};
+use io::Result;
 use super::*;
 
 impl_type!(ProtocolRequired, 1,

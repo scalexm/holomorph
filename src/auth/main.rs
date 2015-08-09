@@ -17,6 +17,7 @@ use std::thread;
 
 fn main() {
     env_logger::init().unwrap();
+    
     let mut pool = SessionPool::<Chunk>::new();
     let tx = pool.channel();
     pool.run_area(Chunk::new(tx.clone()));

@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use ::io::{ReadExt, WriteExt, Result};
+use io::{ReadExt, WriteExt, Result};
 
 pub struct VarInt(pub i32);
 pub struct VarUInt(pub u32);

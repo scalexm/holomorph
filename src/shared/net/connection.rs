@@ -4,7 +4,7 @@ use mio::tcp::TcpStream;
 use std::io;
 use pool;
 use std::io::{Read, Cursor};
-use ::io::ReadExt;
+use io::ReadExt;
 use std::collections::VecDeque;
 
 type Buffer = (Vec<u8>, usize);

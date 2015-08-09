@@ -1,5 +1,4 @@
-use mio::tcp::{TcpListener, TcpSocket, Shutdown};
-use std::io;
+use mio::tcp::Shutdown;
 use mio::{Token, EventLoop, EventSet, Handler};
 use super::{Msg, Listener};
 use pool;

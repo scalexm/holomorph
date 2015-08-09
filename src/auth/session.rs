@@ -3,7 +3,6 @@ use std::sync::mpsc::Sender;
 use shared::net::{Token, Msg};
 use std::io;
 use std::io::Cursor;
-use shared::io::{ReadExt, WriteExt};
 use shared::protocol::*;
 use shared::protocol::connection::*;
 use shared::protocol::handshake::*;
