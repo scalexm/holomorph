@@ -1,9 +1,8 @@
 use mio::{TryRead, TryWrite, Token};
 use std::sync::mpsc::Sender;
 use mio::tcp::TcpStream;
-use std::io;
 use pool;
-use std::io::{Read, Cursor};
+use std::io::{self, Read, Cursor};
 use io::ReadExt;
 use std::collections::VecDeque;
 
@@ -19,7 +18,7 @@ pub struct Connection {
     read_buffer: Option<Buffer>,
     write_buffer: VecDeque<Buffer>,
     state: State,
-    pool: Sender<::pool::Msg>,
+    pool: Sender<pool::Msg>,
 }
 
 #[derive(Debug)]
@@ -30,7 +29,7 @@ enum State {
 }
 
 impl Connection {
-    pub fn new(socket: TcpStream, token: Token, pool: Sender<::pool::Msg>)
+    pub fn new(socket: TcpStream, token: Token, pool: Sender<pool::Msg>)
         -> Connection {
 
         Connection {

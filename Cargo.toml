@@ -8,6 +8,8 @@ rand = "*"
 log = "*"
 env_logger = "*"
 time = "*"
+rustc-serialize = "*"
+postgres = "*"
 
 [dependencies.byteorder]
 git = "https://github.com/BurntSushi/byteorder"
@@ -18,10 +20,6 @@ git = "https://github.com/carllerche/mio"
 [[bin]]
 name = "auth"
 path = "src/auth/main.rs"
-
-[[bin]]
-name = "client"
-path = "src/client/main.rs"
 
 [lib]
 name = "shared"

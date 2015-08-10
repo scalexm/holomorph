@@ -1,22 +1,25 @@
-use shared::pool::chunk;
-use shared::pool;
+use shared::pool::{self, chunk, session};
 use session::Session;
-use shared::pool::session;
 use shared::net::Token;
 use std::cell::RefCell;
 use std::sync::mpsc::Sender;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 pub struct Chunk {
     sessions: HashMap<Token, RefCell<Session>>,
     pool: Sender<pool::Msg>,
+    pub key: Arc<Vec<u8>>,
+    pub patch: Arc<Vec<u8>>,
 }
 
 impl Chunk {
-    pub fn new(pool: Sender<pool::Msg>) -> Chunk {
+    pub fn new(pool: Sender<pool::Msg>, key: Arc<Vec<u8>>, patch: Arc<Vec<u8>>) -> Chunk {
         Chunk {
             sessions: HashMap::new(),
             pool: pool,
+            key: key,
+            patch: patch,
         }
     }
 
@@ -24,7 +27,7 @@ impl Chunk {
         match msg {
             pool::Msg::SessionCreate(tok, snd) => {
                 if let Some(session) = <Session as session::Session>
-                    ::new(tok, self.pool.clone(), snd) {
+                    ::new(tok, self, snd) {
 
                     let _ = self.sessions.insert(tok, RefCell::new(session));
                 }

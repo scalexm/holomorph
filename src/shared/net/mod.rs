@@ -1,18 +1,20 @@
+mod connection;
+mod handler;
+
 use mio::{EventLoop, EventSet, PollOpt};
 use mio::tcp::TcpListener;
 use mio::util::Slab;
 use std::io;
 use std::sync::mpsc::Sender;
-
-mod connection;
-mod handler;
-pub use mio::Token;
 use self::connection::Connection;
+use pool;
+
+pub use mio::Token;
 
 const SERVER: Token = Token(0);
 
 pub struct Listener {
-    pool: Sender<::pool::Msg>,
+    pool: Sender<pool::Msg>,
     server: TcpListener,
     connections: Slab<Connection>,
 }
@@ -26,7 +28,7 @@ pub enum Msg {
 
 impl Listener {
     pub fn new(event_loop: &mut EventLoop<Listener>, address: &str,
-        pool: Sender<::pool::Msg>) -> io::Result<Listener> {
+        pool: Sender<pool::Msg>) -> io::Result<Listener> {
 
         let address = address.parse().unwrap();
         let server = try!(TcpListener::bind(&address));
@@ -57,7 +59,7 @@ impl Listener {
                     .unwrap();
 
                 self.pool
-                    .send(::pool::Msg::SessionCreate(token, event_loop.channel()))
+                    .send(pool::Msg::SessionCreate(token, event_loop.channel()))
                     .unwrap();
 
                 event_loop.register_opt(&self.connections[token].socket,

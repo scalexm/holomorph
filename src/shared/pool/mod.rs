@@ -1,13 +1,12 @@
+pub mod chunk;
+pub mod session;
+
 use std::thread;
 use std::sync::mpsc::{channel, Sender, Receiver};
-use net::Token;
+use net::{self, Token};
 use std::io::Cursor;
 use std::collections::HashMap;
 use mio;
-use net;
-
-pub mod chunk;
-pub mod session;
 use self::chunk::Chunk;
 
 pub enum Msg {
@@ -25,7 +24,7 @@ pub struct SessionPool<C: Chunk> {
 }
 
 impl<C: Chunk + Send + 'static> SessionPool<C> {
-    pub fn run_area(&mut self, mut chunk: C) -> usize {
+    pub fn run_chunk(&mut self, mut chunk: C) -> usize {
         let (tx, rx) = channel::<chunk::Msg<C>>();
         let id = self.chunks.len();
         self.chunks.push(tx);

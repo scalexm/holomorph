@@ -177,3 +177,4 @@ impl<P: Protocol> Protocol for VarIntVec<P> {
 pub mod connection;
 pub mod version;
 pub mod handshake;
+pub mod security;
