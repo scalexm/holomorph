@@ -91,20 +91,22 @@ impl Connection {
             return Ok(())
         }
 
-        {
-            let mut buf = self.write_buffer.back_mut().unwrap();
-            let s = match try!(self.socket.try_write(&buf.0[buf.1..])) {
-                None => return Err(io::Error::new(io::ErrorKind::Other, "cannot write")),
-                Some(s) => s,
-            };
+        while !self.write_buffer.is_empty() {
+            {
+                let mut buf = self.write_buffer.back_mut().unwrap();
+                let s = match try!(self.socket.try_write(&buf.0[buf.1..])) {
+                    None => return Ok(()),
+                    Some(s) => s,
+                };
 
-            if buf.1 + s != buf.0.len() {
-                buf.1 += s;
-                return Ok(());
+                if buf.1 + s != buf.0.len() {
+                    buf.1 += s;
+                    return Ok(());
+                }
             }
+            let _ = self.write_buffer.pop_back();
         }
 
-        let _ = self.write_buffer.pop_back();
         Ok(())
     }
 

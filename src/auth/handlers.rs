@@ -11,7 +11,7 @@ impl Session {
         -> io::Result<()> {
 
         let msg = try!(RawDataMessage {
-            content: VarIntVec(chunk.patch[0..].to_vec()),
+            content: VarIntVec(chunk.server.patch[0..].to_vec()),
         }.as_packet());
 
         let _ = self.conn.send(Msg::Write(self.token, msg));

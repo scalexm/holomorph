@@ -32,7 +32,6 @@ impl Handler for Listener {
         match msg {
             Msg::Shutdown => {
                 event_loop.shutdown();
-                self.pool.send(pool::Msg::Shutdown).unwrap();
             }
 
             Msg::Write(tok, buf) => {
@@ -43,7 +42,7 @@ impl Handler for Listener {
 
             Msg::Close(tok) => {
                 if let Some(conn) = self.connections.get_mut(tok) {
-                    conn.socket.shutdown(Shutdown::Both).unwrap();
+                    let _ = conn.socket.shutdown(Shutdown::Both);
                     let _ = self.pool.send(pool::Msg::SessionRemove(tok));
                 }
             }

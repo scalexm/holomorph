@@ -14,38 +14,7 @@ pub struct Session {
 }
 
 impl Session {
-    fn start(&mut self, chunk: &Chunk) -> io::Result<()> {
-
-        let mut buf = Vec::new();
-        try!(ProtocolRequired {
-            required_version: 1658,
-            current_version: 1658,
-        }.as_packet_with_buf(&mut buf));
-
-        try!(HelloConnectMessage {
-            salt: "salut".to_string(),
-            key: VarIntVec(chunk.key[0..].to_vec()),
-        }.as_packet_with_buf(&mut buf));
-
-        if let Err(err) = self.conn.send(Msg::Write(self.token, buf)) {
-            error!("notify error: {:?}", err);
-            return Err(io::Error::new(io::ErrorKind::Other, "notify error"));
-        }
-        Ok(())
-    }
-}
-
-impl Drop for Session {
-    fn drop(&mut self) {
-        debug!("{:?} logout", self.token);
-        let _ = self.conn.send(Msg::Close(self.token));
-    }
-}
-
-impl session::Session for Session {
-    type C = Chunk;
-
-    fn new(token: Token, chunk: &Chunk, conn: mio::Sender<Msg>) -> Option<Session> {
+    pub fn new(token: Token, chunk: &Chunk, conn: mio::Sender<Msg>) -> Option<Session> {
 
         debug!("{:?} connected", token);
 
@@ -62,6 +31,34 @@ impl session::Session for Session {
 
         Some(s)
     }
+
+    fn start(&mut self, chunk: &Chunk) -> io::Result<()> {
+
+        let mut buf = Vec::new();
+        try!(ProtocolRequired {
+            required_version: 1658,
+            current_version: 1658,
+        }.as_packet_with_buf(&mut buf));
+
+        try!(HelloConnectMessage {
+            salt: "salut".to_string(),
+            key: VarIntVec(chunk.server.key[0..].to_vec()),
+        }.as_packet_with_buf(&mut buf));
+
+        let _ = self.conn.send(Msg::Write(self.token, buf));
+        Ok(())
+    }
+}
+
+impl Drop for Session {
+    fn drop(&mut self) {
+        debug!("{:?} logout", self.token);
+        let _ = self.conn.send(Msg::Close(self.token));
+    }
+}
+
+impl session::Session for Session {
+    type C = Chunk;
 
     fn get_handler(id: u16)
         -> (fn(&mut Session, &Chunk, Cursor<Vec<u8>>) -> io::Result<()>) {

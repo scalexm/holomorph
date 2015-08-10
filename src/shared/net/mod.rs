@@ -30,7 +30,11 @@ impl Listener {
     pub fn new(event_loop: &mut EventLoop<Listener>, address: &str,
         pool: Sender<pool::Msg>) -> io::Result<Listener> {
 
-        let address = address.parse().unwrap();
+        let address = match address.parse() {
+            Ok(addr) => addr,
+            Err(_) => panic!("failed to parse address"),
+        };
+
         let server = try!(TcpListener::bind(&address));
 
         try!(event_loop.register_opt(&server, SERVER, EventSet::readable(),
@@ -59,7 +63,7 @@ impl Listener {
                     .unwrap();
 
                 self.pool
-                    .send(pool::Msg::SessionCreate(token, event_loop.channel()))
+                    .send(pool::Msg::SessionCreate(token))
                     .unwrap();
 
                 event_loop.register_opt(&self.connections[token].socket,

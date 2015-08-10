@@ -8,6 +8,7 @@ pub struct Config {
     pub patch_path: String,
     pub num_threads: usize,
     pub bind_address: String,
+    pub database_uri: String,
 }
 
 impl Config {
@@ -17,6 +18,7 @@ impl Config {
             patch_path: "patch.swf".to_string(),
             num_threads: 2,
             bind_address: "127.0.0.1:2000".to_string(),
+            database_uri: "postgres://user:pass@localhost:5432/holomorph_auth".to_string(),
         }
     }
 }
@@ -34,7 +36,7 @@ pub fn from_file(path: &str) -> Config {
             let mut encode = Vec::new();
 
             write!(&mut encode, "{}", json::as_pretty_json(&config)).unwrap();
-            File::create(path).unwrap().write_all(&encode[0..]).unwrap();
+            let _ = File::create(path).map(|mut f| f.write_all(&encode[0..]));
 
             config
         }
