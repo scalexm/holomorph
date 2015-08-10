@@ -7,13 +7,54 @@ pub struct VarShort(pub i16);
 pub struct VarUShort(pub u16);
 pub struct VarLong(pub i64);
 pub struct VarULong(pub u64);
+pub struct Flag(pub bool);
 
 pub struct VarIntVec<T>(pub Vec<T>);
 
-pub trait Protocol {
-    fn deserialize<R: Read>(&mut R) -> Result<Self>;
-    fn serialize<W: Write>(&self, &mut W) -> Result<()>;
+pub fn get_flag(flag: u8, offset: u8) -> bool
+{
+    if offset >= 8 {
+        panic!("offset must be less than 8");
+    }
+
+    flag & (1 << offset) != 0
+}
+
+pub fn set_flag(flag: u8, offset: u8, value: bool) -> u8
+{
+    if offset >= 8 {
+        panic!("offset must be less than 8");
+    }
+
+    if value {
+        flag | (1 << offset)
+    } else {
+        flag & 255 - (1 << offset)
+    }
+}
+
+macro_rules! flag {
+    ($w: ident, $f: ident) => {
+        if let Some(f) = *$f {
+            use ::io::WriteExt;
+            try!($w.write_u8(f));
+            *$f = None;
+        }
+    };
+}
+
+pub trait Protocol: Sized {
+    fn _deserialize<R: Read>(&mut R, &mut u8, &mut u8) -> Result<Self>;
+    fn _serialize<W: Write>(&self, &mut W, &mut Option<u8>, &mut u8) -> Result<()>;
     fn id() -> i16;
+
+    fn deserialize<R: Read>(rdr: &mut R) -> Result<Self> {
+        Self::_deserialize(rdr, &mut 0, &mut 0)
+    }
+
+    fn serialize<W: Write>(&self, wtr: &mut W) -> Result<()> {
+        self._serialize(wtr, &mut None, &mut 0)
+    }
 
     fn as_packet_with_buf(&self, packet: &mut Vec<u8>) -> Result<()> {
         let mut buf = Vec::new();
@@ -37,17 +78,27 @@ macro_rules! impl_type {
         }
 
         impl Protocol for $name {
-            fn deserialize<R: Read>(rdr: &mut R) -> Result<$name> {
+            fn _deserialize<R: Read>(rdr: &mut R, _: &mut u8, _: &mut u8)
+                -> Result<$name> {
+
+                let mut f = 0;
+                let mut off = 0;
                 Ok($name {
                     $(
-                        $field_name: try!(<$field_type as Protocol>::deserialize(rdr)),
+                        $field_name: try!(<$field_type as Protocol>
+                            ::_deserialize(rdr, &mut f, &mut off)),
                     )*
                 })
             }
 
-            fn serialize<W: Write>(&self, wtr: &mut W) -> Result<()> {
+            fn _serialize<W: Write>(&self, wtr: &mut W, f: &mut Option<u8>, _: &mut u8)
+                -> Result<()> {
+
+                flag!(wtr, f);
+                let mut f = None;
+                let mut off = 0;
                 $(
-                    try!(self.$field_name.serialize(wtr));
+                    try!(self.$field_name._serialize(wtr, &mut f, &mut off));
                 )*
                 Ok(())
             }
@@ -63,11 +114,16 @@ macro_rules! impl_type {
 macro_rules! impl_primitive {
     ($t: ty, $read: ident, $write: ident) => {
         impl Protocol for $t {
-            fn deserialize<R: Read>(rdr: &mut R) -> Result<$t> {
+            fn _deserialize<R: Read>(rdr: &mut R, _: &mut u8, _: &mut u8)
+                -> Result<$t> {
+
                 rdr.$read()
             }
 
-            fn serialize<W: Write>(&self, wtr: &mut W) -> Result<()> {
+            fn _serialize<W: Write>(&self, wtr: &mut W, f: &mut Option<u8>, _: &mut u8)
+                -> Result<()> {
+
+                flag!(wtr, f);
                 wtr.$write(*self)
             }
 
@@ -81,11 +137,16 @@ macro_rules! impl_primitive {
 macro_rules! impl_var {
     ($p: path, $read: ident, $write: ident) => {
         impl Protocol for $p {
-            fn deserialize<R: Read>(rdr: &mut R) -> Result<$p> {
+            fn _deserialize<R: Read>(rdr: &mut R, _: &mut u8, _: &mut u8)
+                -> Result<$p> {
+
                 rdr.$read().map($p)
             }
 
-            fn serialize<W: Write>(&self, wtr: &mut W) -> Result<()> {
+            fn _serialize<W: Write>(&self, wtr: &mut W, f: &mut Option<u8>, _: &mut u8)
+                -> Result<()> {
+
+                flag!(wtr, f);
                 wtr.$write(self.0)
             }
 
@@ -115,11 +176,16 @@ impl_var!(VarLong, read_var_i64, write_var_i64);
 impl_var!(VarULong, read_var_u64, write_var_u64);
 
 impl Protocol for String {
-    fn deserialize<R: Read>(rdr: &mut R) -> Result<String> {
+    fn _deserialize<R: Read>(rdr: &mut R, _: &mut u8, _: &mut u8)
+        -> Result<String> {
+
         rdr.read_string()
     }
 
-    fn serialize<W: Write>(&self, wtr: &mut W) -> Result<()> {
+    fn _serialize<W: Write>(&self, wtr: &mut W, f: &mut Option<u8>, _: &mut u8 )
+        -> Result<()> {
+
+        flag!(wtr, f);
         wtr.write_string(self)
     }
 
@@ -128,8 +194,41 @@ impl Protocol for String {
     }
 }
 
+impl Protocol for Flag {
+    fn _deserialize<R: Read>(rdr: &mut R, flag: &mut u8, offset: &mut u8)
+        -> Result<Flag> {
+
+        let real_offset = *offset % 8;
+        if real_offset == 0 {
+            *flag = try!(rdr.read_u8());
+        }
+        *offset += 1;
+        Ok(Flag(get_flag(*flag, real_offset)))
+    }
+
+    fn _serialize<W: Write>(&self, wtr: &mut W, flag: &mut Option<u8>, offset: &mut u8)
+        -> Result<()> {
+
+        let mut val = flag.unwrap_or(0);
+        let real_offset = *offset % 8;
+        val = set_flag(val, real_offset, self.0);
+        if real_offset == 7 {
+            try!(wtr.write_u8(val));
+        }
+        *flag = Some(val);
+        *offset += 1;
+        Ok(())
+    }
+
+    fn id() -> i16 {
+        -1
+    }
+}
+
 impl<P: Protocol> Protocol for Vec<P> {
-    fn deserialize<R: Read>(rdr: &mut R) -> Result<Vec<P>> {
+    fn _deserialize<R: Read>(rdr: &mut R, _: &mut u8, _: &mut u8)
+        -> Result<Vec<P>> {
+
         let len = try!(rdr.read_i16());
         let mut res = Vec::new();
         for _ in (0..len) {
@@ -138,7 +237,10 @@ impl<P: Protocol> Protocol for Vec<P> {
         Ok(res)
     }
 
-    fn serialize<W: Write>(&self, wtr: &mut W) -> Result<()> {
+    fn _serialize<W: Write>(&self, wtr: &mut W, f: &mut Option<u8>, _: &mut u8)
+        -> Result<()> {
+
+        flag!(wtr, f);
         try!(wtr.write_i16(self.len() as i16));
         for v in self {
             try!(v.serialize(wtr));
@@ -152,7 +254,9 @@ impl<P: Protocol> Protocol for Vec<P> {
 }
 
 impl<P: Protocol> Protocol for VarIntVec<P> {
-    fn deserialize<R: Read>(rdr: &mut R) -> Result<VarIntVec<P>> {
+    fn _deserialize<R: Read>(rdr: &mut R, _: &mut u8, _: &mut u8)
+        -> Result<VarIntVec<P>> {
+
         let len = try!(rdr.read_var_i32());
         let mut res = Vec::new();
         for _ in (0..len) {
@@ -161,7 +265,10 @@ impl<P: Protocol> Protocol for VarIntVec<P> {
         Ok(VarIntVec(res))
     }
 
-    fn serialize<W: Write>(&self, wtr: &mut W) -> Result<()> {
+    fn _serialize<W: Write>(&self, wtr: &mut W, f: &mut Option<u8>, _: &mut u8)
+        -> Result<()> {
+
+        flag!(wtr, f);
         try!(wtr.write_var_i32(self.0.len() as i32));
         for v in &self.0 {
             try!(P::serialize(&v, wtr));

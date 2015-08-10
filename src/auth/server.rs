@@ -16,6 +16,7 @@ pub struct AuthServer {
     pub cnf: Arc<Config>,
 }
 
+
 impl AuthServer {
     pub fn new(pool: Sender<pool::Msg>, io_loop: mio::Sender<net::Msg>,
         db: Sender<database::Thunk>, key: Vec<u8>, patch: Vec<u8>,
