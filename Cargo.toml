@@ -10,12 +10,8 @@ env_logger = "*"
 time = "*"
 rustc-serialize = "*"
 postgres = "*"
-
-[dependencies.byteorder]
-git = "https://github.com/BurntSushi/byteorder"
-
-[dependencies.mio]
-git = "https://github.com/carllerche/mio"
+byteorder = "*"
+mio = "*"
 
 [[bin]]
 name = "auth"
