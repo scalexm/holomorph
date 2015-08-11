@@ -18,9 +18,11 @@ fn test_protocol() {
         subscription_elapsed_duration: 74.,
         subscription_end_date: 84.,
     };
+
     let mut buf = Vec::new();
-    msg.serialize(&mut buf);
+    msg.serialize(&mut buf).unwrap();
     let mut buf = Cursor::new(buf);
     let msg = IdentificationSuccessMessage::deserialize(&mut buf).unwrap();
-    assert!(msg.has_rights.0);
+
+    assert!(msg.has_rights.0 && !msg.was_already_connected.0);
 }

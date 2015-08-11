@@ -15,7 +15,6 @@ pub struct Session {
 
 impl Session {
     pub fn new(token: Token, chunk: &Chunk, conn: mio::Sender<Msg>) -> Option<Session> {
-
         debug!("{:?} connected", token);
 
         let mut s = Session {
