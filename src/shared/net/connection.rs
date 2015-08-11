@@ -1,10 +1,11 @@
-use mio::{TryRead, TryWrite, Token};
+use mio::{EventLoop, TryRead, TryWrite, Token, EventSet, PollOpt};
 use std::sync::mpsc::Sender;
-use mio::tcp::TcpStream;
+use mio::tcp::{TcpStream, Shutdown};
 use pool;
 use std::io::{self, Read, Cursor};
 use io::ReadExt;
 use std::collections::VecDeque;
+use super::Listener;
 
 type Buffer = (Vec<u8>, usize);
 
@@ -16,7 +17,7 @@ pub struct Connection {
     pub socket: TcpStream,
     pub token: Token,
     read_buffer: Option<Buffer>,
-    write_buffer: VecDeque<Buffer>,
+    write_buffer: VecDeque<(Buffer, bool)>,
     state: State,
     pool: Sender<pool::Msg>,
 }
@@ -86,31 +87,45 @@ impl Connection {
         Ok(())
     }
 
-    pub fn writable(&mut self) -> io::Result<()> {
+    pub fn writable(&mut self, event_loop: &mut EventLoop<Listener>)
+        -> io::Result<()> {
+
         if self.write_buffer.is_empty() {
             return Ok(())
         }
 
         while !self.write_buffer.is_empty() {
             {
-                let mut buf = self.write_buffer.back_mut().unwrap();
-                let s = match try!(self.socket.try_write(&buf.0[buf.1..])) {
+                let buf = self.write_buffer.back_mut().unwrap();
+                let s = match try!(self.socket.try_write(&(buf.0).0[(buf.0).1..])) {
                     None => return Ok(()),
                     Some(s) => s,
                 };
 
-                if buf.1 + s != buf.0.len() {
-                    buf.1 += s;
+                if (buf.0).1 + s != (buf.0).0.len() {
+                    (buf.0).1 += s;
                     return Ok(());
                 }
             }
-            let _ = self.write_buffer.pop_back();
+            let buf = self.write_buffer.pop_back().unwrap();
+            if buf.1 {
+                let _ = self.socket.shutdown(Shutdown::Both);
+                return Ok(());
+            }
         }
+        event_loop.reregister(&self.socket, self.token,
+            EventSet::readable(),
+            PollOpt::level()).unwrap();
 
         Ok(())
     }
 
-    pub fn push(&mut self, buffer: Vec<u8>) {
-        self.write_buffer.push_front((buffer, 0));
+    pub fn push(&mut self, buffer: Vec<u8>, close: bool,
+        event_loop: &mut EventLoop<Listener>) {
+
+        event_loop.reregister(&self.socket, self.token,
+            EventSet::readable() | EventSet::writable(),
+            PollOpt::level()).unwrap();
+        self.write_buffer.push_front(((buffer, 0), close));
     }
 }

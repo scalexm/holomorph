@@ -1,4 +1,3 @@
-use mio::tcp::Shutdown;
 use mio::{Token, EventLoop, EventSet, Handler};
 use super::{Msg, Listener};
 use pool;
@@ -19,10 +18,10 @@ impl Handler for Listener {
             }
 
             _ => {
-                if let Err(_) = self.handle_client_event(token, events) {
+                if let Err(_) = self.handle_client_event(token, event_loop, events) {
                     event_loop.deregister(&self.connections[token].socket).unwrap();
                     let _ = self.connections.remove(token).unwrap();
-                    self.pool.send(pool::Msg::SessionRemove(token)).unwrap();
+                    let _ = self.pool.send(pool::Msg::SessionRemove(token));
                 }
             }
         }
@@ -36,14 +35,13 @@ impl Handler for Listener {
 
             Msg::Write(tok, buf) => {
                 if let Some(conn) = self.connections.get_mut(tok) {
-                    conn.push(buf)
+                    conn.push(buf, false, event_loop)
                 }
             }
 
-            Msg::Close(tok) => {
+            Msg::WriteAndClose(tok, buf) => {
                 if let Some(conn) = self.connections.get_mut(tok) {
-                    let _ = conn.socket.shutdown(Shutdown::Both);
-                    let _ = self.pool.send(pool::Msg::SessionRemove(tok));
+                    conn.push(buf, true, event_loop)
                 }
             }
         }

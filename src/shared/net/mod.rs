@@ -23,7 +23,7 @@ pub struct Listener {
 pub enum Msg {
     Shutdown,
     Write(Token, Vec<u8>),
-    Close(Token),
+    WriteAndClose(Token, Vec<u8>),
 }
 
 impl Listener {
@@ -68,7 +68,7 @@ impl Listener {
 
                 event_loop.register_opt(&self.connections[token].socket,
                     token,
-                    EventSet::readable() | EventSet::writable(),
+                    EventSet::readable(),
                     PollOpt::level())
             }
 
@@ -76,15 +76,15 @@ impl Listener {
         }
     }
 
-    fn handle_client_event(&mut self, token: Token, events: EventSet)
-        -> io::Result<()> {
+    fn handle_client_event(&mut self, token: Token, event_loop: &mut EventLoop<Listener>,
+        events: EventSet) -> io::Result<()> {
 
         if events.is_readable() {
             try!(self.connections[token].readable());
         }
 
         if events.is_writable() {
-            try!(self.connections[token].writable());
+            try!(self.connections[token].writable(event_loop));
         }
 
         Ok(())

@@ -23,4 +23,7 @@ fn test_protocol() {
     let msg = IdentificationSuccessMessage::deserialize(&mut buf).unwrap();
 
     assert!(msg.has_rights.0 && !msg.was_already_connected.0);
+    assert_eq!("yo", &msg.nickname);
+    assert_eq!(1, msg.community_id);
+    assert_eq!(74., msg.subscription_elapsed_duration);
 }

@@ -52,7 +52,6 @@ impl Session {
 impl Drop for Session {
     fn drop(&mut self) {
         debug!("{:?} logout", self.token);
-        let _ = self.conn.send(Msg::Close(self.token));
     }
 }
 

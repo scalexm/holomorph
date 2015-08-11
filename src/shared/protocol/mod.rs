@@ -161,6 +161,7 @@ impl_primitive!(i32, read_i32, write_i32);
 impl_primitive!(i64, read_i64, write_i64);
 impl_primitive!(f32, read_f32, write_f32);
 impl_primitive!(f64, read_f64, write_f64);
+impl_primitive!(bool, read_bool, write_bool);
 
 impl_var!(VarShort, read_var_i16, write_var_i16);
 impl_var!(VarUShort, read_var_u16, write_var_u16);
@@ -225,7 +226,7 @@ impl Protocol for Flag {
 
 impl<P: Protocol> Protocol for Vec<P> {
     fn deserialize<R: Read>(rdr: &mut R) -> Result<Vec<P>> {
-        let len = try!(rdr.read_i16());
+        let len = try!(rdr.read_u16());
         let mut res = Vec::new();
         for _ in (0..len) {
             res.push(try!(P::deserialize(rdr)));
@@ -234,7 +235,7 @@ impl<P: Protocol> Protocol for Vec<P> {
     }
 
     fn serialize<W: Write>(&self, wtr: &mut W) -> Result<()> {
-        try!(wtr.write_i16(self.len() as i16));
+        try!(wtr.write_u16(self.len() as u16));
         for v in self {
             try!(v.serialize(wtr));
         }
