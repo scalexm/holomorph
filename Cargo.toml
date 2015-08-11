@@ -17,6 +17,10 @@ mio = "*"
 name = "auth"
 path = "src/auth/main.rs"
 
+[[test]]
+name = "test"
+path = "test/test.rs"
+
 [lib]
 name = "shared"
 path = "src/shared/lib.rs"

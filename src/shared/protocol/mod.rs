@@ -5,12 +5,12 @@ pub struct VarInt(pub i32);
 pub struct VarUInt(pub u32);
 pub struct VarShort(pub i16);
 pub struct VarUShort(pub u16);
-pub struct VarLong(pub i64);
-pub struct VarULong(pub u64);
+//pub struct VarLong(pub i64);
+//pub struct VarULong(pub u64);
 pub struct Flag(pub bool);
 pub struct VarIntVec<T>(pub Vec<T>);
 
-pub fn get_flag(flag: u8, offset: u8) -> bool
+fn get_flag(flag: u8, offset: u8) -> bool
 {
     if offset >= 8 {
         panic!("offset must be less than 8");
@@ -19,7 +19,7 @@ pub fn get_flag(flag: u8, offset: u8) -> bool
     flag & (1 << offset) != 0
 }
 
-pub fn set_flag(flag: u8, offset: u8, value: bool) -> u8
+fn set_flag(flag: u8, offset: u8, value: bool) -> u8
 {
     if offset >= 8 {
         panic!("offset must be less than 8");
@@ -166,8 +166,8 @@ impl_var!(VarShort, read_var_i16, write_var_i16);
 impl_var!(VarUShort, read_var_u16, write_var_u16);
 impl_var!(VarInt, read_var_i32, write_var_i32);
 impl_var!(VarUInt, read_var_u32, write_var_u32);
-impl_var!(VarLong, read_var_i64, write_var_i64);
-impl_var!(VarULong, read_var_u64, write_var_u64);
+//impl_var!(VarLong, read_var_i64, write_var_i64);
+//impl_var!(VarULong, read_var_u64, write_var_u64);
 
 impl Protocol for String {
     fn deserialize<R: Read>(rdr: &mut R) -> Result<String> {

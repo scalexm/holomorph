@@ -27,8 +27,8 @@ macro_rules! read_var {
 
         while offset < $size {
           let b = try!(ReadExt::read_u8($rdr));
-          value |= ((b as $t) & 0x7F) << (offset);
-          if (b & 0x80) == 0 {
+          value += ((b & 0x7F) as $t) << offset;
+          if b & 0x80 != 0x80 {
               return Ok(value);
           }
           offset += 7;
@@ -191,33 +191,30 @@ pub trait WriteExt: WriteBytesExt {
     }
 
     fn write_var_i16(&mut self, data: i16) -> Result<()> {
-        self.write_var_i64(data as i64)
+        self.write_var_i32((data as i32) & 65535)
     }
 
     fn write_var_u16(&mut self, data: u16) -> Result<()> {
-        self.write_var_i64(data as i64)
+        self.write_var_i16(data as i16)
     }
 
-    fn write_var_i32(&mut self, data: i32) -> Result<()> {
-        self.write_var_i64(data as i64)
-    }
-
-    fn write_var_u32(&mut self, data: u32) -> Result<()> {
-        self.write_var_i64(data as i64)
-    }
-
-    fn write_var_i64(&mut self, mut data: i64) -> Result<()> {
-        while data & !0x7F != 0 {
-            try!(WriteExt::write_u8(self, (0x80 | (data & 0x7F)) as u8));
-            data = data >> 7;
+    fn write_var_i32(&mut self, mut data: i32) -> Result<()> {
+        if data >= 0 && data <= 0x7F {
+            return WriteExt::write_i8(self, data as i8);
         }
-        try!(WriteExt::write_u8(self, data as u8));
-
+        while data != 0 {
+            let mut byte = (data & 0x7F) as u8;
+            data = ((data as u32) >> 7) as i32;
+            if data > 0 {
+                byte |= 0x80;
+            }
+            try!(WriteExt::write_u8(self, byte));
+        }
         Ok(())
     }
 
-    fn write_var_u64(&mut self, data: u64) -> Result<()> {
-        self.write_var_i64(data as i64)
+    fn write_var_u32(&mut self, data: u32) -> Result<()> {
+        self.write_var_i32(data as i32)
     }
 
     fn write_string(&mut self, data: &str) -> Result<()> {
