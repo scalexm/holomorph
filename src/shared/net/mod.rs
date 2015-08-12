@@ -22,6 +22,7 @@ pub enum Msg {
     Shutdown,
     Write(Token, Vec<u8>),
     WriteAndClose(Token, Vec<u8>),
+    Close(Token),
 }
 
 pub type Sender = mio::Sender<Msg>;

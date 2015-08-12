@@ -1,4 +1,5 @@
 use mio::{Token, EventSet, Handler};
+use mio::tcp::Shutdown;
 use super::{Msg, Listener, EventLoop};
 use pool;
 
@@ -44,6 +45,12 @@ impl<C: pool::Chunk> Handler for Listener<C> {
             Msg::WriteAndClose(tok, buf) => {
                 if let Some(conn) = self.connections.get_mut(tok) {
                     conn.push(buf, true, event_loop)
+                }
+            }
+
+            Msg::Close(tok) => {
+                if let Some(conn) = self.connections.get_mut(tok) {
+                    let _ = conn.socket.shutdown(Shutdown::Both);
                 }
             }
         }

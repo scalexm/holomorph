@@ -98,11 +98,14 @@ impl Session {
         })
     }
 
-    fn identification_success(&mut self, chunk: &Chunk, data: AccountData) {
+    fn identification_success(&mut self, chunk: &Chunk, data: AccountData,
+        already_logged: bool) {
+        debug!("{}", already_logged);
+
         let mut buf = Vec::new();
         IdentificationSuccessMessage {
             has_rights: Flag(data.level > 0),
-            was_already_connected: Flag(false),
+            was_already_connected: Flag(already_logged || data.already_logged != 0),
             login: (&data.account).to_string(),
             nickname: (&data.nickname).to_string(),
             account_id: data.id,
@@ -178,8 +181,11 @@ impl Session {
                 }
 
                 Ok(data) => {
-                    server::session_callback(&handler, token, move |session, chunk| {
-                        Session::identification_success(session, chunk, data)
+                    let id = data.id;
+                    server::identification_success(&handler, token, id,
+                        move |session, chunk, already| {
+
+                        Session::identification_success(session, chunk, data, already)
                     });
                 }
             }

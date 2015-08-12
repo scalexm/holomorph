@@ -42,7 +42,7 @@ fn main() {
     let patch = load(&cnf.patch_path);
 
     let mut io_loop = EventLoop::new().unwrap();
-    let handler = pool::run_chunk(server::Handler::new());
+    let handler = pool::run_chunk(server::Handler::new(io_loop.channel()));
 
     let mut server_data = AuthServerData::new(handler.clone(), io_loop.channel(),
         db, key, patch, cnf);
