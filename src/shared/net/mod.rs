@@ -63,9 +63,7 @@ impl<C: pool::Chunk> Listener<C> {
                     .insert_with(move |token| Connection::new(socket, token, handler))
                     .unwrap();
 
-                self.handler
-                    .send(pool::NetMsg::SessionConnect(token).into())
-                    .unwrap();
+                let _ = self.handler.send(pool::NetMsg::SessionConnect(token).into());
 
                 event_loop.register_opt(&self.connections[token].socket,
                     token,

@@ -5,15 +5,24 @@ use shared::protocol::connection::*;
 use shared::protocol::security::*;
 use session::{AccountData, Session};
 use session::chunk::Chunk;
-use shared::database;
-use postgres::{Connection, Result};
+use postgres::{self, Connection};
 use crypto::digest::Digest;
 use crypto::md5::Md5;
 use server;
+use shared::pool;
+use time;
+use std::collections::HashMap;
 
-enum AuthResult {
-    Failure(i8, f64),
-    Success(AccountData),
+enum AuthError {
+    SqlError(postgres::error::Error),
+    Reason(i8),
+    Banned(i64),
+}
+
+impl From<postgres::error::Error> for AuthError {
+    fn from(err: postgres::error::Error) -> AuthError {
+        AuthError::SqlError(err)
+    }
 }
 
 impl Session {
@@ -29,34 +38,27 @@ impl Session {
     }
 
     fn authenticate(conn: &mut Connection, account: String,
-        mut password: String) -> AuthResult {
+        mut password: String) -> Result<AccountData, AuthError> {
 
-        let stmt = match conn
-            .prepare_cached("SELECT * FROM accounts WHERE account = $1") {
-
-            Ok(stmt) => stmt,
-            Err(err) => {
-                error!("prepare_cached failed: {:?}", err);
-                return AuthResult
-                    ::Failure(identification_failure_reason::UNKNOWN_AUTH_ERROR, 0.);
-            }
-        };
-
-        let rows = match stmt.query(&[&account]) {
-            Ok(stmt) => stmt,
-            Err(err) => {
-                error!("query failed: {:?}", err);
-                return AuthResult
-                    ::Failure(identification_failure_reason::UNKNOWN_AUTH_ERROR, 0.);
-            }
-        };
+        let trans = try!(conn.transaction());
+        let stmt = try!(trans.prepare_cached("SELECT * FROM accounts WHERE account = $1"));
+        let rows = try!(stmt.query(&[&account]));
 
         if rows.len() == 0 {
-            return AuthResult
-                ::Failure(identification_failure_reason::WRONG_CREDENTIALS, 0.);
+            return Err(AuthError::Reason(identification_failure_reason::WRONG_CREDENTIALS));
         }
 
         let row = rows.get(0);
+        let ban_end: i64 = row.get("ban_end");
+
+        if ban_end < 0 {
+            return Err(AuthError::Reason(identification_failure_reason::BANNED));
+        }
+
+        if ban_end > time::get_time().sec {
+            return Err(AuthError::Banned(ban_end));
+        }
+
         let db_password: String = row.get("password");
         let salt: String = row.get("salt");
         let mut md5 = Md5::new();
@@ -65,22 +67,38 @@ impl Session {
         md5 = Md5::new();
         md5.input_str(&(password + &salt));
         if md5.result_str() != db_password {
-            return AuthResult
-                ::Failure(identification_failure_reason::WRONG_CREDENTIALS, 0.);
+            return Err(AuthError::Reason(identification_failure_reason::WRONG_CREDENTIALS));
         }
 
+        let id: i32 = row.get("id");
+        let mut map = HashMap::new();
+        let stmt = try!(trans
+            .prepare_cached("SELECT server_id FROM character_counts WHERE account_id = $1"));
+        let rows = try!(stmt.query(&[&id]));
+        for row in rows {
+            let id: i16 = row.get("server_id");
+            let val = map.get(&id).unwrap_or(&0) + 1;
+            let _ = map.insert(id, val);
+        }
+
+        try!(trans.commit());
+
         let level: i16 = row.get("level");
-        AuthResult::Success(AccountData {
-            id: row.get("id"),
+        Ok(AccountData {
+            id: id,
             account: row.get("account"),
             nickname: row.get("nickname"),
             secret_question: row.get("secret_question"),
             level: level as i8,
+            subscription_end: row.get("subscription_end"),
+            subscription_elapsed: row.get("subscription_elapsed"),
+            creation: row.get("creation"),
+            character_counts: map,
+            already_logged: row.get("logged"),
         })
     }
 
     fn identification_success(&mut self, chunk: &Chunk, data: AccountData) {
-
         let mut buf = Vec::new();
         IdentificationSuccessMessage {
             has_rights: Flag(data.level > 0),
@@ -90,30 +108,33 @@ impl Session {
             account_id: data.id,
             community_id: 0,
             secret_question: (&data.secret_question).to_string(),
-            account_creation: 0.,
-            subscription_elapsed_duration: 0.,
-            subscription_end_date: 0.,
+            account_creation: (data.creation * 1000) as f64,
+            subscription_elapsed_duration: (data.subscription_elapsed * 1000) as f64,
+            subscription_end_date: (data.subscription_end * 1000) as f64,
         }.as_packet_with_buf(&mut buf).unwrap();
-
-        self.account = Some(data);
 
         let mut gs = Vec::new();
         for server in &*chunk.server.game_servers {
             gs.push(GameServerInformations {
-                id: VarUShort(server.1.id),
+                id: VarUShort(server.1.id as u16),
                 status: 3,
                 completion: 0,
                 is_selectable: true,
-                characters_count: 2,
+                characters_count: *data
+                    .character_counts
+                    .get(&server.1.id)
+                    .unwrap_or(&0) as i8,
                 date: 0.,
             });
         }
+
         ServersListMessage {
             servers: gs,
-            already_connected_to_server_id: VarUShort(0),
+            already_connected_to_server_id: VarUShort(data.already_logged as u16),
             can_create_new_character: true,
         }.as_packet_with_buf(&mut buf).unwrap();
 
+        self.account = Some(data);
         let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
     }
 
@@ -129,24 +150,34 @@ impl Session {
         let io_loop = chunk.server.io_loop.clone();
         let handler = chunk.server.handler.clone();
         let token = self.token;
-        let _ = database::execute(&chunk.server.db, move |conn| {
+        let _ = pool::execute(&chunk.server.db, move |conn| {
             match Session::authenticate(conn, msg.username, msg.password) {
-                AuthResult::Failure(reason, ban_end) => {
-                    let buf = match reason {
-                        identification_failure_reason::BANNED =>
+                Err(err) => {
+                    let buf = match err {
+                        AuthError::Banned(ban_end) =>
                             IdentificationFailedBannedMessage {
-                                base: IdentificationFailedMessage { reason: reason, },
-                                ban_end_date: ban_end
+                                base: IdentificationFailedMessage {
+                                    reason: identification_failure_reason::BANNED,
+                                },
+                                ban_end_date: (ban_end * 1000) as f64,
                             }.as_packet().unwrap(),
 
-                        _ => IdentificationFailedMessage { reason: reason, }
-                            .as_packet()
-                            .unwrap(),
+                        AuthError::Reason(reason) =>
+                            IdentificationFailedMessage { reason: reason, }
+                                .as_packet()
+                                .unwrap(),
+
+                        AuthError::SqlError(err) => {
+                            error!("authenticate sql error: {}", err);
+                            IdentificationFailedMessage {
+                                reason: identification_failure_reason::UNKNOWN_AUTH_ERROR,
+                            }.as_packet().unwrap()
+                        }
                     };
                     let _ = io_loop.send(Msg::WriteAndClose(token, buf));
                 }
 
-                AuthResult::Success(data) => {
+                Ok(data) => {
                     server::session_callback(&handler, token, move |session, chunk| {
                         Session::identification_success(session, chunk, data)
                     });

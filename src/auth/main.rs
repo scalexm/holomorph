@@ -8,6 +8,7 @@ extern crate mio;
 extern crate rustc_serialize;
 extern crate postgres;
 extern crate crypto;
+extern crate time;
 
 mod session;
 mod config;
@@ -36,7 +37,7 @@ fn main() {
         .nth(1)
         .unwrap_or("config.json".to_string()));
 
-    let db = database::async_connect(&cnf.database_uri);
+    let db = pool::run_chunk(database::connect(&cnf.database_uri));
     let key = load(&cnf.key_path);
     let patch = load(&cnf.patch_path);
 
@@ -54,8 +55,11 @@ fn main() {
         server::add_chunk(&handler, tx);
     }
 
-    let mut listener = Listener::new(&mut io_loop, &server_data.cnf.bind_address,
-        handler.clone()).unwrap();
+    let mut listener = match Listener::new(&mut io_loop, &server_data.cnf.bind_address,
+        handler.clone()) {
+        Ok(listener) => listener,
+        Err(err) => panic!("listen failed: {}", err),
+    };
 
     thread::spawn(move || {
         io::stdin().read_line(&mut String::new())

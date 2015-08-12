@@ -1,3 +1,6 @@
+mod handlers;
+pub mod chunk;
+
 use shared::net::{Token, Msg};
 use std::io::{self, Cursor};
 use shared::protocol::*;
@@ -6,18 +9,21 @@ use shared::protocol::handshake::*;
 use shared::pool;
 use session::chunk::Chunk;
 use std::boxed::FnBox;
-
-mod handlers;
-pub mod chunk;
+use std::collections::HashMap;
 
 pub type Thunk = Box<FnBox(&mut Session, &Chunk) + Send + 'static>;
 
-pub struct AccountData {
-    pub id: i32,
-    pub account: String,
-    pub nickname: String,
-    pub secret_question: String,
-    pub level: i8,
+struct AccountData {
+    id: i32,
+    account: String,
+    nickname: String,
+    secret_question: String,
+    level: i8,
+    subscription_end: i64,
+    subscription_elapsed: i64,
+    creation: i64,
+    character_counts: HashMap<i16, i8>,
+    already_logged: i16,
 }
 
 pub struct Session {

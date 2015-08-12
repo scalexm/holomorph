@@ -10,6 +10,7 @@ pub type Sender = pool::Sender<Handler>;
 pub struct Handler {
     chunks: Vec<chunk::Sender>,
     session_map: HashMap<Token, usize>,
+    session_ids: HashMap<i32, Token>,
     next_insert: usize,
 }
 
@@ -19,6 +20,7 @@ impl Handler {
             chunks: Vec::new(),
             session_map: HashMap::new(),
             next_insert: 0,
+            session_ids: HashMap::new(),
         }
     }
 }

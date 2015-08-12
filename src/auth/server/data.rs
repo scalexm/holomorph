@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use postgres::Result;
 
 pub struct GameServerData {
-    pub id: u16,
+    pub id: i16,
     pub key: String,
     pub min_level: i8,
 }
@@ -21,7 +21,7 @@ pub struct AuthServerData {
     pub key: Arc<Vec<u8>>,
     pub patch: Arc<Vec<u8>>,
     pub cnf: Arc<Config>,
-    pub game_servers: Arc<HashMap<u16, GameServerData>>,
+    pub game_servers: Arc<HashMap<i16, GameServerData>>,
 }
 
 
@@ -47,10 +47,10 @@ impl AuthServerData {
         let stmt = try!(conn.prepare("SELECT * FROM game_servers"));
         let mut game_servers = HashMap::new();
         for row in &try!(stmt.query(&[])) {
-            let id: i32 = row.get("id");
+            let id: i16 = row.get("id");
             let min_level: i16 = row.get("min_level");
-            let _ = game_servers.insert(id as u16, GameServerData {
-                id: id as u16,
+            let _ = game_servers.insert(id, GameServerData {
+                id: id,
                 key: row.get("key"),
                 min_level: min_level as i8,
             });

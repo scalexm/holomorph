@@ -6,10 +6,10 @@ use io::ReadExt;
 use std::collections::VecDeque;
 use net::EventLoop;
 
-type Buffer = (Vec<u8>, usize);
+struct Buffer(Vec<u8>, usize);
 
 fn make_buffer(len: usize) -> Buffer {
-    (vec![0; len], 0)
+    Buffer(vec![0; len], 0)
 }
 
 pub struct Connection<C: pool::Chunk> {
@@ -44,14 +44,14 @@ impl<C: pool::Chunk> Connection<C> {
     }
 
     pub fn readable(&mut self) -> io::Result<()> {
-        let (mut buf, pos) = self.read_buffer.take().unwrap();
+        let Buffer(mut buf, pos) = self.read_buffer.take().unwrap();
         let s = match try!(self.socket.try_read(&mut buf[pos..])) {
             None | Some(0) => return Err(io::Error::new(io::ErrorKind::Other, "EOF")),
             Some(s) => s,
         };
 
         if pos + s != buf.len() {
-            self.read_buffer = Some((buf, pos + s));
+            self.read_buffer = Some(Buffer(buf, pos + s));
             return Ok(());
         }
 
@@ -78,10 +78,9 @@ impl<C: pool::Chunk> Connection<C> {
                 self.state = State::WaitingForHeader;
                 self.read_buffer = Some(make_buffer(2));
 
-                self.handler
+                let _ = self.handler
                     .send(pool
-                        ::NetMsg::SessionPacket(self.token, id, buf).into())
-                    .unwrap();
+                        ::NetMsg::SessionPacket(self.token, id, buf).into());
             }
         }
 
@@ -127,7 +126,7 @@ impl<C: pool::Chunk> Connection<C> {
         event_loop: &mut EventLoop<C>) {
 
         self.close_on_next_write = close;
-        self.write_buffer.push_front((buffer, 0));
+        self.write_buffer.push_front(Buffer(buffer, 0));
 
         event_loop.reregister(&self.socket, self.token,
             EventSet::readable() | EventSet::writable(),
