@@ -12,11 +12,11 @@ pub trait Chunk {
 }
 
 pub trait FnBox {
-    fn call_box(self: Box<Self>, &mut Any, &Chunk);
+    fn call_box(self: Box<Self>, &mut Any, &Any);
 }
 
-impl<F: FnOnce(&mut Any, &Chunk)> FnBox for F {
-    fn call_box(self: Box<F>, session: &mut Any, chunk: &Chunk) {
+impl<F: FnOnce(&mut Any, &Any)> FnBox for F {
+    fn call_box(self: Box<F>, session: &mut Any, chunk: &Any) {
         (*self)(session, chunk)
     }
 }
@@ -37,6 +37,14 @@ pub struct SessionPool {
     core_rx: Receiver<Msg>,
     chunks: Vec<Sender<Msg>>,
     session_map: HashMap<Token, usize>,
+}
+
+pub fn execute_session<F>(sender: &Sender<Msg>, tok: Token, job: F)
+    where F : FnOnce(&mut Any, &Any) + Send + 'static {
+
+    let _ = sender.send(Msg::SessionCallback(tok,
+        Box::new(move |session: &mut Any, chunk: &Any|
+            job(session, chunk))));
 }
 
 impl SessionPool {

@@ -8,9 +8,18 @@ use shared::protocol::handshake::*;
 use shared::pool::session;
 use chunk::Chunk;
 
+pub struct AccountData {
+    pub id: i32,
+    pub account: String,
+    pub nickname: String,
+    pub secret_question: String,
+    pub level: i8,
+}
+
 pub struct Session {
     pub conn: mio::Sender<Msg>,
     pub token: Token,
+    pub account: Option<AccountData>,
 }
 
 impl Session {
@@ -20,6 +29,7 @@ impl Session {
         let mut s = Session {
             conn: conn,
             token: token,
+            account: None,
         };
 
         if let Err(err) = s.start(&chunk) {

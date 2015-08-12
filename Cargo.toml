@@ -12,6 +12,7 @@ rustc-serialize = "*"
 postgres = "*"
 byteorder = "*"
 mio = "*"
+rust-crypto = "*"
 
 [[bin]]
 name = "auth"

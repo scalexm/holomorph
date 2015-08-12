@@ -5,6 +5,14 @@ use shared::net;
 use shared::database;
 use config::Config;
 use std::sync::Arc;
+use std::collections::HashMap;
+use postgres::Result;
+
+pub struct GameServerData {
+    pub id: u16,
+    pub key: String,
+    pub min_level: i8,
+}
 
 #[derive(Clone)]
 pub struct AuthServer {
@@ -14,6 +22,7 @@ pub struct AuthServer {
     pub key: Arc<Vec<u8>>,
     pub patch: Arc<Vec<u8>>,
     pub cnf: Arc<Config>,
+    pub game_servers: Arc<HashMap<u16, GameServerData>>,
 }
 
 
@@ -29,7 +38,27 @@ impl AuthServer {
                 key: Arc::new(key),
                 patch: Arc::new(patch),
                 cnf: Arc::new(cnf),
+                game_servers: Arc::new(HashMap::new()),
             }
+    }
+
+    pub fn load(&mut self) -> Result<()> {
+        let conn = database::connect(&self.cnf.database_uri);
+
+        let stmt = try!(conn.prepare("SELECT * FROM game_servers"));
+        let mut game_servers = HashMap::new();
+        for row in &try!(stmt.query(&[])) {
+            let id: i32 = row.get("id");
+            let min_level: i16 = row.get("min_level");
+            let _ = game_servers.insert(id as u16, GameServerData {
+                id: id as u16,
+                key: row.get("key"),
+                min_level: min_level as i8,
+            });
+        }
+        self.game_servers = Arc::new(game_servers);
+
+        Ok(())
     }
 
     pub fn shutdown(&self) {

@@ -21,6 +21,12 @@ pub fn connect(uri: &str) -> Connection {
 
 pub type Thunk = Box<FnBox + Send + 'static>;
 
+pub fn execute<F>(sender: &Sender<Thunk>, job: F)
+    where F : FnOnce(&mut Connection) + Send + 'static {
+
+    sender.send(Box::new(move |conn: &mut Connection| job(conn))).unwrap();
+}
+
 pub fn async_connect(uri: &str) -> Sender<Thunk> {
     let (tx, rx) = channel::<Thunk>();
     let mut conn = connect(uri);

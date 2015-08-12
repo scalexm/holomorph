@@ -5,6 +5,7 @@ extern crate env_logger;
 extern crate mio;
 extern crate rustc_serialize;
 extern crate postgres;
+extern crate crypto;
 
 mod session;
 mod handlers;
@@ -43,8 +44,11 @@ fn main() {
     let mut io_loop = EventLoop::new().unwrap();
     let mut pool = SessionPool::new();
 
-    let server = AuthServer::new(pool.channel(), io_loop.channel(), db,
+    let mut server = AuthServer::new(pool.channel(), io_loop.channel(), db,
         key, patch, cnf);
+    if let Err(err) = server.load() {
+        panic!("loading failed: {}", err);
+    }
 
     for _ in (0..server.cnf.num_threads) {
         pool.run_chunk(Chunk::new(server.clone()));
