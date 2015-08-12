@@ -1,12 +1,12 @@
-use mio::{Token, EventLoop, EventSet, Handler};
-use super::{Msg, Listener};
+use mio::{Token, EventSet, Handler};
+use super::{Msg, Listener, EventLoop};
 use pool;
 
-impl Handler for Listener {
+impl<C: pool::Chunk> Handler for Listener<C> {
     type Timeout = ();
     type Message = Msg;
 
-    fn ready(&mut self, event_loop: &mut EventLoop<Listener>, token: Token,
+    fn ready(&mut self, event_loop: &mut EventLoop<C>, token: Token,
         events: EventSet) {
 
         match token {
@@ -21,13 +21,15 @@ impl Handler for Listener {
                 if let Err(_) = self.handle_client_event(token, event_loop, events) {
                     event_loop.deregister(&self.connections[token].socket).unwrap();
                     let _ = self.connections.remove(token).unwrap();
-                    let _ = self.pool.send(pool::Msg::SessionRemove(token));
+                    let _ = self
+                        .handler
+                        .send(pool::NetMsg::SessionDisconnect(token).into());
                 }
             }
         }
     }
 
-    fn notify(&mut self, event_loop: &mut EventLoop<Listener>, msg: Msg) {
+    fn notify(&mut self, event_loop: &mut EventLoop<C>, msg: Msg) {
         match msg {
             Msg::Shutdown => {
                 event_loop.shutdown();

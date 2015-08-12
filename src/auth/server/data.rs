@@ -1,6 +1,5 @@
 use shared::pool;
-use std::sync::mpsc::Sender;
-use mio;
+use server;
 use shared::net;
 use shared::database;
 use config::Config;
@@ -15,10 +14,10 @@ pub struct GameServerData {
 }
 
 #[derive(Clone)]
-pub struct AuthServer {
-    pub pool: Sender<pool::Msg>,
-    pub io_loop: mio::Sender<net::Msg>,
-    pub db: Sender<database::Thunk>,
+pub struct AuthServerData {
+    pub handler: server::Sender,
+    pub io_loop: net::Sender,
+    pub db: database::Sender,
     pub key: Arc<Vec<u8>>,
     pub patch: Arc<Vec<u8>>,
     pub cnf: Arc<Config>,
@@ -26,13 +25,13 @@ pub struct AuthServer {
 }
 
 
-impl AuthServer {
-    pub fn new(pool: Sender<pool::Msg>, io_loop: mio::Sender<net::Msg>,
-        db: Sender<database::Thunk>, key: Vec<u8>, patch: Vec<u8>,
-        cnf: Config) -> AuthServer {
+impl AuthServerData {
+    pub fn new(handler: server::Sender, io_loop: net::Sender,
+        db: database::Sender, key: Vec<u8>, patch: Vec<u8>,
+        cnf: Config) -> AuthServerData {
 
-            AuthServer {
-                pool: pool,
+            AuthServerData {
+                handler: handler,
                 io_loop: io_loop,
                 db: db,
                 key: Arc::new(key),
@@ -63,6 +62,6 @@ impl AuthServer {
 
     pub fn shutdown(&self) {
         let _ = self.io_loop.send(net::Msg::Shutdown);
-        let _ = self.pool.send(pool::Msg::Shutdown);
+        let _ = self.handler.send(pool::Msg::Shutdown);
     }
 }

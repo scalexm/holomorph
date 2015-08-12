@@ -1,136 +1,66 @@
 pub mod session;
 
 use std::thread;
-use std::sync::mpsc::{channel, Sender, Receiver};
+use std::sync::mpsc;
 use net::Token;
 use std::io::Cursor;
-use std::collections::HashMap;
-use std::any::Any;
+use std::boxed::FnBox;
 
 pub trait Chunk {
-    fn process_msg(&mut self, msg: Msg);
-}
+    fn process_net_msg(&mut self, msg: NetMsg);
 
-pub trait FnBox {
-    fn call_box(self: Box<Self>, &mut Any, &Any);
-}
-
-impl<F: FnOnce(&mut Any, &Any)> FnBox for F {
-    fn call_box(self: Box<F>, session: &mut Any, chunk: &Any) {
-        (*self)(session, chunk)
+    fn process_cb(&mut self, thunk: Thunk<Self>) {
+        thunk.call_box((self, ))
     }
 }
 
-pub type Thunk = Box<FnBox + Send + 'static>;
-
-pub enum Msg {
-    Shutdown,
-    SessionCreate(Token),
+pub enum NetMsg {
+    SessionConnect(Token),
     SessionPacket(Token, u16, Cursor<Vec<u8>>),
-    SessionRemove(Token),
-    SessionCallback(Token, Thunk),
-    ChunkCallback(usize, Thunk),
+    SessionDisconnect(Token),
 }
 
-pub struct SessionPool {
-    core_tx: Sender<Msg>,
-    core_rx: Receiver<Msg>,
-    chunks: Vec<Sender<Msg>>,
-    session_map: HashMap<Token, usize>,
+pub enum Msg<C: Chunk> {
+    Shutdown,
+    NetMsg(NetMsg),
+    ChunkCallback(Thunk<C>),
 }
 
-pub fn execute_session<F>(sender: &Sender<Msg>, tok: Token, job: F)
-    where F : FnOnce(&mut Any, &Any) + Send + 'static {
-
-    let _ = sender.send(Msg::SessionCallback(tok,
-        Box::new(move |session: &mut Any, chunk: &Any|
-            job(session, chunk))));
+impl<C: Chunk> Into<Msg<C>> for NetMsg {
+    fn into(self) -> Msg<C> {
+        Msg::NetMsg(self)
+    }
 }
 
-impl SessionPool {
-    pub fn run_chunk<C: Chunk + Send + 'static>(&mut self, mut chunk: C) {
-        let (tx, rx) = channel::<Msg>();
-        self.chunks.push(tx);
+pub type Thunk<C: Chunk> = Box<FnBox(&mut C) + Send + 'static>;
+pub type Sender<C: Chunk> = mpsc::Sender<Msg<C>>;
 
-        thread::spawn(move || {
-            loop {
-                match rx.recv() {
-                    Ok(msg) => chunk.process_msg(msg),
-                    Err(..) => return (),
-                }
-            }
-        });
-    }
+pub fn execute<F, C: Chunk>(sender: &Sender<C>, job: F)
+    where F : FnOnce(&mut C) + Send + 'static {
 
-    pub fn new() -> SessionPool {
-        let (tx, rx) = channel::<Msg>();
+    let boxed_job: Thunk<C> =
+        Box::new(move |chunk: &mut C| job(chunk));
+    let _ = sender.send(Msg::ChunkCallback(boxed_job));
+}
 
-        SessionPool {
-            core_tx: tx,
-            core_rx: rx,
-            chunks: Vec::new(),
-            session_map: HashMap::new(),
-        }
-    }
+pub fn run_chunk<C: Chunk + Send + 'static>(mut chunk: C)
+    -> Sender<C> {
+    let (tx, rx) = mpsc::channel::<Msg<C>>();
 
-    pub fn channel(&self) -> Sender<Msg> {
-        self.core_tx.clone()
-    }
-
-    fn process_msg(&mut self, msg: Msg, next_insert: &mut usize) {
-        match msg {
-            Msg::SessionCreate(tok) => {
-                if self.session_map.contains_key(&tok) {
-                    return ();
-                }
-
-                let chunk = *next_insert % self.chunks.len();
-                let _ = self.session_map.insert(tok, chunk);
-                let _  = self.chunks[chunk].send(msg);
-
-                *next_insert += 1;
-            }
-
-            Msg::SessionPacket(tok, _, _) => {
-                if let Some(chunk) = self.session_map.get(&tok) {
-                    let _ = self.chunks[*chunk].send(msg);
-                }
-            }
-
-            Msg::SessionRemove(tok) => {
-                if let Some(chunk) = self.session_map.get(&tok) {
-                    let _ = self.chunks[*chunk].send(msg);
-                }
-                let _ = self.session_map.remove(&tok);
-            }
-
-            Msg::SessionCallback(tok, _) => {
-                if let Some(chunk) = self.session_map.get(&tok) {
-                    let _ = self.chunks[*chunk].send(msg);
-                }
-            }
-
-            Msg::ChunkCallback(id, _) => {
-                let _ = self.chunks[id].send(msg);
-            }
-
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn run(&mut self) {
-        let mut next_insert = 0;
+    thread::spawn(move || {
         loop {
-            match self.core_rx.recv() {
+            match rx.recv() {
                 Ok(msg) => {
-                    if let Msg::Shutdown = msg {
-                        return ()
+                    match msg {
+                        Msg::Shutdown => return (),
+                        Msg::NetMsg(msg) => chunk.process_net_msg(msg),
+                        Msg::ChunkCallback(thunk) => chunk.process_cb(thunk),
                     }
-                    self.process_msg(msg, &mut next_insert)
                 }
-
                 Err(..) => return (),
             }
         }
-    }
+    });
+
+    tx
 }

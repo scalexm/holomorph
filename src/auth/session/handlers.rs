@@ -4,12 +4,12 @@ use shared::protocol::*;
 use shared::protocol::connection::*;
 use shared::protocol::security::*;
 use session::{AccountData, Session};
-use chunk::Chunk;
+use session::chunk::Chunk;
 use shared::database;
 use postgres::{Connection, Result};
-use shared::pool;
 use crypto::digest::Digest;
 use crypto::md5::Md5;
+use server;
 
 enum AuthResult {
     Failure(i8, f64),
@@ -24,11 +24,11 @@ impl Session {
             content: VarIntVec(chunk.server.patch[0..].to_vec()),
         }.as_packet().unwrap();
 
-        let _ = self.conn.send(Msg::Write(self.token, buf));
+        let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
         Ok(())
     }
 
-    fn authenticate(conn: &mut Connection, tok: Token, account: String,
+    fn authenticate(conn: &mut Connection, account: String,
         mut password: String) -> AuthResult {
 
         let stmt = match conn
@@ -114,7 +114,7 @@ impl Session {
             can_create_new_character: true,
         }.as_packet_with_buf(&mut buf).unwrap();
 
-        let _ = self.conn.send(Msg::Write(self.token, buf));
+        let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
     }
 
     pub fn handle_clear_identification(&mut self, chunk: &Chunk, mut data: Cursor<Vec<u8>>)
@@ -126,13 +126,11 @@ impl Session {
 
         let msg = try!(ClearIdentificationMessage::deserialize(&mut data));
 
-        let io_loop = self.conn.clone();
-        let pool = chunk.server.pool.clone();
+        let io_loop = chunk.server.io_loop.clone();
+        let handler = chunk.server.handler.clone();
         let token = self.token;
         let _ = database::execute(&chunk.server.db, move |conn| {
-            match Session::authenticate(conn, token,
-                msg.username, msg.password) {
-
+            match Session::authenticate(conn, msg.username, msg.password) {
                 AuthResult::Failure(reason, ban_end) => {
                     let buf = match reason {
                         identification_failure_reason::BANNED =>
@@ -149,14 +147,8 @@ impl Session {
                 }
 
                 AuthResult::Success(data) => {
-                    pool::execute_session(&pool, token, move |session, chunk| {
-                        Session
-                            ::identification_success(session
-                                .downcast_mut::<Session>()
-                                .unwrap(),
-                            chunk
-                                .downcast_ref::<Chunk>()
-                                .unwrap(), data);
+                    server::session_callback(&handler, token, move |session, chunk| {
+                        Session::identification_success(session, chunk, data)
                     });
                 }
             }

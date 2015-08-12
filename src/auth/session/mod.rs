@@ -1,12 +1,16 @@
-use mio;
-use std::sync::mpsc::Sender;
 use shared::net::{Token, Msg};
 use std::io::{self, Cursor};
 use shared::protocol::*;
 use shared::protocol::connection::*;
 use shared::protocol::handshake::*;
-use shared::pool::session;
-use chunk::Chunk;
+use shared::pool;
+use session::chunk::Chunk;
+use std::boxed::FnBox;
+
+mod handlers;
+pub mod chunk;
+
+pub type Thunk = Box<FnBox(&mut Session, &Chunk) + Send + 'static>;
 
 pub struct AccountData {
     pub id: i32,
@@ -17,30 +21,11 @@ pub struct AccountData {
 }
 
 pub struct Session {
-    pub conn: mio::Sender<Msg>,
-    pub token: Token,
-    pub account: Option<AccountData>,
+    token: Token,
+    account: Option<AccountData>,
 }
 
 impl Session {
-    pub fn new(token: Token, chunk: &Chunk, conn: mio::Sender<Msg>) -> Option<Session> {
-        debug!("{:?} connected", token);
-
-        let mut s = Session {
-            conn: conn,
-            token: token,
-            account: None,
-        };
-
-        if let Err(err) = s.start(&chunk) {
-            error!("error while starting {:?}: {}", token, err);
-            error!("{:?} will disconnect", token);
-            return None;
-        }
-
-        Some(s)
-    }
-
     fn start(&mut self, chunk: &Chunk) -> io::Result<()> {
 
         let mut buf = Vec::new();
@@ -54,7 +39,7 @@ impl Session {
             key: VarIntVec(chunk.server.key[0..].to_vec()),
         }.as_packet_with_buf(&mut buf));
 
-        let _ = self.conn.send(Msg::Write(self.token, buf));
+        let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
         Ok(())
     }
 }
@@ -65,8 +50,25 @@ impl Drop for Session {
     }
 }
 
-impl session::Session for Session {
+impl pool::session::Session for Session {
     type C = Chunk;
+
+    fn new(token: Token, chunk: &Chunk) -> Option<Session> {
+        debug!("{:?} connected", token);
+
+        let mut s = Session {
+            token: token,
+            account: None,
+        };
+
+        if let Err(err) = s.start(&chunk) {
+            error!("error while starting {:?}: {}", token, err);
+            error!("{:?} will disconnect", token);
+            return None;
+        }
+
+        Some(s)
+    }
 
     fn get_handler(id: u16)
         -> (fn(&mut Session, &Chunk, Cursor<Vec<u8>>) -> io::Result<()>) {

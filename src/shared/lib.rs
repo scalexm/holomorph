@@ -1,3 +1,5 @@
+#![feature(fnbox)]
+
 #[macro_use]
 extern crate log;
 extern crate mio;

@@ -1,16 +1,7 @@
 use postgres::{Connection, SslMode};
-use std::sync::mpsc::{channel, Sender};
+use std::sync::mpsc;
 use std::thread;
-
-trait FnBox {
-    fn call_box(self: Box<Self>, &mut Connection);
-}
-
-impl<F: FnOnce(&mut Connection)> FnBox for F {
-    fn call_box(self: Box<F>, conn: &mut Connection) {
-        (*self)(conn)
-    }
-}
+use std::boxed::FnBox;
 
 pub fn connect(uri: &str) -> Connection {
     match Connection::connect(uri, &SslMode::None) {
@@ -19,22 +10,24 @@ pub fn connect(uri: &str) -> Connection {
     }
 }
 
-pub type Thunk = Box<FnBox + Send + 'static>;
+type Thunk = Box<FnBox(&mut Connection) + Send + 'static>;
+pub type Sender = mpsc::Sender<Thunk>;
 
-pub fn execute<F>(sender: &Sender<Thunk>, job: F)
+pub fn execute<F>(sender: &Sender, job: F)
     where F : FnOnce(&mut Connection) + Send + 'static {
 
-    sender.send(Box::new(move |conn: &mut Connection| job(conn))).unwrap();
+    let boxed_job = Box::new(move |conn: &mut Connection| job(conn));
+    let _ = sender.send(boxed_job);
 }
 
-pub fn async_connect(uri: &str) -> Sender<Thunk> {
-    let (tx, rx) = channel::<Thunk>();
+pub fn async_connect(uri: &str) -> Sender {
+    let (tx, rx) = mpsc::channel::<Thunk>();
     let mut conn = connect(uri);
 
     thread::spawn(move || {
         loop {
             match rx.recv() {
-                Ok(job) => job.call_box(&mut conn),
+                Ok(job) => job.call_box((&mut conn,)),
                 Err(..) => return (),
             }
         }
