@@ -2,9 +2,10 @@ use shared::net::Msg;
 use std::io::{self, Cursor};
 use shared::protocol::*;
 use shared::protocol::connection::*;
+use shared::protocol::handshake::*;
 use shared::protocol::security::*;
 use session::{AccountData, Session};
-use session::chunk::Chunk;
+use session::Chunk;
 use postgres::{self, Connection};
 use crypto::digest::Digest;
 use crypto::md5::Md5;
@@ -26,6 +27,22 @@ impl From<postgres::error::Error> for AuthError {
 }
 
 impl Session {
+    pub fn start(&mut self, chunk: &Chunk) {
+
+        let mut buf = Vec::new();
+        ProtocolRequired {
+            required_version: 1658,
+            current_version: 1658,
+        }.as_packet_with_buf(&mut buf).unwrap();
+
+        HelloConnectMessage {
+            salt: "salut".to_string(),
+            key: VarIntVec((*chunk.server.key).clone()),
+        }.as_packet_with_buf(&mut buf).unwrap();
+
+        let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
+    }
+
     pub fn handle_identification(&mut self, chunk: &Chunk, _: Cursor<Vec<u8>>)
         -> io::Result<()> {
 
@@ -99,17 +116,17 @@ impl Session {
     }
 
     fn identification_success(&mut self, chunk: &Chunk, data: AccountData,
-        already_logged: bool) {
+        already_logged: bool, game_states: HashMap<i16, i8>) {
 
         let mut buf = Vec::new();
         IdentificationSuccessMessage {
             has_rights: Flag(data.level > 0),
             was_already_connected: Flag(already_logged || data.already_logged != 0),
-            login: (&data.account).to_string(),
-            nickname: (&data.nickname).to_string(),
+            login: data.account.clone(),
+            nickname: data.nickname.clone(),
             account_id: data.id,
             community_id: 0,
-            secret_question: (&data.secret_question).to_string(),
+            secret_question: data.secret_question.clone(),
             account_creation: (data.creation * 1000) as f64,
             subscription_elapsed_duration: (data.subscription_elapsed * 1000) as f64,
             subscription_end_date: (data.subscription_end * 1000) as f64,
@@ -119,7 +136,9 @@ impl Session {
         for server in &*chunk.server.game_servers {
             gs.push(GameServerInformations {
                 id: VarUShort(server.1.id as u16),
-                status: 3,
+                status: *game_states
+                    .get(&server.1.id)
+                    .unwrap_or(&server_status::OFFLINE),
                 completion: 0,
                 is_selectable: true,
                 characters_count: *data
@@ -182,9 +201,10 @@ impl Session {
                 Ok(data) => {
                     let id = data.id;
                     server::identification_success(&handler, token, id,
-                        move |session, chunk, already| {
+                        move |session, chunk, already, states| {
 
-                        Session::identification_success(session, chunk, data, already)
+                        Session::identification_success(session, chunk, data,
+                            already, states)
                     });
                 }
             }

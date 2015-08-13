@@ -35,6 +35,8 @@ fn set_flag(flag: u8, offset: u8, value: bool) -> u8
 pub trait Protocol: Sized {
     fn deserialize<R: Read>(&mut R) -> Result<Self>;
     fn serialize<W: Write>(&self, &mut W) -> Result<()>;
+
+    #[inline(always)]
     fn id() -> i16;
 
     #[inline(always)]

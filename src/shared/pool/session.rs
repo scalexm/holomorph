@@ -13,10 +13,9 @@ pub trait Chunk : pool::Chunk + Sized {
     fn process_net_msg(&mut self, msg: pool::NetMsg) {
         match msg {
             pool::NetMsg::SessionConnect(tok) => {
-                if let Some(session) = <Self::S as Session>::new(tok, self) {
-                    let sessions = self.mut_sessions();
-                    let _ = sessions.insert(tok, RefCell::new(session));
-                }
+                let session = <Self::S as Session>::new(tok, self);
+                let sessions = self.mut_sessions();
+                let _ = sessions.insert(tok, RefCell::new(session));
             }
 
             pool::NetMsg::SessionDisconnect(tok) => {
@@ -38,7 +37,7 @@ pub trait Chunk : pool::Chunk + Sized {
 pub trait Session : Drop {
     type C: Chunk;
 
-    fn new(Token, &Self::C) -> Option<Self>;
+    fn new(Token, &Self::C) -> Self;
     fn get_handler(u16) -> (fn(&mut Self, &Self::C, Cursor<Vec<u8>>) -> io::Result<()>);
 
     fn unhandled(&mut self, _: &Self::C, _: Cursor<Vec<u8>>) -> io::Result<()> {

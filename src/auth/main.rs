@@ -1,5 +1,3 @@
-#![feature(fnbox)]
-
 extern crate shared;
 #[macro_use]
 extern crate log;
@@ -13,9 +11,9 @@ extern crate time;
 mod session;
 mod config;
 mod server;
+mod chunk;
 
 use shared::net::{EventLoop, Listener};
-use session::chunk::Chunk;
 use shared::pool;
 use std::thread;
 use std::fs::File;
@@ -51,7 +49,7 @@ fn main() {
     }
 
     for _ in (0..server_data.cnf.num_threads) {
-        let tx = pool::run_chunk(Chunk::new(server_data.clone()));
+        let tx = pool::run_chunk(session::Chunk::new(server_data.clone()));
         server::add_chunk(&handler, tx);
     }
 

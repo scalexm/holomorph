@@ -1,7 +1,7 @@
 pub mod data;
 
 use shared::pool;
-use session::{self, chunk};
+use session;
 use shared::net::{self, Token};
 use std::collections::HashMap;
 use shared::HashBiMap;
@@ -10,9 +10,10 @@ pub type Sender = pool::Sender<Handler>;
 
 pub struct Handler {
     io_loop: net::Sender,
-    chunks: Vec<chunk::Sender>,
+    chunks: Vec<session::Sender>,
     session_chunks: HashMap<Token, usize>,
     session_ids: HashBiMap<i32, Token>,
+    game_states: HashMap<i16, i8>,
     next_insert: usize,
 }
 
@@ -24,47 +25,47 @@ impl Handler {
             session_chunks: HashMap::new(),
             next_insert: 0,
             session_ids: HashBiMap::new(),
+            game_states: HashMap::new(),
         }
     }
 
     fn session_callback<F>(&mut self, tok: Token, job: F)
-        where F: FnOnce(&mut session::Session, &chunk::Chunk) + Send + 'static {
+        where F: FnOnce(&mut session::Session, &session::Chunk) + Send + 'static {
 
         if let Some(chunk) = self.session_chunks.get(&tok) {
-            pool::execute(&self.chunks[*chunk], move |chunk| {
-                chunk.session_callback(tok, job);
-            });
+            pool::execute(&self.chunks[*chunk], move |chunk|
+                chunk.session_callback(tok, job));
         }
     }
 }
 
-pub fn add_chunk(sender: &Sender, chunk: chunk::Sender) {
+pub fn add_chunk(sender: &Sender, chunk: session::Sender) {
     pool::execute(sender, move |handler| {
         handler.chunks.push(chunk)
     });
 }
 
 pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32, job: F)
-    where F: FnOnce(&mut session::Session, &chunk::Chunk, bool) + Send + 'static {
+    where F: FnOnce(&mut session::Session, &session::Chunk, bool, HashMap<i16, i8>)
+    + Send + 'static {
 
     pool::execute(sender, move |handler| {
         let already = handler.session_ids.insert(id, tok);
         if let Some(session) = already {
             let _ = handler.io_loop.send(net::Msg::Close(session));
         }
+        let game_states = handler.game_states.clone();
 
         handler.session_callback(tok,
-            move |session: &mut session::Session, chunk: &chunk::Chunk|
-                job(session, chunk, already.is_some()))
+            move |session, chunk|
+                job(session, chunk, already.is_some(), game_states))
     });
 }
 
 pub fn session_callback<F>(sender: &Sender, tok: Token, job: F)
-    where F: FnOnce(&mut session::Session, &chunk::Chunk) + Send + 'static {
+    where F: FnOnce(&mut session::Session, &session::Chunk) + Send + 'static {
 
-    pool::execute(sender, move |handler| {
-        handler.session_callback(tok, job)
-    });
+    pool::execute(sender, move |handler| handler.session_callback(tok, job));
 }
 
 impl pool::Chunk for Handler {

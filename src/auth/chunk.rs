@@ -1,18 +1,16 @@
 use shared::pool;
-use session::{self, Session};
 use shared::net::Token;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use server::data::AuthServerData;
-use std::boxed::FnBox;
 
-pub struct Chunk {
-    sessions: HashMap<Token, RefCell<Session>>,
+pub struct Chunk<S> {
+    sessions: HashMap<Token, RefCell<S>>,
     pub server: AuthServerData,
 }
 
-impl Chunk {
-    pub fn new(server: AuthServerData) -> Chunk {
+impl<S> Chunk<S> {
+    pub fn new(server: AuthServerData) -> Chunk<S> {
         Chunk {
             sessions: HashMap::new(),
             server: server,
@@ -20,7 +18,7 @@ impl Chunk {
     }
 
     pub fn session_callback<F>(&mut self, tok: Token, job: F)
-        where F: FnOnce(&mut Session, &Chunk) {
+        where F: FnOnce(&mut S, &Chunk<S>) {
 
         if let Some(session) = self.sessions.get(&tok) {
             job(&mut session.borrow_mut(), self)
@@ -28,22 +26,20 @@ impl Chunk {
     }
 }
 
-pub type Sender = pool::Sender<Chunk>;
-
-impl pool::Chunk for Chunk {
+impl<S: pool::session::Session<C = Chunk<S>>> pool::Chunk for Chunk<S> {
     fn process_net_msg(&mut self, msg: pool::NetMsg) {
         pool::session::Chunk::process_net_msg(self, msg)
     }
 }
 
-impl pool::session::Chunk for Chunk {
-    type S = Session;
+impl<S: pool::session::Session<C = Chunk<S>>> pool::session::Chunk for Chunk<S> {
+    type S = S;
 
-    fn sessions(&self) -> &HashMap<Token, RefCell<Session>> {
+    fn sessions(&self) -> &HashMap<Token, RefCell<S>> {
         &self.sessions
     }
 
-    fn mut_sessions(&mut self) -> &mut HashMap<Token, RefCell<Session>> {
+    fn mut_sessions(&mut self) -> &mut HashMap<Token, RefCell<S>> {
         &mut self.sessions
     }
 }

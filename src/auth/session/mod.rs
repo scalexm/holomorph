@@ -1,14 +1,9 @@
 mod handlers;
-pub mod chunk;
 
-use shared::net::{Token, Msg};
+use shared::net::Token;
 use std::io::{self, Cursor};
-use shared::protocol::*;
-use shared::protocol::connection::*;
-use shared::protocol::handshake::*;
 use shared::pool;
-use session::chunk::Chunk;
-use std::boxed::FnBox;
+use chunk;
 use std::collections::HashMap;
 
 struct AccountData {
@@ -29,24 +24,8 @@ pub struct Session {
     account: Option<AccountData>,
 }
 
-impl Session {
-    fn start(&mut self, chunk: &Chunk) -> io::Result<()> {
-
-        let mut buf = Vec::new();
-        try!(ProtocolRequired {
-            required_version: 1658,
-            current_version: 1658,
-        }.as_packet_with_buf(&mut buf));
-
-        try!(HelloConnectMessage {
-            salt: "salut".to_string(),
-            key: VarIntVec(chunk.server.key[0..].to_vec()),
-        }.as_packet_with_buf(&mut buf));
-
-        let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
-        Ok(())
-    }
-}
+pub type Chunk = chunk::Chunk<Session>;
+pub type Sender = pool::Sender<Chunk>;
 
 impl Drop for Session {
     fn drop(&mut self) {
@@ -57,7 +36,7 @@ impl Drop for Session {
 impl pool::session::Session for Session {
     type C = Chunk;
 
-    fn new(token: Token, chunk: &Chunk) -> Option<Session> {
+    fn new(token: Token, chunk: &Chunk) -> Session {
         debug!("{:?} connected", token);
 
         let mut s = Session {
@@ -65,13 +44,8 @@ impl pool::session::Session for Session {
             account: None,
         };
 
-        if let Err(err) = s.start(&chunk) {
-            error!("error while starting {:?}: {}", token, err);
-            error!("{:?} will disconnect", token);
-            return None;
-        }
-
-        Some(s)
+        s.start(&chunk);
+        s
     }
 
     fn get_handler(id: u16)

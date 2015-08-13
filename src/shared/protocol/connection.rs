@@ -63,3 +63,14 @@ pub mod identification_failure_reason {
     pub const UNKNOWN_AUTH_ERROR: i8 = 99;
     pub const SPARE: i8 = 100;
 }
+
+pub mod server_status {
+    pub const STATUS_UNKNOWN: i8 = 0;
+    pub const OFFLINE: i8 = 1;
+    pub const STARTING: i8 = 2;
+    pub const ONLINE: i8 = 3;
+    pub const NOJOIN: i8 = 4;
+    pub const SAVING: i8 = 5;
+    pub const STOPING: i8 = 6;
+    pub const FULL: i8 = 7;
+}
