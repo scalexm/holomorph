@@ -11,3 +11,6 @@ Dofus server emulator written in rust.
 
 ##Platforms
 Currently runs on Linux and Mac OS.
+
+##Thanks
+* [LuaxY](https://github.com/LuaxY)
