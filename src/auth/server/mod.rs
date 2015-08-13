@@ -4,14 +4,15 @@ use shared::pool;
 use session::{self, chunk};
 use shared::net::{self, Token};
 use std::collections::HashMap;
+use shared::HashBiMap;
 
 pub type Sender = pool::Sender<Handler>;
 
 pub struct Handler {
     io_loop: net::Sender,
     chunks: Vec<chunk::Sender>,
-    session_map: HashMap<Token, usize>,
-    session_ids: HashMap<i32, Token>,
+    session_chunks: HashMap<Token, usize>,
+    session_ids: HashBiMap<i32, Token>,
     next_insert: usize,
 }
 
@@ -20,9 +21,19 @@ impl Handler {
         Handler {
             io_loop: io_loop,
             chunks: Vec::new(),
-            session_map: HashMap::new(),
+            session_chunks: HashMap::new(),
             next_insert: 0,
-            session_ids: HashMap::new(),
+            session_ids: HashBiMap::new(),
+        }
+    }
+
+    fn session_callback<F>(&mut self, tok: Token, job: F)
+        where F: FnOnce(&mut session::Session, &chunk::Chunk) + Send + 'static {
+
+        if let Some(chunk) = self.session_chunks.get(&tok) {
+            pool::execute(&self.chunks[*chunk], move |chunk| {
+                chunk.session_callback(tok, job);
+            });
         }
     }
 }
@@ -42,31 +53,17 @@ pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32, job: F)
             let _ = handler.io_loop.send(net::Msg::Close(session));
         }
 
-        let boxed_job: session::Thunk = Box
-            ::new(move |session: &mut session::Session, chunk: &chunk::Chunk|
-                job(session, chunk, already.is_some()));
-
-        if let Some(chunk) = handler.session_map.get(&tok) {
-            pool::execute(&handler.chunks[*chunk], move |chunk| {
-                chunk.session_callback(tok, boxed_job);
-            });
-        }
+        handler.session_callback(tok,
+            move |session: &mut session::Session, chunk: &chunk::Chunk|
+                job(session, chunk, already.is_some()))
     });
 }
 
 pub fn session_callback<F>(sender: &Sender, tok: Token, job: F)
     where F: FnOnce(&mut session::Session, &chunk::Chunk) + Send + 'static {
 
-    let boxed_job: session::Thunk = Box
-        ::new(move |session: &mut session::Session, chunk: &chunk::Chunk|
-            job(session, chunk));
-
     pool::execute(sender, move |handler| {
-        if let Some(chunk) = handler.session_map.get(&tok) {
-            pool::execute(&handler.chunks[*chunk], move |chunk| {
-                chunk.session_callback(tok, boxed_job)
-            });
-        }
+        handler.session_callback(tok, job)
     });
 }
 
@@ -74,28 +71,29 @@ impl pool::Chunk for Handler {
     fn process_net_msg(&mut self, msg: pool::NetMsg) {
         match msg {
             pool::NetMsg::SessionConnect(tok) => {
-                if self.session_map.contains_key(&tok) {
+                if self.session_chunks.contains_key(&tok) {
                     return ();
                 }
 
                 let chunk = self.next_insert % self.chunks.len();
-                let _ = self.session_map.insert(tok, chunk);
+                let _ = self.session_chunks.insert(tok, chunk);
                 let _  = self.chunks[chunk].send(msg.into());
 
                 self.next_insert += 1;
             }
 
             pool::NetMsg::SessionPacket(tok, _, _) => {
-                if let Some(chunk) = self.session_map.get(&tok) {
+                if let Some(chunk) = self.session_chunks.get(&tok) {
                     let _ = self.chunks[*chunk].send(msg.into());
                 }
             }
 
             pool::NetMsg::SessionDisconnect(tok) => {
-                if let Some(chunk) = self.session_map.get(&tok) {
+                if let Some(chunk) = self.session_chunks.get(&tok) {
                     let _ = self.chunks[*chunk].send(msg.into());
                 }
-                let _ = self.session_map.remove(&tok);
+                let _ = self.session_chunks.remove(&tok);
+                let _ = self.session_ids.inv_remove(&tok);
             }
         }
     }

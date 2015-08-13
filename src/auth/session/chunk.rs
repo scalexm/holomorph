@@ -19,9 +19,11 @@ impl Chunk {
         }
     }
 
-    pub fn session_callback(&mut self, tok: Token, cb: session::Thunk) {
+    pub fn session_callback<F>(&mut self, tok: Token, job: F)
+        where F: FnOnce(&mut Session, &Chunk) {
+
         if let Some(session) = self.sessions.get(&tok) {
-            cb.call_box((&mut session.borrow_mut(), self))
+            job(&mut session.borrow_mut(), self)
         }
     }
 }

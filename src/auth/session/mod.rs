@@ -11,8 +11,6 @@ use session::chunk::Chunk;
 use std::boxed::FnBox;
 use std::collections::HashMap;
 
-pub type Thunk = Box<FnBox(&mut Session, &Chunk) + Send + 'static>;
-
 struct AccountData {
     id: i32,
     account: String,

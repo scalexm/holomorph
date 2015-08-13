@@ -24,7 +24,6 @@ pub struct AuthServerData {
     pub game_servers: Arc<HashMap<i16, GameServerData>>,
 }
 
-
 impl AuthServerData {
     pub fn new(handler: server::Sender, io_loop: net::Sender,
         db: database::Sender, key: Vec<u8>, patch: Vec<u8>,

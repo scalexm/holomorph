@@ -1,4 +1,4 @@
-use shared::net::{Token, Msg};
+use shared::net::Msg;
 use std::io::{self, Cursor};
 use shared::protocol::*;
 use shared::protocol::connection::*;
@@ -100,7 +100,6 @@ impl Session {
 
     fn identification_success(&mut self, chunk: &Chunk, data: AccountData,
         already_logged: bool) {
-        debug!("{}", already_logged);
 
         let mut buf = Vec::new();
         IdentificationSuccessMessage {
