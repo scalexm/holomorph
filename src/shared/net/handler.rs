@@ -1,4 +1,4 @@
-use mio::{Token, EventSet, Handler};
+use mio::{Token, EventSet, Handler, PollOpt};
 use mio::tcp::Shutdown;
 use super::{Msg, Listener, EventLoop};
 use pool;
@@ -20,7 +20,7 @@ impl<C: pool::Chunk> Handler for Listener<C> {
 
             _ => {
                 if let Err(_) = self.handle_client_event(token, event_loop, events) {
-                    event_loop.deregister(&self.connections[token].socket).unwrap();
+                    let _ = event_loop.deregister(&self.connections[token].socket);
                     let _ = self.connections.remove(token).unwrap();
                     let _ = self
                         .handler
@@ -31,27 +31,29 @@ impl<C: pool::Chunk> Handler for Listener<C> {
     }
 
     fn notify(&mut self, event_loop: &mut EventLoop<C>, msg: Msg) {
+        let mut close = false;
+        if let Msg::WriteAndClose(..) = msg {
+            close = true;
+        }
+
         match msg {
             Msg::Shutdown => {
                 event_loop.shutdown();
             }
 
-            Msg::Write(tok, buf) => {
-                if let Some(conn) = self.connections.get_mut(tok) {
-                    conn.push(buf, false, event_loop)
-                }
-            }
+            Msg::Write(tok, buf) | Msg::WriteAndClose(tok, buf) => {
+                let _ = self.connections.get_mut(tok).map(|conn| {
+                    conn.push(buf, close);
 
-            Msg::WriteAndClose(tok, buf) => {
-                if let Some(conn) = self.connections.get_mut(tok) {
-                    conn.push(buf, true, event_loop)
-                }
+                    event_loop.reregister(&conn.socket, tok,
+                        EventSet::readable() | EventSet::writable(),
+                        PollOpt::level()).unwrap();
+                });
             }
 
             Msg::Close(tok) => {
-                if let Some(conn) = self.connections.get_mut(tok) {
-                    let _ = conn.socket.shutdown(Shutdown::Both);
-                }
+                let _ = self.connections.get_mut(tok).map(|conn|
+                    conn.socket.shutdown(Shutdown::Both));
             }
         }
     }

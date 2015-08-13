@@ -5,6 +5,7 @@ use session;
 use shared::net::{self, Token};
 use std::collections::HashMap;
 use shared::HashBiMap;
+use eventual::{Timer, Async};
 
 pub type Sender = pool::Sender<Handler>;
 
@@ -15,6 +16,7 @@ pub struct Handler {
     session_ids: HashBiMap<i32, Token>,
     game_states: HashMap<i16, i8>,
     next_insert: usize,
+    queue_timer: Timer,
 }
 
 impl Handler {
@@ -26,6 +28,7 @@ impl Handler {
             next_insert: 0,
             session_ids: HashBiMap::new(),
             game_states: HashMap::new(),
+            queue_timer: Timer::with_capacity(1),
         }
     }
 
@@ -33,10 +36,27 @@ impl Handler {
         where F: FnOnce(&mut session::Session, &session::Chunk) + Send + 'static {
 
         if let Some(chunk) = self.session_chunks.get(&tok) {
-            pool::execute(&self.chunks[*chunk], move |chunk|
-                chunk.session_callback(tok, job));
+            pool::execute(&self.chunks[*chunk], move |chunk| {
+                use shared::pool::session::Chunk;
+                chunk.session_callback(tok, job)
+            });
         }
     }
+}
+
+pub fn start_queue_timer(sender: &Sender) {
+    let tx = sender.clone();
+    pool::execute(sender, move |handler| {
+        handler.queue_timer.interval_ms(2000).each(move |()| {
+            pool::execute(&tx, move |handler| {
+                for chunk in &handler.chunks {
+                    pool::execute(chunk, |chunk| {
+                        chunk.update_queue();
+                    });
+                }
+            })
+        }).fire();
+    });
 }
 
 pub fn add_chunk(sender: &Sender, chunk: session::Sender) {

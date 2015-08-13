@@ -38,8 +38,7 @@ pub type Sender<C: Chunk> = mpsc::Sender<Msg<C>>;
 pub fn execute<F, C: Chunk>(sender: &Sender<C>, job: F)
     where F : FnOnce(&mut C) + Send + 'static {
 
-    let boxed_job: Thunk<C> =
-        Box::new(move |chunk: &mut C| job(chunk));
+    let boxed_job: Thunk<C> = Box::new(move |chunk: &mut C| job(chunk));
     let _ = sender.send(Msg::ChunkCallback(boxed_job));
 }
 

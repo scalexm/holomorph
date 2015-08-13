@@ -32,6 +32,14 @@ pub trait Chunk : pool::Chunk + Sized {
             }
         }
     }
+
+    fn session_callback<F>(&mut self, tok: Token, job: F)
+        where F: FnOnce(&mut Self::S, &Self) {
+
+        if let Some(session) = self.sessions().get(&tok) {
+            job(&mut session.borrow_mut(), self)
+        }
+    }
 }
 
 pub trait Session : Drop {

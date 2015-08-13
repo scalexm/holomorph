@@ -5,6 +5,7 @@ use std::io::{self, Cursor};
 use shared::pool;
 use chunk;
 use std::collections::HashMap;
+use time;
 
 struct AccountData {
     id: i32,
@@ -19,13 +20,30 @@ struct AccountData {
     already_logged: i16,
 }
 
+impl AccountData {
+    fn is_subscriber(&self) -> bool {
+        self.subscription_end > time::get_time().sec
+    }
+}
+
 pub struct Session {
     token: Token,
     account: Option<AccountData>,
+    queue_size: isize,
+    queue_counter: isize,
 }
 
 pub type Chunk = chunk::Chunk<Session>;
 pub type Sender = pool::Sender<Chunk>;
+
+impl Chunk {
+    pub fn update_queue(&self) {
+        use shared::pool::session::Chunk;
+        for session in self.sessions() {
+            session.1.borrow().update_queue(&self);
+        }
+    }
+}
 
 impl Drop for Session {
     fn drop(&mut self) {
@@ -42,6 +60,8 @@ impl pool::session::Session for Session {
         let mut s = Session {
             token: token,
             account: None,
+            queue_size: -1,
+            queue_counter: -1,
         };
 
         s.start(&chunk);

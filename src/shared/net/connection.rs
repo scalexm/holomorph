@@ -1,10 +1,8 @@
-use mio::{TryRead, TryWrite, Token, EventSet, PollOpt};
+use mio::{TryRead, TryWrite};
 use mio::tcp::{TcpStream, Shutdown};
-use pool;
 use std::io::{self, Read, Cursor};
 use io::ReadExt;
 use std::collections::VecDeque;
-use net::EventLoop;
 
 struct Buffer(Vec<u8>, usize);
 
@@ -12,13 +10,11 @@ fn make_buffer(len: usize) -> Buffer {
     Buffer(vec![0; len], 0)
 }
 
-pub struct Connection<C: pool::Chunk> {
+pub struct Connection {
     pub socket: TcpStream,
-    pub token: Token,
     read_buffer: Option<Buffer>,
     write_buffer: VecDeque<Buffer>,
     state: State,
-    handler: pool::Sender<C>,
     close_on_next_write: bool,
 }
 
@@ -28,22 +24,20 @@ enum State {
     WaitingForData(u16),
 }
 
-impl<C: pool::Chunk> Connection<C> {
-    pub fn new(socket: TcpStream, token: Token, handler: pool::Sender<C>)
-        -> Connection<C> {
+impl Connection {
+    pub fn new(socket: TcpStream)
+        -> Connection {
 
         Connection {
             socket: socket,
-            token: token,
             read_buffer: Some(make_buffer(2)),
             write_buffer: VecDeque::new(),
             state: State::WaitingForHeader,
-            handler: handler,
             close_on_next_write: false,
         }
     }
 
-    pub fn readable(&mut self) -> io::Result<()> {
+    pub fn readable(&mut self) -> io::Result<Option<(u16, Cursor<Vec<u8>>)>> {
         let Buffer(mut buf, pos) = self.read_buffer.take().unwrap();
         let s = match try!(self.socket.try_read(&mut buf[pos..])) {
             None | Some(0) => return Err(io::Error::new(io::ErrorKind::Other, "EOF")),
@@ -52,7 +46,7 @@ impl<C: pool::Chunk> Connection<C> {
 
         if pos + s != buf.len() {
             self.read_buffer = Some(Buffer(buf, pos + s));
-            return Ok(());
+            return Ok(None);
         }
 
         let mut buf = Cursor::new(buf);
@@ -78,58 +72,46 @@ impl<C: pool::Chunk> Connection<C> {
                 self.state = State::WaitingForHeader;
                 self.read_buffer = Some(make_buffer(2));
 
-                let _ = self.handler
-                    .send(pool
-                        ::NetMsg::SessionPacket(self.token, id, buf).into());
+                return Ok(Some((id, buf)));
             }
         }
 
-        Ok(())
+        Ok(None)
     }
 
-    pub fn writable(&mut self, event_loop: &mut EventLoop<C>)
-        -> io::Result<()> {
+    pub fn writable(&mut self) -> io::Result<bool> {
 
         if self.write_buffer.is_empty() {
-            return Ok(())
+            return Ok(true)
         }
 
         while !self.write_buffer.is_empty() {
             {
                 let buf = self.write_buffer.back_mut().unwrap();
                 let s = match try!(self.socket.try_write(&buf.0[buf.1..])) {
-                    None => return Ok(()),
+                    None => return Ok(false),
                     Some(s) => s,
                 };
 
                 if buf.1 + s != buf.0.len() {
                     buf.1 += s;
-                    return Ok(());
+                    return Ok(false);
                 }
             }
 
             let _ = self.write_buffer.pop_back().unwrap();
             if self.close_on_next_write {
                 let _ = self.socket.shutdown(Shutdown::Both);
-                return Ok(());
+                return Ok(false);
             }
         }
 
-        event_loop.reregister(&self.socket, self.token,
-            EventSet::readable(),
-            PollOpt::level()).unwrap();
-
-        Ok(())
+        Ok(true)
     }
 
-    pub fn push(&mut self, buffer: Vec<u8>, close: bool,
-        event_loop: &mut EventLoop<C>) {
+    pub fn push(&mut self, buffer: Vec<u8>, close: bool) {
 
         self.close_on_next_write = close;
         self.write_buffer.push_front(Buffer(buffer, 0));
-
-        event_loop.reregister(&self.socket, self.token,
-            EventSet::readable() | EventSet::writable(),
-            PollOpt::level()).unwrap();
     }
 }

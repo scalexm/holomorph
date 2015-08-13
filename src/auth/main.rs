@@ -7,6 +7,7 @@ extern crate rustc_serialize;
 extern crate postgres;
 extern crate crypto;
 extern crate time;
+extern crate eventual;
 
 mod session;
 mod config;
@@ -21,6 +22,7 @@ use std::io::{self, Read};
 use std::env;
 use shared::database;
 use server::data::AuthServerData;
+use eventual::*;
 
 fn load(path: &str) -> Vec<u8> {
     let mut data = Vec::new();
@@ -44,6 +46,7 @@ fn main() {
 
     let mut server_data = AuthServerData::new(handler.clone(), io_loop.channel(),
         db, key, patch, cnf);
+
     if let Err(err) = server_data.load() {
         panic!("loading failed: {}", err);
     }
@@ -55,6 +58,7 @@ fn main() {
 
     let mut listener = match Listener::new(&mut io_loop, &server_data.cnf.bind_address,
         handler.clone()) {
+
         Ok(listener) => listener,
         Err(err) => panic!("listen failed: {}", err),
     };
@@ -66,5 +70,6 @@ fn main() {
         server_data.shutdown();
     });
 
+    server::start_queue_timer(&handler);
     io_loop.run(&mut listener).unwrap();
 }

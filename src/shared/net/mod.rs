@@ -15,7 +15,7 @@ const SERVER: Token = Token(0);
 pub struct Listener<C: pool::Chunk> {
     handler: pool::Sender<C>,
     server: TcpListener,
-    connections: Slab<Connection<C>>,
+    connections: Slab<Connection>,
 }
 
 pub enum Msg {
@@ -59,9 +59,9 @@ impl<C: pool::Chunk> Listener<C> {
 
         match try!(self.server.accept()) {
             Some(socket) => {
-                let handler = self.handler.clone();
                 let token = self.connections
-                    .insert_with(move |token| Connection::new(socket, token, handler))
+                    .insert(Connection::new(socket))
+                    .ok()
                     .unwrap();
 
                 let _ = self.handler.send(pool::NetMsg::SessionConnect(token).into());
@@ -80,11 +80,19 @@ impl<C: pool::Chunk> Listener<C> {
         events: EventSet) -> io::Result<()> {
 
         if events.is_readable() {
-            try!(self.connections[token].readable());
+            if let Some((id, buf)) = try!(self.connections[token].readable()) {
+                let _ = self
+                    .handler
+                    .send(pool::NetMsg::SessionPacket(token, id, buf).into());
+            }
         }
 
         if events.is_writable() {
-            try!(self.connections[token].writable(event_loop));
+            if try!(self.connections[token].writable()) {
+                event_loop.reregister(&self.connections[token].socket, token,
+                    EventSet::readable(),
+                    PollOpt::level()).unwrap();
+            }
         }
 
         Ok(())

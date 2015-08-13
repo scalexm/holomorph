@@ -16,14 +16,6 @@ impl<S> Chunk<S> {
             server: server,
         }
     }
-
-    pub fn session_callback<F>(&mut self, tok: Token, job: F)
-        where F: FnOnce(&mut S, &Chunk<S>) {
-
-        if let Some(session) = self.sessions.get(&tok) {
-            job(&mut session.borrow_mut(), self)
-        }
-    }
 }
 
 impl<S: pool::session::Session<C = Chunk<S>>> pool::Chunk for Chunk<S> {

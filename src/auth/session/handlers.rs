@@ -4,6 +4,7 @@ use shared::protocol::*;
 use shared::protocol::connection::*;
 use shared::protocol::handshake::*;
 use shared::protocol::security::*;
+use shared::protocol::queues::*;
 use session::{AccountData, Session};
 use session::Chunk;
 use postgres::{self, Connection};
@@ -13,6 +14,10 @@ use server;
 use shared::pool;
 use time;
 use std::collections::HashMap;
+use std::sync::atomic::{ATOMIC_ISIZE_INIT, AtomicIsize, Ordering};
+
+static QUEUE_SIZE: AtomicIsize = ATOMIC_ISIZE_INIT;
+static QUEUE_COUNTER: AtomicIsize = ATOMIC_ISIZE_INIT;
 
 enum AuthError {
     SqlError(postgres::error::Error),
@@ -39,6 +44,26 @@ impl Session {
             salt: "salut".to_string(),
             key: VarIntVec((*chunk.server.key).clone()),
         }.as_packet_with_buf(&mut buf).unwrap();
+
+        let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
+    }
+
+    pub fn update_queue(&self, chunk: &Chunk) {
+        if self.queue_size == -1 {
+            return ();
+        }
+
+        let mut pos = self.queue_size -
+            (QUEUE_COUNTER.load(Ordering::Relaxed) - self.queue_counter);
+
+        if pos < 0 {
+            pos = 0;
+        }
+
+        let buf = LoginQueueStatusMessage {
+            position: pos as u16,
+            total: QUEUE_SIZE.load(Ordering::Relaxed) as u16,
+        }.as_packet().unwrap();
 
         let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
     }
@@ -119,6 +144,13 @@ impl Session {
         already_logged: bool, game_states: HashMap<i16, i8>) {
 
         let mut buf = Vec::new();
+        let subscriber = data.is_subscriber();
+
+        LoginQueueStatusMessage {
+            position: 0,
+            total: 0,
+        }.as_packet_with_buf(&mut buf).unwrap();
+
         IdentificationSuccessMessage {
             has_rights: Flag(data.level > 0),
             was_already_connected: Flag(already_logged || data.already_logged != 0),
@@ -129,16 +161,29 @@ impl Session {
             secret_question: data.secret_question.clone(),
             account_creation: (data.creation * 1000) as f64,
             subscription_elapsed_duration: (data.subscription_elapsed * 1000) as f64,
-            subscription_end_date: (data.subscription_end * 1000) as f64,
+            subscription_end_date: match subscriber {
+                true => data.subscription_end * 1000,
+                false => 0,
+            } as f64,
         }.as_packet_with_buf(&mut buf).unwrap();
 
         let mut gs = Vec::new();
         for server in &*chunk.server.game_servers {
+            if server.1.min_level > data.level {
+                continue;
+            }
+
+            let mut status = *game_states
+                .get(&server.1.id)
+                .unwrap_or(&server_status::OFFLINE);
+
+            if subscriber && status == server_status::FULL {
+                status = server_status::ONLINE;
+            }
+
             gs.push(GameServerInformations {
                 id: VarUShort(server.1.id as u16),
-                status: *game_states
-                    .get(&server.1.id)
-                    .unwrap_or(&server_status::OFFLINE),
+                status: status,
                 completion: 0,
                 is_selectable: true,
                 characters_count: *data
@@ -171,6 +216,10 @@ impl Session {
         let io_loop = chunk.server.io_loop.clone();
         let handler = chunk.server.handler.clone();
         let token = self.token;
+
+        self.queue_size = QUEUE_SIZE.fetch_add(1, Ordering::Relaxed) + 1;
+        self.queue_counter = QUEUE_COUNTER.load(Ordering::Relaxed);
+
         let _ = pool::execute(&chunk.server.db, move |conn| {
             match Session::authenticate(conn, msg.username, msg.password) {
                 Err(err) => {
@@ -203,11 +252,16 @@ impl Session {
                     server::identification_success(&handler, token, id,
                         move |session, chunk, already, states| {
 
+                        session.queue_size = -1;
+                        session.queue_counter = -1;
                         Session::identification_success(session, chunk, data,
                             already, states)
                     });
                 }
             }
+
+            let _ = QUEUE_SIZE.fetch_sub(1, Ordering::Relaxed);
+            let _ = QUEUE_COUNTER.fetch_add(1, Ordering::Relaxed);
         });
 
         Ok(())
