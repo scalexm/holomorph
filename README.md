@@ -14,3 +14,4 @@ Currently runs on Linux and Mac OS.
 
 ##Thanks
 * [LuaxY](https://github.com/LuaxY)
+* [Noxivs](https://github.com/Noxivs)
