@@ -47,6 +47,9 @@ impl_type!(ServersListMessage, 30,
     already_connected_to_server_id| VarUShort,
     can_create_new_character| bool);
 
+impl_type!(ServerStatusUpdateMessage, 50,
+    server| GameServerInformations);
+
 pub mod identification_failure_reason {
     pub const BAD_VERSION: i8 = 1;
     pub const WRONG_CREDENTIALS: i8 = 2;

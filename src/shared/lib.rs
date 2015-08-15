@@ -5,12 +5,14 @@ extern crate log;
 extern crate mio;
 extern crate byteorder;
 extern crate postgres;
+extern crate rustc_serialize;
 
 pub mod net;
 pub mod io;
 pub mod protocol;
 pub mod pool;
 pub mod database;
+pub mod config;
 
 use std::collections::HashMap;
 use std::collections::hash_map::{Iter, IterMut, Keys, Values, Entry};

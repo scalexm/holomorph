@@ -2,43 +2,92 @@ pub mod data;
 
 use shared::pool;
 use session;
+use game_session;
 use shared::net::{self, Token};
 use std::collections::HashMap;
 use shared::HashBiMap;
 use eventual::{Timer, Async};
+use shared::protocol::connection::server_status;
 
 pub type Sender = pool::Sender<Handler>;
 
+pub struct ForwardingHandler {
+    handler: Sender,
+}
+
+impl ForwardingHandler {
+    pub fn new(handler: Sender) -> ForwardingHandler {
+        ForwardingHandler {
+            handler: handler,
+        }
+    }
+}
+
+impl pool::Chunk for ForwardingHandler {
+    fn process_net_msg(&mut self, msg: pool::NetMsg) {
+        pool::execute(&self.handler, |handler| {
+            match msg {
+                pool::NetMsg::SessionConnect(..) | pool::NetMsg::SessionPacket(..) => {
+                    let _ = handler.game_chunk.as_ref().unwrap().send(msg.into());
+                }
+
+                pool::NetMsg::SessionDisconnect(tok) => {
+                    let id = handler.game_session_ids.inv_remove(&tok);
+                    if id.is_some() {
+                        handler.update_game_server_status(id.unwrap(),
+                            server_status::OFFLINE);
+                    }
+                    let _ = handler.game_chunk.as_ref().unwrap().send(msg.into());
+                }
+            }
+        });
+    }
+}
+
 pub struct Handler {
-    io_loop: net::Sender,
+    auth_loop: net::Sender,
     chunks: Vec<session::Sender>,
+    game_chunk: Option<game_session::Sender>,
     session_chunks: HashMap<Token, usize>,
     session_ids: HashBiMap<i32, Token>,
+    game_session_ids: HashBiMap<i16, Token>,
     game_states: HashMap<i16, i8>,
     next_insert: usize,
     queue_timer: Timer,
 }
 
 impl Handler {
-    pub fn new(io_loop: net::Sender) -> Handler {
+    pub fn new(auth_loop: net::Sender) -> Handler {
         Handler {
-            io_loop: io_loop,
+            auth_loop: auth_loop,
             chunks: Vec::new(),
+            game_chunk: None,
             session_chunks: HashMap::new(),
             next_insert: 0,
             session_ids: HashBiMap::new(),
+            game_session_ids: HashBiMap::new(),
             game_states: HashMap::new(),
             queue_timer: Timer::with_capacity(1),
         }
     }
 
-    fn session_callback<F>(&mut self, tok: Token, job: F)
+    fn session_callback<F>(&self, tok: Token, job: F)
         where F: FnOnce(&mut session::Session, &session::Chunk) + Send + 'static {
 
         if let Some(chunk) = self.session_chunks.get(&tok) {
             pool::execute(&self.chunks[*chunk], move |chunk| {
                 use shared::pool::session::Chunk;
                 chunk.session_callback(tok, job)
+            });
+        }
+    }
+
+    pub fn update_game_server_status(&mut self, id: i16, status: i8) {
+        let _ = self.game_states.insert(id, status);
+
+        for chunk in &self.chunks {
+            pool::execute(chunk, move |chunk| {
+                chunk.update_server_status(id, status);
             });
         }
     }
@@ -65,6 +114,12 @@ pub fn add_chunk(sender: &Sender, chunk: session::Sender) {
     });
 }
 
+pub fn set_game_chunk(sender: &Sender, chunk: game_session::Sender) {
+    pool::execute(sender, move |handler| {
+        handler.game_chunk = Some(chunk);
+    });
+}
+
 pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32, job: F)
     where F: FnOnce(&mut session::Session, &session::Chunk, bool, HashMap<i16, i8>)
     + Send + 'static {
@@ -72,7 +127,7 @@ pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32, job: F)
     pool::execute(sender, move |handler| {
         let already = handler.session_ids.insert(id, tok);
         if let Some(session) = already {
-            let _ = handler.io_loop.send(net::Msg::Close(session));
+            let _ = handler.auth_loop.send(net::Msg::Close(session));
         }
         let game_states = handler.game_states.clone();
 
@@ -82,10 +137,25 @@ pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32, job: F)
     });
 }
 
-pub fn session_callback<F>(sender: &Sender, tok: Token, job: F)
-    where F: FnOnce(&mut session::Session, &session::Chunk) + Send + 'static {
+pub fn register_game_server<F>(sender: &Sender, tok: Token, id: i16, state: i8, job: F)
+    where F: FnOnce(&mut game_session::Session, &game_session::Chunk, Option<i16>)
+    + Send + 'static {
 
-    pool::execute(sender, move |handler| handler.session_callback(tok, job));
+    pool::execute(sender, move |handler| {
+        let mut server_id = None;
+        if !handler.game_session_ids.contains_key(&id) {
+            let _ = handler.game_session_ids.insert(id, tok);
+            handler.update_game_server_status(id, state);
+            server_id = Some(id);
+        }
+
+        pool::execute(handler.game_chunk.as_ref().unwrap(), move |chunk| {
+            use shared::pool::session::Chunk;
+            chunk.session_callback(tok, move |session, chunk| {
+                job(session, chunk, server_id)
+            });
+        });
+    });
 }
 
 impl pool::Chunk for Handler {

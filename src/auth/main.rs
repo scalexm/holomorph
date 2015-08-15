@@ -2,14 +2,15 @@ extern crate shared;
 #[macro_use]
 extern crate log;
 extern crate env_logger;
-extern crate mio;
-extern crate rustc_serialize;
 extern crate postgres;
 extern crate crypto;
 extern crate time;
 extern crate eventual;
+extern crate rustc_serialize;
+extern crate rand;
 
 mod session;
+mod game_session;
 mod config;
 mod server;
 mod chunk;
@@ -22,7 +23,7 @@ use std::io::{self, Read};
 use std::env;
 use shared::database;
 use server::data::AuthServerData;
-use eventual::*;
+use config::Config;
 
 fn load(path: &str) -> Vec<u8> {
     let mut data = Vec::new();
@@ -33,7 +34,7 @@ fn load(path: &str) -> Vec<u8> {
 fn main() {
     env_logger::init().unwrap();
 
-    let cnf = config::from_file(&env::args()
+    let cnf = shared::config::from_file::<Config>(&env::args()
         .nth(1)
         .unwrap_or("config.json".to_string()));
 
@@ -41,11 +42,13 @@ fn main() {
     let key = load(&cnf.key_path);
     let patch = load(&cnf.patch_path);
 
-    let mut io_loop = EventLoop::new().unwrap();
-    let handler = pool::run_chunk(server::Handler::new(io_loop.channel()));
+    let mut auth_loop = EventLoop::new().unwrap();
+    let mut game_loop = EventLoop::new().unwrap();
+    let handler = pool::run_chunk(server::Handler::new(auth_loop.channel()));
+    let fwd_handler = pool::run_chunk(server::ForwardingHandler::new(handler.clone()));
 
-    let mut server_data = AuthServerData::new(handler.clone(), io_loop.channel(),
-        db, key, patch, cnf);
+    let mut server_data = AuthServerData::new(handler.clone(), auth_loop.channel(),
+        game_loop.channel(), db, key, patch, cnf);
 
     if let Err(err) = server_data.load() {
         panic!("loading failed: {}", err);
@@ -56,8 +59,18 @@ fn main() {
         server::add_chunk(&handler, tx);
     }
 
-    let mut listener = match Listener::new(&mut io_loop, &server_data.cnf.bind_address,
+    let tx = pool::run_chunk(game_session::Chunk::new(server_data.clone()));
+    server::set_game_chunk(&handler, tx);
+
+    let mut auth_listener = match Listener::new(&mut auth_loop, &server_data.cnf.bind_address,
         handler.clone()) {
+
+        Ok(listener) => listener,
+        Err(err) => panic!("listen failed: {}", err),
+    };
+
+    let mut game_listener = match Listener::new(&mut game_loop,
+        &server_data.cnf.game_bind_address, fwd_handler.clone()) {
 
         Ok(listener) => listener,
         Err(err) => panic!("listen failed: {}", err),
@@ -71,5 +84,6 @@ fn main() {
     });
 
     server::start_queue_timer(&handler);
-    io_loop.run(&mut listener).unwrap();
+    thread::spawn(move || game_loop.run(&mut game_listener).unwrap());
+    auth_loop.run(&mut auth_listener).unwrap();
 }

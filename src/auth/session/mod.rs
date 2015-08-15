@@ -40,7 +40,14 @@ impl Chunk {
     pub fn update_queue(&self) {
         use shared::pool::session::Chunk;
         for session in self.sessions() {
-            session.1.borrow().update_queue(&self);
+            session.1.borrow().update_queue(self);
+        }
+    }
+
+    pub fn update_server_status(&self, server_id: i16, status: i8) {
+        use shared::pool::session::Chunk;
+        for session in self.sessions() {
+            session.1.borrow().update_server_status(self, server_id, status);
         }
     }
 }
@@ -57,14 +64,14 @@ impl pool::session::Session for Session {
     fn new(token: Token, chunk: &Chunk) -> Session {
         debug!("{:?} connected", token);
 
-        let mut s = Session {
+        let s = Session {
             token: token,
             account: None,
             queue_size: -1,
             queue_counter: -1,
         };
 
-        s.start(&chunk);
+        s.start(chunk);
         s
     }
 

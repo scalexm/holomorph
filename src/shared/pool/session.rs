@@ -13,9 +13,14 @@ pub trait Chunk : pool::Chunk + Sized {
     fn process_net_msg(&mut self, msg: pool::NetMsg) {
         match msg {
             pool::NetMsg::SessionConnect(tok) => {
+                {
+                    let sessions = self.sessions();
+                    if sessions.contains_key(&tok) {
+                        return ();
+                    }
+                }
                 let session = <Self::S as Session>::new(tok, self);
-                let sessions = self.mut_sessions();
-                let _ = sessions.insert(tok, RefCell::new(session));
+                let _ = self.mut_sessions().insert(tok, RefCell::new(session));
             }
 
             pool::NetMsg::SessionDisconnect(tok) => {

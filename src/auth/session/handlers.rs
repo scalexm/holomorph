@@ -5,8 +5,7 @@ use shared::protocol::connection::*;
 use shared::protocol::handshake::*;
 use shared::protocol::security::*;
 use shared::protocol::queues::*;
-use session::{AccountData, Session};
-use session::Chunk;
+use session::{AccountData, Session, Chunk};
 use postgres::{self, Connection};
 use crypto::digest::Digest;
 use crypto::md5::Md5;
@@ -15,6 +14,7 @@ use shared::pool;
 use time;
 use std::collections::HashMap;
 use std::sync::atomic::{ATOMIC_ISIZE_INIT, AtomicIsize, Ordering};
+use server::data::GameServerData;
 
 static QUEUE_SIZE: AtomicIsize = ATOMIC_ISIZE_INIT;
 static QUEUE_COUNTER: AtomicIsize = ATOMIC_ISIZE_INIT;
@@ -32,7 +32,7 @@ impl From<postgres::error::Error> for AuthError {
 }
 
 impl Session {
-    pub fn start(&mut self, chunk: &Chunk) {
+    pub fn start(&self, chunk: &Chunk) {
 
         let mut buf = Vec::new();
         ProtocolRequired {
@@ -45,7 +45,7 @@ impl Session {
             key: VarIntVec((*chunk.server.key).clone()),
         }.as_packet_with_buf(&mut buf).unwrap();
 
-        let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
+        let _ = chunk.server.auth_loop.send(Msg::Write(self.token, buf));
     }
 
     pub fn update_queue(&self, chunk: &Chunk) {
@@ -65,17 +65,21 @@ impl Session {
             total: QUEUE_SIZE.load(Ordering::Relaxed) as u16,
         }.as_packet().unwrap();
 
-        let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
+        let _ = chunk.server.auth_loop.send(Msg::Write(self.token, buf));
     }
 
     pub fn handle_identification(&mut self, chunk: &Chunk, _: Cursor<Vec<u8>>)
         -> io::Result<()> {
 
+        if self.account.is_some() {
+            return Ok(());
+        }
+
         let buf = RawDataMessage {
             content: VarIntVec(chunk.server.patch[0..].to_vec()),
         }.as_packet().unwrap();
 
-        let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
+        let _ = chunk.server.auth_loop.send(Msg::Write(self.token, buf));
         Ok(())
     }
 
@@ -133,11 +137,55 @@ impl Session {
             secret_question: row.get("secret_question"),
             level: level as i8,
             subscription_end: row.get("subscription_end"),
-            subscription_elapsed: row.get("subscription_elapsed"),
+            subscription_elapsed: 0,
             creation: row.get("creation"),
             character_counts: map,
             already_logged: row.get("logged"),
         })
+    }
+
+    fn get_server_informations(&self, server: &GameServerData, mut status: i8)
+        -> GameServerInformations {
+
+        let data = self.account.as_ref().unwrap();
+
+        if data.is_subscriber() && status == server_status::FULL {
+            status = server_status::ONLINE;
+        }
+
+        GameServerInformations {
+            id: VarUShort(server.id as u16),
+            status: status,
+            completion: 0,
+            is_selectable: true,
+            characters_count: *data
+                .character_counts
+                .get(&server.id)
+                .unwrap_or(&0) as i8,
+            date: 0.,
+        }
+    }
+
+    pub fn update_server_status(&self, chunk: &Chunk, server_id: i16, status: i8) {
+        if self.account.is_none() {
+            return ();
+        }
+
+        let server = chunk.server.game_servers.get(&server_id);
+        if server.is_none() {
+            return ();
+        }
+
+        let server = server.unwrap();
+
+        if server.min_level > self.account.as_ref().unwrap().level {
+            return ();
+        }
+
+        let buf = ServerStatusUpdateMessage {
+            server: self.get_server_informations(&server, status),
+        }.as_packet().unwrap();
+        let _ = chunk.server.auth_loop.send(Msg::Write(self.token, buf));
     }
 
     fn identification_success(&mut self, chunk: &Chunk, data: AccountData,
@@ -150,6 +198,9 @@ impl Session {
             position: 0,
             total: 0,
         }.as_packet_with_buf(&mut buf).unwrap();
+
+        self.account = Some(data);
+        let data = self.account.as_ref().unwrap();
 
         IdentificationSuccessMessage {
             has_rights: Flag(data.level > 0),
@@ -173,25 +224,11 @@ impl Session {
                 continue;
             }
 
-            let mut status = *game_states
+            let status = *game_states
                 .get(&server.1.id)
                 .unwrap_or(&server_status::OFFLINE);
 
-            if subscriber && status == server_status::FULL {
-                status = server_status::ONLINE;
-            }
-
-            gs.push(GameServerInformations {
-                id: VarUShort(server.1.id as u16),
-                status: status,
-                completion: 0,
-                is_selectable: true,
-                characters_count: *data
-                    .character_counts
-                    .get(&server.1.id)
-                    .unwrap_or(&0) as i8,
-                date: 0.,
-            });
+            gs.push(self.get_server_informations(&server.1, status));
         }
 
         ServersListMessage {
@@ -200,8 +237,7 @@ impl Session {
             can_create_new_character: true,
         }.as_packet_with_buf(&mut buf).unwrap();
 
-        self.account = Some(data);
-        let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
+        let _ = chunk.server.auth_loop.send(Msg::Write(self.token, buf));
     }
 
     pub fn handle_clear_identification(&mut self, chunk: &Chunk, mut data: Cursor<Vec<u8>>)
@@ -213,14 +249,14 @@ impl Session {
 
         let msg = try!(ClearIdentificationMessage::deserialize(&mut data));
 
-        let io_loop = chunk.server.io_loop.clone();
+        let auth_loop = chunk.server.auth_loop.clone();
         let handler = chunk.server.handler.clone();
         let token = self.token;
 
         self.queue_size = QUEUE_SIZE.fetch_add(1, Ordering::Relaxed) + 1;
         self.queue_counter = QUEUE_COUNTER.load(Ordering::Relaxed);
 
-        let _ = pool::execute(&chunk.server.db, move |conn| {
+        pool::execute(&chunk.server.db, move |conn| {
             match Session::authenticate(conn, msg.username, msg.password) {
                 Err(err) => {
                     let buf = match err {
@@ -244,7 +280,7 @@ impl Session {
                             }.as_packet().unwrap()
                         }
                     };
-                    let _ = io_loop.send(Msg::WriteAndClose(token, buf));
+                    let _ = auth_loop.send(Msg::WriteAndClose(token, buf));
                 }
 
                 Ok(data) => {
