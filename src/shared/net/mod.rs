@@ -29,7 +29,15 @@ pub type Sender = mio::Sender<Msg>;
 pub type EventLoop<C> = mio::EventLoop<Listener<C>>;
 
 impl<C: pool::Chunk> Listener<C> {
-    pub fn new(event_loop: &mut EventLoop<C>, address: &str,
+    pub fn listen(event_loop: &mut EventLoop<C>, address: &str,
+        handler: pool::Sender<C>) -> Listener<C> {
+            match Listener::new(event_loop, address, handler) {
+                Ok(listener) => listener,
+                Err(err) => panic!("listen failed {}", err),
+            }
+        }
+
+    fn new(event_loop: &mut EventLoop<C>, address: &str,
         handler: pool::Sender<C>) -> io::Result<Listener<C>> {
 
         let address = match address.parse() {

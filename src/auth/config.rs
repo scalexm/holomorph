@@ -14,7 +14,7 @@ impl config::Config for Config {
     fn default() -> Config {
         Config {
             key_path: "dofus.key".to_string(),
-            patch_path: "patch.swf".to_string(),
+            patch_path: "DofusPatch.swf".to_string(),
             num_threads: 2,
             bind_address: "127.0.0.1:5555".to_string(),
             game_bind_address: "127.0.0.1:5556".to_string(),

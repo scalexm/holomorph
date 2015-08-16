@@ -1,8 +1,7 @@
 pub mod data;
 
 use shared::pool;
-use session;
-use game_session;
+use session::{auth, game};
 use shared::net::{self, Token};
 use std::collections::HashMap;
 use shared::HashBiMap;
@@ -26,32 +25,25 @@ impl ForwardingHandler {
 impl pool::Chunk for ForwardingHandler {
     fn process_net_msg(&mut self, msg: pool::NetMsg) {
         pool::execute(&self.handler, |handler| {
-            match msg {
-                pool::NetMsg::SessionConnect(..) | pool::NetMsg::SessionPacket(..) => {
-                    let _ = handler.game_chunk.as_ref().unwrap().send(msg.into());
-                }
-
-                pool::NetMsg::SessionDisconnect(tok) => {
-                    let id = handler.game_session_ids.inv_remove(&tok);
-                    if id.is_some() {
-                        handler.update_game_server_status(id.unwrap(),
-                            server_status::OFFLINE);
-                    }
-                    let _ = handler.game_chunk.as_ref().unwrap().send(msg.into());
+            if let pool::NetMsg::SessionDisconnect(tok) = msg {
+                let id = handler.game_session_ids.inv_remove(&tok);
+                if id.is_some() {
+                    handler.update_game_server_status(id.unwrap(),
+                        server_status::OFFLINE, "".to_string(), 0);
                 }
             }
+            let _ = handler.game_chunk.as_ref().unwrap().send(msg.into());
         });
     }
 }
 
 pub struct Handler {
     auth_loop: net::Sender,
-    chunks: Vec<session::Sender>,
-    game_chunk: Option<game_session::Sender>,
+    chunks: Vec<auth::Sender>,
+    game_chunk: Option<game::Sender>,
     session_chunks: HashMap<Token, usize>,
     session_ids: HashBiMap<i32, Token>,
     game_session_ids: HashBiMap<i16, Token>,
-    game_states: HashMap<i16, i8>,
     next_insert: usize,
     queue_timer: Timer,
 }
@@ -66,13 +58,12 @@ impl Handler {
             next_insert: 0,
             session_ids: HashBiMap::new(),
             game_session_ids: HashBiMap::new(),
-            game_states: HashMap::new(),
             queue_timer: Timer::with_capacity(1),
         }
     }
 
     fn session_callback<F>(&self, tok: Token, job: F)
-        where F: FnOnce(&mut session::Session, &session::Chunk) + Send + 'static {
+        where F: FnOnce(&mut auth::Session, &auth::Chunk) + Send + 'static {
 
         if let Some(chunk) = self.session_chunks.get(&tok) {
             pool::execute(&self.chunks[*chunk], move |chunk| {
@@ -82,12 +73,13 @@ impl Handler {
         }
     }
 
-    pub fn update_game_server_status(&mut self, id: i16, status: i8) {
-        let _ = self.game_states.insert(id, status);
+    fn update_game_server(&mut self, id: i16, status: i8,
+        ip: String, port: u16) {
 
         for chunk in &self.chunks {
+            let ip = ip.clone();
             pool::execute(chunk, move |chunk| {
-                chunk.update_server_status(id, status);
+                chunk.update_game_server(id, status, ip, port);
             });
         }
     }
@@ -108,20 +100,20 @@ pub fn start_queue_timer(sender: &Sender) {
     });
 }
 
-pub fn add_chunk(sender: &Sender, chunk: session::Sender) {
+pub fn add_chunk(sender: &Sender, chunk: auth::Sender) {
     pool::execute(sender, move |handler| {
         handler.chunks.push(chunk)
     });
 }
 
-pub fn set_game_chunk(sender: &Sender, chunk: game_session::Sender) {
+pub fn set_game_chunk(sender: &Sender, chunk: game::Sender) {
     pool::execute(sender, move |handler| {
         handler.game_chunk = Some(chunk);
     });
 }
 
 pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32, job: F)
-    where F: FnOnce(&mut session::Session, &session::Chunk, bool, HashMap<i16, i8>)
+    where F: FnOnce(&mut auth::Session, &auth::Chunk, bool)
     + Send + 'static {
 
     pool::execute(sender, move |handler| {
@@ -129,23 +121,23 @@ pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32, job: F)
         if let Some(session) = already {
             let _ = handler.auth_loop.send(net::Msg::Close(session));
         }
-        let game_states = handler.game_states.clone();
 
         handler.session_callback(tok,
             move |session, chunk|
-                job(session, chunk, already.is_some(), game_states))
+                job(session, chunk, already.is_some()))
     });
 }
 
-pub fn register_game_server<F>(sender: &Sender, tok: Token, id: i16, state: i8, job: F)
-    where F: FnOnce(&mut game_session::Session, &game_session::Chunk, Option<i16>)
+pub fn register_game_server<F>(sender: &Sender, tok: Token, id: i16, state: i8,
+    ip: String, port: u16, job: F)
+    where F: FnOnce(&mut game::Session, &game::Chunk, Option<i16>)
     + Send + 'static {
 
     pool::execute(sender, move |handler| {
         let mut server_id = None;
         if !handler.game_session_ids.contains_key(&id) {
             let _ = handler.game_session_ids.insert(id, tok);
-            handler.update_game_server_status(id, state);
+            handler.update_game_server(id, state, ip, port);
             server_id = Some(id);
         }
 
@@ -155,6 +147,12 @@ pub fn register_game_server<F>(sender: &Sender, tok: Token, id: i16, state: i8, 
                 job(session, chunk, server_id)
             });
         });
+    });
+}
+
+pub fn update_game_server(sender: &Sender, id: i16, state: i8, ip: String, port: u16) {
+    pool::execute(sender, move |handler| {
+        handler.update_game_server(id, state, ip, port)
     });
 }
 

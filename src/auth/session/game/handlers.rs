@@ -1,12 +1,11 @@
 use std::io::{self, Cursor};
-use game_session::{Session, Chunk};
+use super::{Session, Chunk};
 use shared::net::Msg;
 use shared::protocol::*;
 use shared::protocol::holomorph::*;
 use crypto::digest::Digest;
 use crypto::md5::Md5;
 use server;
-use shared::pool;
 
 impl Session {
     pub fn start(&self, chunk: &Chunk) {
@@ -44,8 +43,12 @@ impl Session {
             return Ok(());
         }
 
+        self.ip = msg.ip.clone();
+        self.port = msg.port;
+
         server::register_game_server(&chunk.server.handler, self.token, msg.id, msg.state,
-            |session, chunk, id| session.identification_success(chunk, id));
+            msg.ip, msg.port, |session, chunk, id|
+                session.identification_success(chunk, id));
 
         Ok(())
     }
@@ -69,9 +72,8 @@ impl Session {
         let msg = try!(StateMessage::deserialize(&mut data));
 
         let server_id = *self.server_id.as_ref().unwrap();
-        let state = msg.state;
-        pool::execute(&chunk.server.handler, move |handler|
-            handler.update_game_server_status(server_id, state));
+        server::update_game_server(&chunk.server.handler, server_id, msg.state,
+            self.ip.clone(), self.port);
 
         Ok(())
     }

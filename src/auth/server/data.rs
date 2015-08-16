@@ -62,8 +62,7 @@ impl AuthServerData {
     }
 
     pub fn shutdown(&self) {
-        let _ = self.auth_loop.send(net::Msg::Shutdown);
-        let _ = self.game_loop.send(net::Msg::Shutdown);
+        let _ = self.io_loop.send(net::Msg::Shutdown);
         let _ = self.handler.send(pool::Msg::Shutdown);
     }
 }

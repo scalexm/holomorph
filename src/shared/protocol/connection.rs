@@ -7,9 +7,16 @@ impl_type!(HelloConnectMessage, 3,
     salt| String,
     key| VarIntVec<u8>);
 
-impl_type!(ClearIdentificationMessage, 888,
-    username| String,
-    password| String);
+impl_type!(IdentificationMessage, 4,
+    auto_connect| Flag,
+    use_certificate| Flag,
+    use_login_token| Flag,
+    version| VersionExtended,
+    lang| String,
+    credentials| VarIntVec<u8>,
+    server_id| i16,
+    session_optional_salt| i8,
+    failed_attempts| Vec<VarUShort>);
 
 impl_type!(IdentificationSuccessMessage, 22,
     has_rights| Flag,
@@ -49,6 +56,16 @@ impl_type!(ServersListMessage, 30,
 
 impl_type!(ServerStatusUpdateMessage, 50,
     server| GameServerInformations);
+
+impl_type!(ServerSelectionMessage, 40,
+    server_id| VarUShort);
+
+impl_type!(SelectedServerDataMessage, 42,
+    server_id| VarUShort,
+    address| String,
+    port| u16,
+    can_create_new_character| bool,
+    ticket| VarIntVec<u8>);
 
 pub mod identification_failure_reason {
     pub const BAD_VERSION: i8 = 1;

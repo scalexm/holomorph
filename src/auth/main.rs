@@ -10,10 +10,8 @@ extern crate rustc_serialize;
 extern crate rand;
 
 mod session;
-mod game_session;
 mod config;
 mod server;
-mod chunk;
 
 use shared::net::{EventLoop, Listener};
 use shared::pool;
@@ -55,26 +53,18 @@ fn main() {
     }
 
     for _ in (0..server_data.cnf.num_threads) {
-        let tx = pool::run_chunk(session::Chunk::new(server_data.clone()));
+        let tx = pool::run_chunk(session::auth::Chunk::new(server_data.clone()));
         server::add_chunk(&handler, tx);
     }
 
-    let tx = pool::run_chunk(game_session::Chunk::new(server_data.clone()));
+    let tx = pool::run_chunk(session::game::Chunk::new(server_data.clone()));
     server::set_game_chunk(&handler, tx);
 
-    let mut auth_listener = match Listener::new(&mut auth_loop, &server_data.cnf.bind_address,
-        handler.clone()) {
+    let mut auth_listener = Listener::listen(&mut auth_loop,
+        &server_data.cnf.bind_address, handler.clone());
 
-        Ok(listener) => listener,
-        Err(err) => panic!("listen failed: {}", err),
-    };
-
-    let mut game_listener = match Listener::new(&mut game_loop,
-        &server_data.cnf.game_bind_address, fwd_handler.clone()) {
-
-        Ok(listener) => listener,
-        Err(err) => panic!("listen failed: {}", err),
-    };
+    let mut game_listener = Listener::listen(&mut game_loop,
+        &server_data.cnf.game_bind_address, fwd_handler.clone());
 
     thread::spawn(move || {
         io::stdin().read_line(&mut String::new())

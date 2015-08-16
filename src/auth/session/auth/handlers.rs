@@ -5,7 +5,7 @@ use shared::protocol::connection::*;
 use shared::protocol::handshake::*;
 use shared::protocol::security::*;
 use shared::protocol::queues::*;
-use session::{AccountData, Session, Chunk};
+use super::{AccountData, Session, Chunk};
 use postgres::{self, Connection};
 use crypto::digest::Digest;
 use crypto::md5::Md5;
@@ -66,21 +66,6 @@ impl Session {
         }.as_packet().unwrap();
 
         let _ = chunk.server.auth_loop.send(Msg::Write(self.token, buf));
-    }
-
-    pub fn handle_identification(&mut self, chunk: &Chunk, _: Cursor<Vec<u8>>)
-        -> io::Result<()> {
-
-        if self.account.is_some() {
-            return Ok(());
-        }
-
-        let buf = RawDataMessage {
-            content: VarIntVec(chunk.server.patch[0..].to_vec()),
-        }.as_packet().unwrap();
-
-        let _ = chunk.server.auth_loop.send(Msg::Write(self.token, buf));
-        Ok(())
     }
 
     fn authenticate(conn: &mut Connection, account: String,
@@ -189,7 +174,7 @@ impl Session {
     }
 
     fn identification_success(&mut self, chunk: &Chunk, data: AccountData,
-        already_logged: bool, game_states: HashMap<i16, i8>) {
+        already_logged: bool) {
 
         let mut buf = Vec::new();
         let subscriber = data.is_subscriber();
@@ -224,9 +209,10 @@ impl Session {
                 continue;
             }
 
-            let status = *game_states
+            let status = chunk.game_status
                 .get(&server.1.id)
-                .unwrap_or(&server_status::OFFLINE);
+                .map(|status| status.0)
+                .unwrap_or(server_status::OFFLINE);
 
             gs.push(self.get_server_informations(&server.1, status));
         }
@@ -240,14 +226,32 @@ impl Session {
         let _ = chunk.server.auth_loop.send(Msg::Write(self.token, buf));
     }
 
-    pub fn handle_clear_identification(&mut self, chunk: &Chunk, mut data: Cursor<Vec<u8>>)
+    pub fn handle_identification(&mut self, chunk: &Chunk, mut data: Cursor<Vec<u8>>)
         -> io::Result<()> {
+
+        use std::io::Read;
+        use shared::io::ReadExt;
 
         if self.account.is_some() {
             return Ok(());
         }
 
-        let msg = try!(ClearIdentificationMessage::deserialize(&mut data));
+        if !self.custom_identification {
+            self.custom_identification = true;
+            let buf = RawDataMessage {
+                content: VarIntVec(chunk.server.patch[0..].to_vec()),
+            }.as_packet().unwrap();
+
+            let _ = chunk.server.auth_loop.send(Msg::Write(self.token, buf));
+            return Ok(());
+        }
+
+        let msg = try!(IdentificationMessage::deserialize(&mut data));
+
+        let mut credentials = Cursor::new(msg.credentials.0);
+        let username = try!(credentials.read_string());
+        let password = try!(credentials.read_string());
+        try!(credentials.read_to_end(&mut self.aes_key));
 
         let auth_loop = chunk.server.auth_loop.clone();
         let handler = chunk.server.handler.clone();
@@ -257,7 +261,7 @@ impl Session {
         self.queue_counter = QUEUE_COUNTER.load(Ordering::Relaxed);
 
         pool::execute(&chunk.server.db, move |conn| {
-            match Session::authenticate(conn, msg.username, msg.password) {
+            match Session::authenticate(conn, username, password) {
                 Err(err) => {
                     let buf = match err {
                         AuthError::Banned(ban_end) =>
@@ -286,12 +290,11 @@ impl Session {
                 Ok(data) => {
                     let id = data.id;
                     server::identification_success(&handler, token, id,
-                        move |session, chunk, already, states| {
+                        move |session, chunk, already| {
 
                         session.queue_size = -1;
                         session.queue_counter = -1;
-                        Session::identification_success(session, chunk, data,
-                            already, states)
+                        Session::identification_success(session, chunk, data, already)
                     });
                 }
             }

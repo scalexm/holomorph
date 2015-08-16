@@ -2,7 +2,7 @@ mod handlers;
 
 use shared::net::Token;
 use shared::pool;
-use chunk;
+use session;
 use std::io::{self, Cursor};
 use rand::{self, Rng};
 
@@ -10,9 +10,11 @@ pub struct Session {
     token: Token,
     server_id: Option<i16>,
     salt: String,
+    ip: String,
+    port: u16,
 }
 
-pub type Chunk = chunk::Chunk<Session>;
+pub type Chunk = session::Chunk<Session>;
 pub type Sender = pool::Sender<Chunk>;
 
 impl Drop for Session {
@@ -31,6 +33,8 @@ impl pool::session::Session for Session {
             token: token,
             server_id: None,
             salt: rand::thread_rng().gen_ascii_chars().take(32).collect(),
+            ip: String::new(),
+            port: 0,
         };
 
         s.start(chunk);
