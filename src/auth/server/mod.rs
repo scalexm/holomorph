@@ -28,7 +28,7 @@ impl pool::Chunk for ForwardingHandler {
             if let pool::NetMsg::SessionDisconnect(tok) = msg {
                 let id = handler.game_session_ids.inv_remove(&tok);
                 if id.is_some() {
-                    handler.update_game_server_status(id.unwrap(),
+                    handler.update_game_server(id.unwrap(),
                         server_status::OFFLINE, "".to_string(), 0);
                 }
             }
