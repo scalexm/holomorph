@@ -7,6 +7,7 @@ pub trait Config {
     fn default() -> Self;
 }
 
+// uses the json format
 pub fn from_file<C: Config + Decodable + Encodable>(path: &str) -> C {
     match File::open(path) {
         Ok(mut f) => {

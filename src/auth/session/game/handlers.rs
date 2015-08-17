@@ -13,7 +13,7 @@ impl Session {
             salt: self.salt.clone(),
         }.as_packet().unwrap();
 
-        let _ = chunk.server.game_loop.send(Msg::Write(self.token, buf));
+        let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
     }
 
     pub fn handle_identification(&mut self, chunk: &Chunk, mut data: Cursor<Vec<u8>>)
@@ -27,7 +27,7 @@ impl Session {
 
         let gs = chunk.server.game_servers.get(&msg.id);
         if gs.is_none() {
-            let _ = chunk.server.game_loop.send(Msg::Close(self.token));
+            let _ = chunk.server.io_loop.send(Msg::Close(self.token));
             return Ok(());
         }
 
@@ -39,7 +39,7 @@ impl Session {
         md5 = Md5::new();
         md5.input_str(&(key + &self.salt));
         if md5.result_str() != msg.key {
-            let _ = chunk.server.game_loop.send(Msg::Close(self.token));
+            let _ = chunk.server.io_loop.send(Msg::Close(self.token));
             return Ok(());
         }
 
@@ -55,7 +55,7 @@ impl Session {
 
     fn identification_success(&mut self, chunk: &Chunk, server_id: Option<i16>) {
         if server_id.is_none() {
-            let _ = chunk.server.game_loop.send(Msg::Close(self.token));
+            let _ = chunk.server.io_loop.send(Msg::Close(self.token));
             return ();
         }
 

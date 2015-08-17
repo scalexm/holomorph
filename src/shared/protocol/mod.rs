@@ -71,6 +71,24 @@ pub trait Protocol: Sized {
 }
 
 macro_rules! impl_type {
+    ($name: ident, $id: expr) => {
+        pub struct $name;
+
+        impl Protocol for $name {
+            fn deserialize<R: Read>(_: &mut R) -> Result<$name> {
+                Ok($name)
+            }
+
+            fn serialize<W: Write>(&self, _: &mut W) -> Result<()> {
+                Ok(())
+            }
+
+            fn id() -> i16 {
+                $id
+            }
+        }
+    };
+
     ($name: ident, $id: expr, $($field_name: ident | $field_type: ty),*) => {
 
         pub struct $name {

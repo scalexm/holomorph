@@ -234,6 +234,7 @@ pub trait WriteExt: WriteBytesExt {
 
         try!(WriteExt::write_u16(self, id << 2 | nbytes));
         match nbytes {
+            0 => (),
             1 => try!(WriteExt::write_u8(self, len as u8)),
             2 => try!(WriteExt::write_u16(self, len as u16)),
             3 => {

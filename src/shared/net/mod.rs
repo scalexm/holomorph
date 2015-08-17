@@ -4,78 +4,96 @@ mod handler;
 use mio::{self, EventSet, PollOpt};
 use mio::tcp::TcpListener;
 use mio::util::Slab;
-use std::io;
+use std::io::{self, Cursor};
 use net::connection::Connection;
 use pool;
 
 pub use mio::Token;
 
-const SERVER: Token = Token(0);
-
-pub struct Listener<C: pool::Chunk> {
-    handler: pool::Sender<C>,
-    server: TcpListener,
-    connections: Slab<Connection>,
-}
-
 pub enum Msg {
+    // received by NetworkHandler
     Shutdown,
     Write(Token, Vec<u8>),
     WriteAndClose(Token, Vec<u8>),
     Close(Token),
+
+    // sent by NetworkHandler
+    SessionConnect(Token),
+    SessionPacket(Token, u16, Cursor<Vec<u8>>),
+    SessionDisconnect(Token),
+}
+
+struct Listener<C> {
+    socket: TcpListener,
+    callback: fn(&mut C, Msg),
 }
 
 pub type Sender = mio::Sender<Msg>;
-pub type EventLoop<C> = mio::EventLoop<Listener<C>>;
+pub type EventLoop<C> = mio::EventLoop<NetworkHandler<C>>;
 
-impl<C: pool::Chunk> Listener<C> {
-    pub fn listen(event_loop: &mut EventLoop<C>, address: &str,
-        handler: pool::Sender<C>) -> Listener<C> {
-            match Listener::new(event_loop, address, handler) {
-                Ok(listener) => listener,
-                Err(err) => panic!("listen failed {}", err),
-            }
-        }
+pub struct NetworkHandler<C: pool::Chunk> {
+    handler: pool::Sender<C>,
+    listeners: Slab<Listener<C>>,
+    connections: Slab<Connection>,
+}
 
-    fn new(event_loop: &mut EventLoop<C>, address: &str,
-        handler: pool::Sender<C>) -> io::Result<Listener<C>> {
+impl<C: pool::Chunk> NetworkHandler<C> {
+    fn add_listener_with_result(&mut self, event_loop: &mut EventLoop<C>, address: &str,
+        cb: fn(&mut C, Msg)) -> io::Result<()> {
 
-        let address = match address.parse() {
-            Ok(addr) => addr,
-            Err(_) => panic!("failed to parse address"),
-        };
+            let address = match address.parse() {
+                Ok(addr) => addr,
+                Err(_) => panic!("failed to parse address"),
+            };
 
-        let server = try!(TcpListener::bind(&address));
+            let socket = try!(TcpListener::bind(&address));
+            let tok = self.listeners.insert(Listener {
+                socket: socket,
+                callback: cb,
+            }).ok().unwrap();
 
-        try!(event_loop.register_opt(&server, SERVER, EventSet::readable(),
-            PollOpt::edge()));
+            try!(event_loop.register_opt(&self.listeners[tok].socket, tok,
+                EventSet::readable(), PollOpt::edge()));
 
-        info!("ready to listen on {:?}", address);
-        let slab = Slab::new_starting_at(Token(1), 1024);
-
-        Ok(Listener {
-            handler: handler,
-            server: server,
-            connections: slab,
-        })
+            info!("ready to listen on {:?}", address);
+            Ok(())
     }
 
-    fn handle_server_event(&mut self, event_loop: &mut EventLoop<C>,
+    pub fn add_listener(&mut self, event_loop: &mut EventLoop<C>, address: &str,
+        cb: fn(&mut C, Msg)) {
+
+        if let Err(err) = self.add_listener_with_result(event_loop, address, cb) {
+            panic!("listen failed {}", err);
+        }
+    }
+
+    pub fn new(handler: pool::Sender<C>) -> NetworkHandler<C> {
+        NetworkHandler {
+            handler: handler,
+            listeners: Slab::new(10), // we keep 10 tokens for the Listeners
+            connections: Slab::new_starting_at(Token(10), 65535),
+        }
+    }
+
+    fn handle_server_event(&mut self, event_loop: &mut EventLoop<C>, tok: Token,
         events: EventSet) -> io::Result<()> {
 
         assert!(events.is_readable());
 
-        match try!(self.server.accept()) {
+        match try!(self.listeners[tok].socket.accept()) {
             Some(socket) => {
-                let token = self.connections
-                    .insert(Connection::new(socket))
+                let client_tok = self.connections
+                    .insert(Connection::new(socket, tok))
                     .ok()
                     .unwrap();
 
-                let _ = self.handler.send(pool::NetMsg::SessionConnect(token).into());
+                let cb = self.listeners[tok].callback;
+                pool::execute(&self.handler, move |handler| {
+                    cb(handler, Msg::SessionConnect(client_tok))
+                });
 
-                event_loop.register_opt(&self.connections[token].socket,
-                    token,
+                event_loop.register_opt(&self.connections[client_tok].socket,
+                    client_tok,
                     EventSet::readable(),
                     PollOpt::level())
             }
@@ -84,20 +102,21 @@ impl<C: pool::Chunk> Listener<C> {
         }
     }
 
-    fn handle_client_event(&mut self, token: Token, event_loop: &mut EventLoop<C>,
+    fn handle_client_event(&mut self, event_loop: &mut EventLoop<C>, tok: Token,
         events: EventSet) -> io::Result<()> {
 
         if events.is_readable() {
-            if let Some((id, buf)) = try!(self.connections[token].readable()) {
-                let _ = self
-                    .handler
-                    .send(pool::NetMsg::SessionPacket(token, id, buf).into());
+            if let Some(packet) = try!(self.connections[tok].readable()) {
+                let cb = self.listeners[self.connections[tok].listener_token].callback;
+                pool::execute(&self.handler, move |handler| {
+                    cb(handler, Msg::SessionPacket(tok, packet.0, packet.1));
+                });
             }
         }
 
         if events.is_writable() {
-            if try!(self.connections[token].writable()) {
-                event_loop.reregister(&self.connections[token].socket, token,
+            if try!(self.connections[tok].writable()) {
+                event_loop.reregister(&self.connections[tok].socket, tok,
                     EventSet::readable(),
                     PollOpt::level()).unwrap();
             }

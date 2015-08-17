@@ -16,8 +16,7 @@ pub struct GameServerData {
 #[derive(Clone)]
 pub struct AuthServerData {
     pub handler: server::Sender,
-    pub auth_loop: net::Sender,
-    pub game_loop: net::Sender,
+    pub io_loop: net::Sender,
     pub db: database::Sender,
     pub key: Arc<Vec<u8>>,
     pub patch: Arc<Vec<u8>>,
@@ -26,14 +25,13 @@ pub struct AuthServerData {
 }
 
 impl AuthServerData {
-    pub fn new(handler: server::Sender, auth_loop: net::Sender, game_loop: net::Sender,
+    pub fn new(handler: server::Sender, io_loop: net::Sender,
         db: database::Sender, key: Vec<u8>, patch: Vec<u8>,
         cnf: Config) -> AuthServerData {
 
             AuthServerData {
                 handler: handler,
-                auth_loop: auth_loop,
-                game_loop: game_loop,
+                io_loop: io_loop,
                 db: db,
                 key: Arc::new(key),
                 patch: Arc::new(patch),
@@ -62,8 +60,7 @@ impl AuthServerData {
     }
 
     pub fn shutdown(&self) {
-        let _ = self.auth_loop.send(net::Msg::Shutdown);
-        let _ = self.game_loop.send(net::Msg::Shutdown);
+        let _ = self.io_loop.send(net::Msg::Shutdown);
         let _ = self.handler.send(pool::Msg::Shutdown);
     }
 }

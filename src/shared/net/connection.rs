@@ -1,16 +1,18 @@
-use mio::{TryRead, TryWrite};
+use mio::{TryRead, TryWrite, Token};
 use mio::tcp::{TcpStream, Shutdown};
 use std::io::{self, Read, Cursor};
 use io::ReadExt;
 use std::collections::VecDeque;
 
 struct Buffer(Vec<u8>, usize);
+pub struct Packet(pub u16, pub Cursor<Vec<u8>>);
 
 fn make_buffer(len: usize) -> Buffer {
     Buffer(vec![0; len], 0)
 }
 
 pub struct Connection {
+    pub listener_token: Token,
     pub socket: TcpStream,
     read_buffer: Option<Buffer>,
     write_buffer: VecDeque<Buffer>,
@@ -25,10 +27,11 @@ enum State {
 }
 
 impl Connection {
-    pub fn new(socket: TcpStream)
+    pub fn new(socket: TcpStream, listener_token: Token)
         -> Connection {
 
         Connection {
+            listener_token: listener_token,
             socket: socket,
             read_buffer: Some(make_buffer(2)),
             write_buffer: VecDeque::new(),
@@ -37,7 +40,7 @@ impl Connection {
         }
     }
 
-    pub fn readable(&mut self) -> io::Result<Option<(u16, Cursor<Vec<u8>>)>> {
+    pub fn readable(&mut self) -> io::Result<Option<Packet>> {
         let Buffer(mut buf, pos) = self.read_buffer.take().unwrap();
         let s = match try!(self.socket.try_read(&mut buf[pos..])) {
             None | Some(0) => return Err(io::Error::new(io::ErrorKind::Other, "EOF")),
@@ -72,7 +75,7 @@ impl Connection {
                 self.state = State::WaitingForHeader;
                 self.read_buffer = Some(make_buffer(2));
 
-                return Ok(Some((id, buf)));
+                return Ok(Some(Packet(id, buf)));
             }
         }
 

@@ -1,30 +1,32 @@
 use mio::{Token, EventSet, Handler, PollOpt};
 use mio::tcp::Shutdown;
-use super::{Msg, Listener, EventLoop};
+use net::{Msg, NetworkHandler, EventLoop};
 use pool;
 
-impl<C: pool::Chunk> Handler for Listener<C> {
+impl<C: pool::Chunk> Handler for NetworkHandler<C> {
     type Timeout = ();
     type Message = Msg;
 
-    fn ready(&mut self, event_loop: &mut EventLoop<C>, token: Token,
+    fn ready(&mut self, event_loop: &mut EventLoop<C>, tok: Token,
         events: EventSet) {
 
-        match token {
-            super::SERVER => {
-                if let Err(err) = self.handle_server_event(event_loop, events) {
-                    event_loop.shutdown();
+        match tok {
+            // one of our listeners
+            Token(t) if t < 10 => {
+                if let Err(err) = self.handle_server_event(event_loop, tok, events) {
                     error!("accept failed: {}", err);
                 }
             }
 
+            // one of our connections
             _ => {
-                if let Err(_) = self.handle_client_event(token, event_loop, events) {
-                    let _ = event_loop.deregister(&self.connections[token].socket);
-                    let _ = self.connections.remove(token).unwrap();
-                    let _ = self
-                        .handler
-                        .send(pool::NetMsg::SessionDisconnect(token).into());
+                if let Err(_) = self.handle_client_event(event_loop, tok, events) {
+                    let _ = event_loop.deregister(&self.connections[tok].socket);
+                    let _ = self.connections.remove(tok).unwrap();
+
+                    let cb = self.listeners[self.connections[tok].listener_token].callback;
+                    pool::execute(&self.handler, move |handler|
+                        cb(handler, Msg::SessionDisconnect(tok)));
                 }
             }
         }
@@ -55,6 +57,8 @@ impl<C: pool::Chunk> Handler for Listener<C> {
                 let _ = self.connections.get_mut(tok).map(|conn|
                     conn.socket.shutdown(Shutdown::Both));
             }
+
+            _ => unreachable!(),
         }
     }
 }

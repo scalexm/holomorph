@@ -1,18 +1,19 @@
 use std::io::{self, Cursor};
 use pool;
-use net::Token;
+use net::{Msg, Token};
 use std::collections::HashMap;
 use std::cell::RefCell;
 
+// more specific chunk trait, used for session chunks
 pub trait Chunk : pool::Chunk + Sized {
     type S: Session<C = Self>;
 
     fn sessions(&self) -> &HashMap<Token, RefCell<Self::S>>;
     fn mut_sessions(&mut self) -> &mut HashMap<Token, RefCell<Self::S>>;
 
-    fn process_net_msg(&mut self, msg: pool::NetMsg) {
+    fn process_net_msg(&mut self, msg: Msg) {
         match msg {
-            pool::NetMsg::SessionConnect(tok) => {
+            Msg::SessionConnect(tok) => {
                 {
                     let sessions = self.sessions();
                     if sessions.contains_key(&tok) {
@@ -23,18 +24,20 @@ pub trait Chunk : pool::Chunk + Sized {
                 let _ = self.mut_sessions().insert(tok, RefCell::new(session));
             }
 
-            pool::NetMsg::SessionDisconnect(tok) => {
+            Msg::SessionDisconnect(tok) => {
                 let sessions = self.mut_sessions();
                 let _ = sessions.remove(&tok);
             }
 
-            pool::NetMsg::SessionPacket(tok, id, data) => {
+            Msg::SessionPacket(tok, id, data) => {
                 let sessions = self.sessions();
                 if let Some(session) = sessions.get(&tok) {
                     let _ = <Self::S as Session>::handle_packet(&mut session.borrow_mut(),
                         self, id, data);
                 }
             }
+
+            _ => unreachable!(),
         }
     }
 

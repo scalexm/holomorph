@@ -9,12 +9,18 @@ use super::{AccountData, Session, Chunk};
 use postgres::{self, Connection};
 use crypto::digest::Digest;
 use crypto::md5::Md5;
+use crypto::aes;
+use crypto::blockmodes::NoPadding;
+use crypto::buffer::{RefReadBuffer, RefWriteBuffer, BufferResult, WriteBuffer, ReadBuffer};
+use crypto::symmetriccipher::Encryptor;
+use crypto::blockmodes::PkcsPadding;
 use server;
-use shared::pool;
+use shared::database;
 use time;
 use std::collections::HashMap;
 use std::sync::atomic::{ATOMIC_ISIZE_INIT, AtomicIsize, Ordering};
 use server::data::GameServerData;
+use rand::{self, Rng};
 
 static QUEUE_SIZE: AtomicIsize = ATOMIC_ISIZE_INIT;
 static QUEUE_COUNTER: AtomicIsize = ATOMIC_ISIZE_INIT;
@@ -33,7 +39,6 @@ impl From<postgres::error::Error> for AuthError {
 
 impl Session {
     pub fn start(&self, chunk: &Chunk) {
-
         let mut buf = Vec::new();
         ProtocolRequired {
             required_version: 1658,
@@ -45,7 +50,7 @@ impl Session {
             key: VarIntVec((*chunk.server.key).clone()),
         }.as_packet_with_buf(&mut buf).unwrap();
 
-        let _ = chunk.server.auth_loop.send(Msg::Write(self.token, buf));
+        let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
     }
 
     pub fn update_queue(&self, chunk: &Chunk) {
@@ -65,7 +70,7 @@ impl Session {
             total: QUEUE_SIZE.load(Ordering::Relaxed) as u16,
         }.as_packet().unwrap();
 
-        let _ = chunk.server.auth_loop.send(Msg::Write(self.token, buf));
+        let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
     }
 
     fn authenticate(conn: &mut Connection, account: String,
@@ -142,7 +147,7 @@ impl Session {
             id: VarUShort(server.id as u16),
             status: status,
             completion: 0,
-            is_selectable: true,
+            is_selectable: status == server_status::ONLINE,
             characters_count: *data
                 .character_counts
                 .get(&server.id)
@@ -170,7 +175,7 @@ impl Session {
         let buf = ServerStatusUpdateMessage {
             server: self.get_server_informations(&server, status),
         }.as_packet().unwrap();
-        let _ = chunk.server.auth_loop.send(Msg::Write(self.token, buf));
+        let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
     }
 
     fn identification_success(&mut self, chunk: &Chunk, data: AccountData,
@@ -212,7 +217,7 @@ impl Session {
             let status = chunk.game_status
                 .get(&server.1.id)
                 .map(|status| status.0)
-                .unwrap_or(server_status::OFFLINE);
+                .unwrap_or(server_status::ONLINE);
 
             gs.push(self.get_server_informations(&server.1, status));
         }
@@ -223,7 +228,7 @@ impl Session {
             can_create_new_character: true,
         }.as_packet_with_buf(&mut buf).unwrap();
 
-        let _ = chunk.server.auth_loop.send(Msg::Write(self.token, buf));
+        let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
     }
 
     pub fn handle_identification(&mut self, chunk: &Chunk, mut data: Cursor<Vec<u8>>)
@@ -242,7 +247,7 @@ impl Session {
                 content: VarIntVec(chunk.server.patch[0..].to_vec()),
             }.as_packet().unwrap();
 
-            let _ = chunk.server.auth_loop.send(Msg::Write(self.token, buf));
+            let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
             return Ok(());
         }
 
@@ -253,14 +258,14 @@ impl Session {
         let password = try!(credentials.read_string());
         try!(credentials.read_to_end(&mut self.aes_key));
 
-        let auth_loop = chunk.server.auth_loop.clone();
+        let io_loop = chunk.server.io_loop.clone();
         let handler = chunk.server.handler.clone();
         let token = self.token;
 
         self.queue_size = QUEUE_SIZE.fetch_add(1, Ordering::Relaxed) + 1;
         self.queue_counter = QUEUE_COUNTER.load(Ordering::Relaxed);
 
-        pool::execute(&chunk.server.db, move |conn| {
+        database::execute(&chunk.server.db, move |conn| {
             match Session::authenticate(conn, username, password) {
                 Err(err) => {
                     let buf = match err {
@@ -284,7 +289,7 @@ impl Session {
                             }.as_packet().unwrap()
                         }
                     };
-                    let _ = auth_loop.send(Msg::WriteAndClose(token, buf));
+                    let _ = io_loop.send(Msg::WriteAndClose(token, buf));
                 }
 
                 Ok(data) => {
@@ -302,6 +307,72 @@ impl Session {
             let _ = QUEUE_SIZE.fetch_sub(1, Ordering::Relaxed);
             let _ = QUEUE_COUNTER.fetch_add(1, Ordering::Relaxed);
         });
+
+        Ok(())
+    }
+
+    pub fn handle_server_selection(&mut self, chunk: &Chunk, mut data: Cursor<Vec<u8>>)
+        -> io::Result<()> {
+
+        if self.account.is_none() {
+            return Ok(());
+        }
+
+        let msg = try!(ServerSelectionMessage::deserialize(&mut data));
+
+        let status = chunk.game_status.get(&(msg.server_id.0 as i16));
+        if status.is_none() {
+            return Ok(());
+        }
+        let ref status = status.unwrap();
+
+        if status.0 != server_status::ONLINE && (status.0 != server_status::FULL ||
+            !self.account.as_ref().unwrap().is_subscriber()) {
+
+            return Ok(());
+        }
+
+        /*if server.min_level > self.account.as_ref().unwrap().level {
+            return ();
+        }*/
+
+        let ticket: String = rand::thread_rng().gen_ascii_chars().take(10).collect();
+        let mut output = [0; 16];
+        //let mut result = Vec::new();
+
+        let mut cbc = aes::cbc_encryptor(aes::KeySize::KeySize256, &self.aes_key[0..],
+            &self.aes_key[0..16], PkcsPadding);
+
+        let mut read_buffer = RefReadBuffer::new(&ticket.as_bytes());
+        let mut write_buffer = RefWriteBuffer::new(&mut output);
+
+        /*loop {
+            let res = match cbc.encrypt(&mut read_buffer, &mut write_buffer, true) {
+                Ok(res) => res,
+                Err(e) => {
+
+                }
+            };
+
+            result.extend(write_buffer
+                .take_read_buffer()
+                .take_remaining()
+                .iter()
+                .map(|&i| i));
+
+            if let BufferResult::BufferUnderflow = res {
+                break;
+            }
+        }*/
+
+        /*let buf = SelectedServerDataMessage {
+            server_id: msg.server_id,
+            address: "127.0.0.1".to_string(),
+            port: 5555,
+            can_create_new_character: true,
+            ticket: VarIntVec(result),
+        }.as_packet().unwrap();
+        let _ = chunk.server.io_loop.send(Msg::WriteAndClose(self.token, buf));*/
 
         Ok(())
     }

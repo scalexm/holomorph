@@ -19,6 +19,7 @@ use std::collections::hash_map::{Iter, IterMut, Keys, Values, Entry};
 use std::hash::Hash;
 use std::borrow::Borrow;
 
+// bijective mapping between two sets, used for the shared memory thread
 pub struct HashBiMap<K: Hash + Eq + Copy, V: Hash + Eq + Copy> {
     kv: HashMap<K, V>,
     vk: HashMap<V, K>,

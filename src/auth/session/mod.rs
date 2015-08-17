@@ -25,11 +25,7 @@ impl<S> Chunk<S> {
     }
 }
 
-impl<S: pool::session::Session<C = Chunk<S>>> pool::Chunk for Chunk<S> {
-    fn process_net_msg(&mut self, msg: pool::NetMsg) {
-        pool::session::Chunk::process_net_msg(self, msg)
-    }
-}
+impl<S> pool::Chunk for Chunk<S> { }
 
 impl<S: pool::session::Session<C = Chunk<S>>> pool::session::Chunk for Chunk<S> {
     type S = S;

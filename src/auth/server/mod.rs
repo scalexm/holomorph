@@ -10,35 +10,8 @@ use shared::protocol::connection::server_status;
 
 pub type Sender = pool::Sender<Handler>;
 
-pub struct ForwardingHandler {
-    handler: Sender,
-}
-
-impl ForwardingHandler {
-    pub fn new(handler: Sender) -> ForwardingHandler {
-        ForwardingHandler {
-            handler: handler,
-        }
-    }
-}
-
-impl pool::Chunk for ForwardingHandler {
-    fn process_net_msg(&mut self, msg: pool::NetMsg) {
-        pool::execute(&self.handler, |handler| {
-            if let pool::NetMsg::SessionDisconnect(tok) = msg {
-                let id = handler.game_session_ids.inv_remove(&tok);
-                if id.is_some() {
-                    handler.update_game_server(id.unwrap(),
-                        server_status::OFFLINE, "".to_string(), 0);
-                }
-            }
-            let _ = handler.game_chunk.as_ref().unwrap().send(msg.into());
-        });
-    }
-}
-
 pub struct Handler {
-    auth_loop: net::Sender,
+    io_loop: net::Sender,
     chunks: Vec<auth::Sender>,
     game_chunk: Option<game::Sender>,
     session_chunks: HashMap<Token, usize>,
@@ -48,10 +21,12 @@ pub struct Handler {
     queue_timer: Timer,
 }
 
+impl pool::Chunk for Handler { }
+
 impl Handler {
-    pub fn new(auth_loop: net::Sender) -> Handler {
+    pub fn new(io_loop: net::Sender) -> Handler {
         Handler {
-            auth_loop: auth_loop,
+            io_loop: io_loop,
             chunks: Vec::new(),
             game_chunk: None,
             session_chunks: HashMap::new(),
@@ -119,7 +94,7 @@ pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32, job: F)
     pool::execute(sender, move |handler| {
         let already = handler.session_ids.insert(id, tok);
         if let Some(session) = already {
-            let _ = handler.auth_loop.send(net::Msg::Close(session));
+            let _ = handler.io_loop.send(net::Msg::Close(session));
         }
 
         handler.session_callback(tok,
@@ -156,34 +131,61 @@ pub fn update_game_server(sender: &Sender, id: i16, state: i8, ip: String, port:
     });
 }
 
-impl pool::Chunk for Handler {
-    fn process_net_msg(&mut self, msg: pool::NetMsg) {
+// handling messages from NetworkHandler
+impl Handler {
+    pub fn game_net_msg(&mut self, msg: net::Msg) {
+        use shared::pool::session::Chunk;
+
+        if let net::Msg::SessionDisconnect(tok) = msg {
+           let id = self.game_session_ids.inv_remove(&tok);
+           if id.is_some() {
+               self.update_game_server(id.unwrap(),
+                   server_status::OFFLINE, "".to_string(), 0);
+           }
+       }
+
+       pool::execute(self.game_chunk.as_ref().unwrap(), move |chunk| {
+           chunk.process_net_msg(msg);
+       });
+   }
+
+    pub fn auth_net_msg(&mut self, msg: net::Msg) {
+        use shared::pool::session::Chunk;
+
         match msg {
-            pool::NetMsg::SessionConnect(tok) => {
+            net::Msg::SessionConnect(tok) => {
                 if self.session_chunks.contains_key(&tok) {
                     return ();
                 }
 
                 let chunk = self.next_insert % self.chunks.len();
                 let _ = self.session_chunks.insert(tok, chunk);
-                let _  = self.chunks[chunk].send(msg.into());
+                pool::execute(&self.chunks[chunk], move |chunk| {
+                    chunk.process_net_msg(msg);
+                });
 
                 self.next_insert += 1;
             }
 
-            pool::NetMsg::SessionPacket(tok, _, _) => {
+            net::Msg::SessionPacket(tok, _, _) => {
                 if let Some(chunk) = self.session_chunks.get(&tok) {
-                    let _ = self.chunks[*chunk].send(msg.into());
+                    pool::execute(&self.chunks[*chunk], move |chunk| {
+                        chunk.process_net_msg(msg);
+                    });
                 }
             }
 
-            pool::NetMsg::SessionDisconnect(tok) => {
+            net::Msg::SessionDisconnect(tok) => {
                 if let Some(chunk) = self.session_chunks.get(&tok) {
-                    let _ = self.chunks[*chunk].send(msg.into());
+                    pool::execute(&self.chunks[*chunk], move |chunk| {
+                        chunk.process_net_msg(msg);
+                    });
                 }
                 let _ = self.session_chunks.remove(&tok);
                 let _ = self.session_ids.inv_remove(&tok);
             }
+
+            _ => unreachable!(),
         }
     }
 }
