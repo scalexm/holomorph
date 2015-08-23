@@ -1,6 +1,6 @@
 use std::io::{self, Cursor};
 use pool;
-use net::{Msg, Token};
+use net::{SessionEvent, Token};
 use std::collections::HashMap;
 use std::cell::RefCell;
 
@@ -11,33 +11,36 @@ pub trait Chunk : pool::Chunk + Sized {
     fn sessions(&self) -> &HashMap<Token, RefCell<Self::S>>;
     fn mut_sessions(&mut self) -> &mut HashMap<Token, RefCell<Self::S>>;
 
-    fn process_net_msg(&mut self, msg: Msg) {
-        match msg {
-            Msg::SessionConnect(tok) => {
+    fn process_event(&mut self, evt: SessionEvent) {
+        match evt {
+            SessionEvent::Connect(tok, addr) => {
                 {
                     let sessions = self.sessions();
                     if sessions.contains_key(&tok) {
                         return ();
                     }
                 }
-                let session = <Self::S as Session>::new(tok, self);
+                let session = <Self::S as Session>::new(tok, self, addr);
                 let _ = self.mut_sessions().insert(tok, RefCell::new(session));
             }
 
-            Msg::SessionDisconnect(tok) => {
+            SessionEvent::Disconnect(tok) => {
                 let sessions = self.mut_sessions();
                 let _ = sessions.remove(&tok);
             }
 
-            Msg::SessionPacket(tok, id, data) => {
+            SessionEvent::Packet(tok, id, data) => {
                 let sessions = self.sessions();
                 if let Some(session) = sessions.get(&tok) {
-                    let _ = <Self::S as Session>::handle_packet(&mut session.borrow_mut(),
-                        self, id, data);
+                    if let Err(err) = <Self::S as Session>
+                        ::handle_packet(&mut session.borrow_mut(), self, id, data) {
+
+                        /* debug only because it means that some message::Deserialize failed,
+                         so it is either an issue with the client or an issue with Deserialize */
+                        debug!("handle_packet io error: {}, id {}", err, id);
+                    }
                 }
             }
-
-            _ => unreachable!(),
         }
     }
 
@@ -53,7 +56,7 @@ pub trait Chunk : pool::Chunk + Sized {
 pub trait Session : Drop {
     type C: Chunk;
 
-    fn new(Token, &Self::C) -> Self;
+    fn new(Token, &Self::C, String) -> Self;
     fn get_handler(u16) -> (fn(&mut Self, &Self::C, Cursor<Vec<u8>>) -> io::Result<()>);
 
     fn unhandled(&mut self, _: &Self::C, _: Cursor<Vec<u8>>) -> io::Result<()> {

@@ -6,6 +6,7 @@ extern crate mio;
 extern crate byteorder;
 extern crate postgres;
 extern crate rustc_serialize;
+extern crate crypto;
 
 pub mod net;
 pub mod io;
@@ -13,6 +14,15 @@ pub mod protocol;
 pub mod pool;
 pub mod database;
 pub mod config;
+
+use crypto::digest::Digest;
+use crypto::md5::Md5;
+
+pub fn compute_md5(s: &str) -> String {
+    let mut md5 = Md5::new();
+    md5.input_str(&s);
+    md5.result_str()
+}
 
 use std::collections::HashMap;
 use std::collections::hash_map::{Iter, IterMut, Keys, Values, Entry};

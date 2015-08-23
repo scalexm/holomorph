@@ -2,11 +2,13 @@ pub mod data;
 
 use shared::pool;
 use session::{auth, game};
-use shared::net::{self, Token};
+use shared::net::{self, Token, SessionEvent};
 use std::collections::HashMap;
 use shared::HashBiMap;
 use eventual::{Timer, Async};
+use shared::protocol::Protocol;
 use shared::protocol::connection::server_status;
+use shared::protocol::holomorph::DisconnectPlayerMessage;
 
 pub type Sender = pool::Sender<Handler>;
 
@@ -87,7 +89,8 @@ pub fn set_game_chunk(sender: &Sender, chunk: game::Sender) {
     });
 }
 
-pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32, job: F)
+pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32,
+    already_logged: i16, job: F)
     where F: FnOnce(&mut auth::Session, &auth::Chunk, bool)
     + Send + 'static {
 
@@ -95,6 +98,12 @@ pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32, job: F)
         let already = handler.session_ids.insert(id, tok);
         if let Some(session) = already {
             let _ = handler.io_loop.send(net::Msg::Close(session));
+        }
+        if let Some(tok) = handler.game_session_ids.get(&already_logged) {
+            let buf = DisconnectPlayerMessage {
+                id: id,
+            }.as_packet().unwrap();
+            let _ = handler.io_loop.send(net::Msg::Write(*tok, buf));
         }
 
         handler.session_callback(tok,
@@ -131,12 +140,12 @@ pub fn update_game_server(sender: &Sender, id: i16, state: i8, ip: String, port:
     });
 }
 
-// handling messages from NetworkHandler
+// handling session events from NetworkHandler
 impl Handler {
-    pub fn game_net_msg(&mut self, msg: net::Msg) {
+    pub fn game_event(&mut self, evt: SessionEvent) {
         use shared::pool::session::Chunk;
 
-        if let net::Msg::SessionDisconnect(tok) = msg {
+        if let SessionEvent::Disconnect(tok) = evt {
            let id = self.game_session_ids.inv_remove(&tok);
            if id.is_some() {
                self.update_game_server(id.unwrap(),
@@ -145,15 +154,15 @@ impl Handler {
        }
 
        pool::execute(self.game_chunk.as_ref().unwrap(), move |chunk| {
-           chunk.process_net_msg(msg);
+           chunk.process_event(evt);
        });
    }
 
-    pub fn auth_net_msg(&mut self, msg: net::Msg) {
+    pub fn auth_event(&mut self, evt: SessionEvent) {
         use shared::pool::session::Chunk;
 
-        match msg {
-            net::Msg::SessionConnect(tok) => {
+        match evt {
+            SessionEvent::Connect(tok, _) => {
                 if self.session_chunks.contains_key(&tok) {
                     return ();
                 }
@@ -161,31 +170,29 @@ impl Handler {
                 let chunk = self.next_insert % self.chunks.len();
                 let _ = self.session_chunks.insert(tok, chunk);
                 pool::execute(&self.chunks[chunk], move |chunk| {
-                    chunk.process_net_msg(msg);
+                    chunk.process_event(evt);
                 });
 
                 self.next_insert += 1;
             }
 
-            net::Msg::SessionPacket(tok, _, _) => {
+            SessionEvent::Packet(tok, _, _) => {
                 if let Some(chunk) = self.session_chunks.get(&tok) {
                     pool::execute(&self.chunks[*chunk], move |chunk| {
-                        chunk.process_net_msg(msg);
+                        chunk.process_event(evt);
                     });
                 }
             }
 
-            net::Msg::SessionDisconnect(tok) => {
+            SessionEvent::Disconnect(tok) => {
                 if let Some(chunk) = self.session_chunks.get(&tok) {
                     pool::execute(&self.chunks[*chunk], move |chunk| {
-                        chunk.process_net_msg(msg);
+                        chunk.process_event(evt);
                     });
                 }
                 let _ = self.session_chunks.remove(&tok);
                 let _ = self.session_ids.inv_remove(&tok);
             }
-
-            _ => unreachable!(),
         }
     }
 }

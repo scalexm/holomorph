@@ -26,7 +26,7 @@ impl Drop for Session {
 impl pool::session::Session for Session {
     type C = Chunk;
 
-    fn new(token: Token, chunk: &Chunk) -> Session {
+    fn new(token: Token, chunk: &Chunk, _: String) -> Session {
         debug!("game server {:?} connected", token);
 
         let s = Session {

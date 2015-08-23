@@ -47,6 +47,8 @@ impl AuthServerData {
         let mut game_servers = HashMap::new();
         for row in &try!(stmt.query(&[])) {
             let id: i16 = row.get("id");
+            assert!(id > 0); // id 0 is used as a null value
+
             let min_level: i16 = row.get("min_level");
             let _ = game_servers.insert(id, GameServerData {
                 id: id,

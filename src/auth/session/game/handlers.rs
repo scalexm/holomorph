@@ -3,8 +3,7 @@ use super::{Session, Chunk};
 use shared::net::Msg;
 use shared::protocol::*;
 use shared::protocol::holomorph::*;
-use crypto::digest::Digest;
-use crypto::md5::Md5;
+use shared;
 use server;
 
 impl Session {
@@ -32,13 +31,8 @@ impl Session {
         }
 
         let gs = gs.unwrap();
-
-        let mut md5 = Md5::new();
-        md5.input_str(&gs.key);
-        let key = md5.result_str();
-        md5 = Md5::new();
-        md5.input_str(&(key + &self.salt));
-        if md5.result_str() != msg.key {
+        
+        if shared::compute_md5(&(shared::compute_md5(&gs.key) + &self.salt)) != msg.key {
             let _ = chunk.server.io_loop.send(Msg::Close(self.token));
             return Ok(());
         }

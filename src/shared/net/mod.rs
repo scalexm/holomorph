@@ -11,21 +11,21 @@ use pool;
 pub use mio::Token;
 
 pub enum Msg {
-    // received by NetworkHandler
     Shutdown,
     Write(Token, Vec<u8>),
     WriteAndClose(Token, Vec<u8>),
     Close(Token),
+}
 
-    // sent by NetworkHandler
-    SessionConnect(Token),
-    SessionPacket(Token, u16, Cursor<Vec<u8>>),
-    SessionDisconnect(Token),
+pub enum SessionEvent {
+    Connect(Token, String), // String is for IP address
+    Packet(Token, u16, Cursor<Vec<u8>>),
+    Disconnect(Token),
 }
 
 struct Listener<C> {
     socket: TcpListener,
-    callback: fn(&mut C, Msg),
+    callback: fn(&mut C, SessionEvent),
 }
 
 pub type Sender = mio::Sender<Msg>;
@@ -39,7 +39,7 @@ pub struct NetworkHandler<C: pool::Chunk> {
 
 impl<C: pool::Chunk> NetworkHandler<C> {
     fn add_listener_with_result(&mut self, event_loop: &mut EventLoop<C>, address: &str,
-        cb: fn(&mut C, Msg)) -> io::Result<()> {
+        cb: fn(&mut C, SessionEvent)) -> io::Result<()> {
 
             let address = match address.parse() {
                 Ok(addr) => addr,
@@ -60,7 +60,7 @@ impl<C: pool::Chunk> NetworkHandler<C> {
     }
 
     pub fn add_listener(&mut self, event_loop: &mut EventLoop<C>, address: &str,
-        cb: fn(&mut C, Msg)) {
+        cb: fn(&mut C, SessionEvent)) {
 
         if let Err(err) = self.add_listener_with_result(event_loop, address, cb) {
             panic!("listen failed {}", err);
@@ -82,6 +82,9 @@ impl<C: pool::Chunk> NetworkHandler<C> {
 
         match try!(self.listeners[tok].socket.accept()) {
             Some(socket) => {
+                use std::fmt::Write;
+                let mut address = String::new();
+                let _ = write!(&mut address, "{}", socket.peer_addr().ok().unwrap());
                 let client_tok = self.connections
                     .insert(Connection::new(socket, tok))
                     .ok()
@@ -89,7 +92,7 @@ impl<C: pool::Chunk> NetworkHandler<C> {
 
                 let cb = self.listeners[tok].callback;
                 pool::execute(&self.handler, move |handler| {
-                    cb(handler, Msg::SessionConnect(client_tok))
+                    cb(handler, SessionEvent::Connect(client_tok, address))
                 });
 
                 event_loop.register_opt(&self.connections[client_tok].socket,
@@ -109,7 +112,7 @@ impl<C: pool::Chunk> NetworkHandler<C> {
             if let Some(packet) = try!(self.connections[tok].readable()) {
                 let cb = self.listeners[self.connections[tok].listener_token].callback;
                 pool::execute(&self.handler, move |handler| {
-                    cb(handler, Msg::SessionPacket(tok, packet.0, packet.1));
+                    cb(handler, SessionEvent::Packet(tok, packet.0, packet.1));
                 });
             }
         }

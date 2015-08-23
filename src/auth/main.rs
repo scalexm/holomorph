@@ -61,10 +61,10 @@ fn main() {
     server::set_game_chunk(&handler, tx);
 
     network_handler.add_listener(&mut io_loop, &server_data.cnf.bind_address,
-        server::Handler::auth_net_msg);
+        server::Handler::auth_event);
 
     network_handler.add_listener(&mut io_loop, &server_data.cnf.game_bind_address,
-        server::Handler::game_net_msg);
+        server::Handler::game_event);
 
     thread::spawn(move || {
         io::stdin().read_line(&mut String::new())
@@ -74,5 +74,6 @@ fn main() {
     });
 
     server::start_queue_timer(&handler);
+    //server::update_game_server(&handler, 1, 3, "127.0.0.1".to_string(), 5556);
     io_loop.run(&mut network_handler).unwrap();
 }

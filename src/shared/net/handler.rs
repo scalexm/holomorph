@@ -1,6 +1,6 @@
-use mio::{Token, EventSet, Handler, PollOpt};
+use mio::{EventSet, Handler, PollOpt};
 use mio::tcp::Shutdown;
-use net::{Msg, NetworkHandler, EventLoop};
+use net::*;
 use pool;
 
 impl<C: pool::Chunk> Handler for NetworkHandler<C> {
@@ -21,12 +21,14 @@ impl<C: pool::Chunk> Handler for NetworkHandler<C> {
             // one of our connections
             _ => {
                 if let Err(_) = self.handle_client_event(event_loop, tok, events) {
+                    // if an error occurs, we disconnect the session (typically: EOF)
                     let _ = event_loop.deregister(&self.connections[tok].socket);
-                    let _ = self.connections.remove(tok).unwrap();
 
                     let cb = self.listeners[self.connections[tok].listener_token].callback;
                     pool::execute(&self.handler, move |handler|
-                        cb(handler, Msg::SessionDisconnect(tok)));
+                        cb(handler, SessionEvent::Disconnect(tok)));
+
+                    let _ = self.connections.remove(tok).unwrap();
                 }
             }
         }
@@ -57,8 +59,6 @@ impl<C: pool::Chunk> Handler for NetworkHandler<C> {
                 let _ = self.connections.get_mut(tok).map(|conn|
                     conn.socket.shutdown(Shutdown::Both));
             }
-
-            _ => unreachable!(),
         }
     }
 }

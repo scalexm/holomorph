@@ -15,9 +15,10 @@ struct AccountData {
     level: i8,
     subscription_end: i64,
     subscription_elapsed: i64,
-    creation: i64,
+    creation_date: i64,
     character_counts: HashMap<i16, i8>,
     already_logged: i16,
+    last_server: i16,
 }
 
 impl AccountData {
@@ -33,6 +34,7 @@ pub struct Session {
     queue_counter: isize,
     custom_identification: bool,
     aes_key: Vec<u8>,
+    address: String,
 }
 
 pub type Chunk = session::Chunk<Session>;
@@ -64,7 +66,7 @@ impl Drop for Session {
 impl pool::session::Session for Session {
     type C = Chunk;
 
-    fn new(token: Token, chunk: &Chunk) -> Session {
+    fn new(token: Token, chunk: &Chunk, address: String) -> Session {
         debug!("{:?} connected", token);
 
         let s = Session {
@@ -74,6 +76,7 @@ impl pool::session::Session for Session {
             queue_counter: -1,
             custom_identification: false,
             aes_key: Vec::new(),
+            address: address,
         };
 
         s.start(chunk);

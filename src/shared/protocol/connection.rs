@@ -67,6 +67,11 @@ impl_type!(SelectedServerDataMessage, 42,
     can_create_new_character| bool,
     ticket| VarIntVec<u8>);
 
+impl_type!(SelectedServerRefusedMessage, 41,
+    server_id| VarUShort,
+    error| i8,
+    server_status| i8);
+
 pub mod identification_failure_reason {
     pub const BAD_VERSION: i8 = 1;
     pub const WRONG_CREDENTIALS: i8 = 2;
@@ -85,7 +90,7 @@ pub mod identification_failure_reason {
 }
 
 pub mod server_status {
-    pub const STATUS_UNKNOWN: i8 = 0;
+    pub const UNKNOWN: i8 = 0;
     pub const OFFLINE: i8 = 1;
     pub const STARTING: i8 = 2;
     pub const ONLINE: i8 = 3;
@@ -93,4 +98,14 @@ pub mod server_status {
     pub const SAVING: i8 = 5;
     pub const STOPING: i8 = 6;
     pub const FULL: i8 = 7;
+}
+
+pub mod server_connection_error {
+    pub const DUE_TO_STATUS: i8 = 0;
+    pub const NO_REASON: i8 = 1;
+    pub const ACCOUNT_RESTRICTED: i8 = 2;
+    pub const COMMUNITY_RESTRICTED: i8 = 3;
+    pub const LOCATION_RESTRICTED: i8 = 4;
+    pub const SUBSCRIBERS_ONLY: i8 = 5;
+    pub const REGULAR_PLAYERS_ONLY: i8 = 6;
 }
