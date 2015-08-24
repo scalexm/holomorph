@@ -11,7 +11,7 @@ pub struct Session {
     server_id: Option<i16>,
     salt: String,
     ip: String,
-    port: u16,
+    port: i16,
 }
 
 pub type Chunk = session::Chunk<Session>;

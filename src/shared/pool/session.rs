@@ -32,6 +32,7 @@ pub trait Chunk : pool::Chunk + Sized {
             SessionEvent::Packet(tok, id, data) => {
                 let sessions = self.sessions();
                 if let Some(session) = sessions.get(&tok) {
+                    debug!("{:?} received a packet, id {}", tok, id);
                     if let Err(err) = <Self::S as Session>
                         ::handle_packet(&mut session.borrow_mut(), self, id, data) {
 

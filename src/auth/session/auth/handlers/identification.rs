@@ -4,6 +4,7 @@ use shared::protocol::*;
 use shared::protocol::connection::*;
 use shared::protocol::security::*;
 use shared::protocol::queues::*;
+use shared::protocol::enums::{server_status, identification_failure_reason};
 use session::auth::{AccountData, Session, Chunk};
 use super::{QUEUE_SIZE, QUEUE_COUNTER};
 use postgres::{self, Connection};
@@ -143,7 +144,7 @@ impl Session {
 
         ServersListMessage {
             servers: gs,
-            already_connected_to_server_id: VarUShort(data.already_logged as u16),
+            already_connected_to_server_id: VarShort(data.already_logged),
             can_create_new_character: true,
         }.as_packet_with_buf(&mut buf).unwrap();
 
@@ -176,7 +177,7 @@ impl Session {
         let username = try!(credentials.read_string());
         let password = try!(credentials.read_string());
         try!(credentials.read_to_end(&mut self.aes_key));
-        let auto_connect = msg.auto_connect.0;
+        let auto_connect = msg.autoconnect.0;
 
         let io_loop = chunk.server.io_loop.clone();
         let handler = chunk.server.handler.clone();

@@ -2,6 +2,7 @@ use shared::net::Msg;
 use std::io::{self, Cursor};
 use shared::protocol::*;
 use shared::protocol::connection::*;
+use shared::protocol::enums::{server_status, server_connection_error};
 use session::auth::{Session, Chunk};
 use postgres::{self, Connection};
 use shared::database;
@@ -87,7 +88,7 @@ impl Session {
         }
 
         let buf = SelectedServerDataMessage {
-            server_id: VarUShort(server_id as u16),
+            server_id: VarShort(server_id),
             address: status.1.clone(),
             port: status.2,
             can_create_new_character: true,
@@ -110,7 +111,7 @@ impl Session {
                 Err(err) => {
                     error!("update_ticket sql error: {}", err);
                     let buf = SelectedServerRefusedMessage {
-                        server_id: VarUShort(server_id as u16),
+                        server_id: VarShort(server_id),
                         error: server_connection_error::NO_REASON,
                         server_status: status,
                     }.as_packet().unwrap();
@@ -134,7 +135,7 @@ impl Session {
 
         if let Err(err) = self.select_server(chunk, server_id) {
             let buf = SelectedServerRefusedMessage {
-                server_id: VarUShort(server_id as u16),
+                server_id: VarShort(server_id),
                 error: err.0,
                 server_status: err.1,
             }.as_packet().unwrap();

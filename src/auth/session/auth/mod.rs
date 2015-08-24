@@ -48,7 +48,7 @@ impl Chunk {
     }
 
     pub fn update_game_server(&mut self, server_id: i16, status: i8, ip: String,
-        port: u16) {
+        port: i16) {
 
         let _ = self.game_status.insert(server_id, ServerStatus(status, ip, port));
         for session in &self.sessions {

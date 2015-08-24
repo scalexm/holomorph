@@ -4,6 +4,7 @@ pub mod identification;
 use shared::net::Msg;
 use shared::protocol::*;
 use shared::protocol::connection::*;
+use shared::protocol::enums::server_status;
 use shared::protocol::handshake::*;
 use shared::protocol::queues::*;
 use super::{Session, Chunk};
@@ -43,8 +44,8 @@ impl Session {
         }
 
         let buf = LoginQueueStatusMessage {
-            position: pos as u16,
-            total: QUEUE_SIZE.load(Ordering::Relaxed) as u16,
+            position: pos as i16,
+            total: QUEUE_SIZE.load(Ordering::Relaxed) as i16,
         }.as_packet().unwrap();
 
         let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
@@ -60,14 +61,14 @@ impl Session {
         }
 
         GameServerInformations {
-            id: VarUShort(server.id as u16),
+            id: VarShort(server.id),
             status: status,
             completion: 0,
             is_selectable: status == server_status::ONLINE,
             characters_count: *data
                 .character_counts
                 .get(&server.id)
-                .unwrap_or(&0) as i8,
+                .unwrap_or(&0),
             date: 0.,
         }
     }

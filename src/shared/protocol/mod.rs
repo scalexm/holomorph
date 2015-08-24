@@ -5,8 +5,8 @@ pub struct VarInt(pub i32);
 pub struct VarUInt(pub u32);
 pub struct VarShort(pub i16);
 pub struct VarUShort(pub u16);
-//pub struct VarLong(pub i64);
-//pub struct VarULong(pub u64);
+pub struct VarLong(pub i64);
+pub struct VarULong(pub u64);
 pub struct Flag(pub bool);
 pub struct VarIntVec<T>(pub Vec<T>);
 
@@ -70,6 +70,50 @@ pub trait Protocol: Sized {
     }
 }
 
+macro_rules! impl_enum {
+    ($name: ident, $($field_name: ident | $field_type: ty),*) => {
+        pub enum $name {
+            $(
+                $field_name($field_type),
+            )*
+        }
+
+        impl Protocol for $name {
+            fn deserialize<R: Read>(rdr: &mut R) -> Result<$name> {
+                use io::ReadExt;
+                use std::io::{Error, ErrorKind};
+                let id = try!(rdr.read_i16());
+
+                match id {
+                    $(
+                        _ if id == <$field_type as Protocol>::id() =>
+                            Ok($name::$field_name(try!(<$field_type as Protocol>
+                                ::deserialize(rdr)))),
+                    )*
+                    _ => Err(::byteorder::Error
+                        ::Io(Error::new(ErrorKind::Other, "bad protocol id"))),
+                }
+            }
+
+            fn serialize<W: Write>(&self, wtr: &mut W) -> Result<()> {
+                use io::WriteExt;
+                match *self {
+                    $(
+                        $name::$field_name(ref val) => {
+                            try!(wtr.write_i16(<$field_type as Protocol>::id()));
+                            val.serialize(wtr)
+                        }
+                    )*
+                }
+            }
+
+            fn id() -> i16 {
+                -1
+            }
+        }
+    };
+}
+
 macro_rules! impl_type {
     ($name: ident, $id: expr) => {
         pub struct $name;
@@ -121,7 +165,7 @@ macro_rules! impl_type {
                         ._serialize(wtr, &mut flag, &mut offset));
                 )*
                 if let Some(byte) = flag {
-                    use ::io::WriteExt;
+                    use io::WriteExt;
                     try!(wtr.write_u8(byte));
                 }
                 Ok(())
@@ -187,8 +231,8 @@ impl_var!(VarShort, read_var_i16, write_var_i16);
 impl_var!(VarUShort, read_var_u16, write_var_u16);
 impl_var!(VarInt, read_var_i32, write_var_i32);
 impl_var!(VarUInt, read_var_u32, write_var_u32);
-//impl_var!(VarLong, read_var_i64, write_var_i64);
-//impl_var!(VarULong, read_var_u64, write_var_u64);
+impl_var!(VarLong, read_var_i64, write_var_i64);
+impl_var!(VarULong, read_var_u64, write_var_u64);
 
 impl Protocol for String {
     fn deserialize<R: Read>(rdr: &mut R) -> Result<String> {
@@ -289,6 +333,8 @@ impl<P: Protocol> Protocol for VarIntVec<P> {
         -1
     }
 }
+
+pub mod enums;
 
 pub mod connection;
 pub mod version;

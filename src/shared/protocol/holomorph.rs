@@ -1,6 +1,6 @@
 use std::io::{Read, Write};
 use io::Result;
-use super::*;
+use protocol::*;
 
 impl_type!(HelloMessage, 1,
     salt| String);
@@ -10,7 +10,7 @@ impl_type!(IdentificationMessage, 2,
     key| String,
     state| i8,
     ip| String,
-    port| u16);
+    port| i16);
 
 
 impl_type!(StateMessage, 3,

@@ -1,0 +1,12 @@
+use std::io::{Read, Write};
+use io::Result;
+use protocol::*;
+ use protocol::game::character::characteristic::CharacterCharacteristicsInformations;
+impl_type!(CharacterExperienceGainMessage, 6321, experience_character| VarLong, experience_mount| VarLong, experience_guild| VarLong, experience_incarnation| VarLong);
+impl_type!(CharacterLevelUpInformationMessage, 6076, base| CharacterLevelUpMessage, name| String, id| VarInt);
+impl_type!(CharacterLevelUpMessage, 5670, new_level| i8);
+impl_type!(CharacterStatsListMessage, 500, stats| CharacterCharacteristicsInformations);
+impl_type!(FighterStatsListMessage, 6322, stats| CharacterCharacteristicsInformations);
+impl_type!(LifePointsRegenBeginMessage, 5684, regen_rate| i8);
+impl_type!(LifePointsRegenEndMessage, 5686, base| UpdateLifePointsMessage, life_points_gained| VarInt);
+impl_type!(UpdateLifePointsMessage, 5658, life_points| VarInt, max_life_points| VarInt);

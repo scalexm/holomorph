@@ -217,6 +217,14 @@ pub trait WriteExt: WriteBytesExt {
         self.write_var_i32(data as i32)
     }
 
+    fn write_var_i64(&mut self, data: i64) -> Result<()> {
+        WriteExt::write_u8(self, 0) // TODO
+    }
+
+    fn write_var_u64(&mut self, data: u64) -> Result<()> {
+        WriteExt::write_u8(self, 0) // TODO
+    }
+
     fn write_string(&mut self, data: &str) -> Result<()> {
         let len = data.len();
         try!(WriteExt::write_u16(self, len as u16));

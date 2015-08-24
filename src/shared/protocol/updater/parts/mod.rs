@@ -1,0 +1,13 @@
+use std::io::{Read, Write};
+use io::Result;
+use protocol::*;
+use protocol::updater::ContentPart; 
+impl_type!(DownloadCurrentSpeedMessage, 1511, download_speed| i8);
+impl_type!(DownloadErrorMessage, 1513, error_id| i8, message| String, help_url| String);
+impl_type!(DownloadGetCurrentSpeedRequestMessage, 1510);
+impl_type!(DownloadPartMessage, 1503, id| String);
+impl_type!(DownloadSetSpeedRequestMessage, 1512, download_speed| i8);
+impl_type!(GetPartInfoMessage, 1506, id| String);
+impl_type!(GetPartsListMessage, 1501);
+impl_type!(PartInfoMessage, 1508, part| ContentPart, installation_percent| Float);
+impl_type!(PartsListMessage, 1502, parts| Vec<ContentPart>);

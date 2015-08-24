@@ -7,7 +7,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use server::data::AuthServerData;
 
-struct ServerStatus(i8, String, u16);
+struct ServerStatus(i8, String, i16);
 
 struct Chunk<S> {
     sessions: HashMap<Token, RefCell<S>>,

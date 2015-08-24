@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use shared::HashBiMap;
 use eventual::{Timer, Async};
 use shared::protocol::Protocol;
-use shared::protocol::connection::server_status;
+use shared::protocol::enums::server_status;
 use shared::protocol::holomorph::DisconnectPlayerMessage;
 
 pub type Sender = pool::Sender<Handler>;
@@ -51,7 +51,7 @@ impl Handler {
     }
 
     fn update_game_server(&mut self, id: i16, status: i8,
-        ip: String, port: u16) {
+        ip: String, port: i16) {
 
         for chunk in &self.chunks {
             let ip = ip.clone();
@@ -113,7 +113,7 @@ pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32,
 }
 
 pub fn register_game_server<F>(sender: &Sender, tok: Token, id: i16, state: i8,
-    ip: String, port: u16, job: F)
+    ip: String, port: i16, job: F)
     where F: FnOnce(&mut game::Session, &game::Chunk, Option<i16>)
     + Send + 'static {
 
@@ -134,7 +134,7 @@ pub fn register_game_server<F>(sender: &Sender, tok: Token, id: i16, state: i8,
     });
 }
 
-pub fn update_game_server(sender: &Sender, id: i16, state: i8, ip: String, port: u16) {
+pub fn update_game_server(sender: &Sender, id: i16, state: i8, ip: String, port: i16) {
     pool::execute(sender, move |handler| {
         handler.update_game_server(id, state, ip, port)
     });
