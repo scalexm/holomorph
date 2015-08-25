@@ -64,7 +64,7 @@ impl Connection {
 
             State::WaitingForLen(id) => {
                 let mut len = 0u32;
-                for _ in (0..buf.get_ref().len()) {
+                for _ in 0..buf.get_ref().len() {
                     len = (len << 8) + (try!(buf.read_u8()) as u32);
                 }
                 self.state = State::WaitingForData(id);

@@ -37,8 +37,8 @@ fn main() {
     server::set_auth_chunk(&handler, tx);
 
     let mut bind_address = String::new();
-    let _ = write!(&mut bind_address, "{}:{}", &server_data.cnf.bind_ip,
-        &server_data.cnf.bind_port);
+    write!(&mut bind_address, "{}:{}", &server_data.cnf.bind_ip,
+        &server_data.cnf.bind_port).unwrap();
 
     network_handler.add_callback(&mut io_loop, &bind_address,
         server::Handler::game_event, CallbackType::Listen);

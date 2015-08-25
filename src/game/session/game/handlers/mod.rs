@@ -1,7 +1,7 @@
 use super::{Session, Chunk};
 use shared::protocol::*;
-use shared::protocol::handshake::*;
-use shared::protocol::game::approach::*;
+use shared::protocol::messages::handshake::*;
+use shared::protocol::messages::game::approach::*;
 use std::io::{self, Cursor};
 use shared::net::{Msg, Token};
 

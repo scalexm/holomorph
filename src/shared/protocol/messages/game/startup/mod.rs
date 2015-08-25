@@ -1,0 +1,10 @@
+use std::io::{Read, Write};
+use io::Result;
+use protocol::*;
+ use protocol::types::game::startup::StartupActionAddObject;
+impl_type!(StartupActionAddMessage, 6538, new_action| StartupActionAddObject);
+impl_type!(StartupActionFinishedMessage, 1304, success| Flag, automatic_action| Flag, action_id| i32);
+impl_type!(StartupActionsAllAttributionMessage, 6537, character_id| i32);
+impl_type!(StartupActionsExecuteMessage, 1302);
+impl_type!(StartupActionsListMessage, 1301, actions| Vec<StartupActionAddObject>);
+impl_type!(StartupActionsObjetAttributionMessage, 1303, action_id| i32, character_id| i32);

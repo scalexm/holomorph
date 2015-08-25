@@ -1,0 +1,10 @@
+use std::io::{Read, Write};
+use io::Result;
+use protocol::*;
+ use protocol::variants::CharacterMinimalPlusLookInformationsVariant; use protocol::variants::PrismInformationVariant; use protocol::types::game::context::roleplay::AllianceInformations; use protocol::types::game::fight::ProtectedEntityWaitingForHelpInfo;
+impl_type!(AllianceInsiderPrismInformation, 431, base| PrismInformation, last_time_slot_modification_date| i32, last_time_slot_modification_author_guild_id| VarInt, last_time_slot_modification_author_id| VarInt, last_time_slot_modification_author_name| String, modules_item_ids| Vec<VarInt>);
+impl_type!(AlliancePrismInformation, 427, base| PrismInformation, alliance| AllianceInformations);
+impl_type!(PrismFightersInformation, 443, sub_area_id| VarShort, waiting_for_help_info| ProtectedEntityWaitingForHelpInfo, ally_characters_informations| Vec<CharacterMinimalPlusLookInformationsVariant>, enemy_characters_informations| Vec<CharacterMinimalPlusLookInformationsVariant>);
+impl_type!(PrismGeolocalizedInformation, 434, base| PrismSubareaEmptyInfo, world_x| i16, world_y| i16, map_id| i32, prism| PrismInformationVariant);
+impl_type!(PrismInformation, 428, type_id| i8, state| i8, next_vulnerability_date| i32, placement_date| i32, reward_token_count| VarInt);
+impl_type!(PrismSubareaEmptyInfo, 438, sub_area_id| VarShort, alliance_id| VarInt);

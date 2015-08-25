@@ -1,5 +1,8 @@
 # helloWorld -> hello_world
 sub from_camel_case($str is rw) {
+    $str ~~ s / 'GID' /Gid/;
+    $str ~~ s / 'UID' /Uid/;
+    $str ~~ s / 'AVA' /Ava/;
     $str ~~ s:g / (<:Lu>) /_$0/;
     $str.= lc;
 }
@@ -13,6 +16,7 @@ sub get_type($type) {
         when 'UShort' { return 'u16'; }
         when 'Byte' { return 'i8'; }
         when 'Double' { return 'f64'; }
+        when 'Float' { return 'f32'; }
         when 'VarUhInt' { return 'VarUInt'; }
         when 'VarUhShort' { return 'VarUShort'; }
         when 'VarUhLong' { return 'VarULong'; }
@@ -29,24 +33,28 @@ sub get_vec_type($type) {
 }
 
 # find the corresponding use directive for a dofus class
-sub get_use($content, $type, $dirname, $variant = False) {
-    if $content ~~ / 'dofus.network.' [\w || \.]+ ".$dirname.$type;" / {
+sub get_use($content, $type, $dirname) {
+    $content ~~ / 'package com.ankamagames.dofus.network.' (\w+)
+        '.game.context' /;
+    my $protocol = $0;
+
+    if $content ~~ / 'dofus.network.$protocol' [\w || \.]+
+        ".$dirname.$type;" / {
         return '';
     }
 
-    if $content !~~ / 'dofus.network.' \w+ '.' ([\w || \.]+) ".$type;" / {
+    if $content !~~ / 'dofus.network.' (\w+) '.' ([\w || \.]+) ".$type;" / {
         return '';
     }
 
-    my $use = 'use protocol';
-    for split '.', $0 {
+    my $use = "use protocol::$0";
+    for split '.', $1 {
         $use ~= "::$_";
     }
-    $use ~= "::$type";
-    if $variant {
-        $use ~= 'Variant';
-    }
-    return $use ~ ';';
+
+    $use ~~ s / 'treasureHunt' /treasure_hunt/;
+
+    return $use ~ "::$type;";
 }
 
 sub read_file($path, $use is rw, $output is rw) {
@@ -67,8 +75,9 @@ sub read_file($path, $use is rw, $output is rw) {
         'public function deserialize(' /;
     my $function = $<function>;
 
-    my @fields;
-    my $next_vec_type;
+    $output ~= "impl_type!($class, $id";
+
+    my $next_vec_type = 'Static';
     for $function.lines {
         my $name;
         my $type = '';
@@ -77,6 +86,8 @@ sub read_file($path, $use is rw, $output is rw) {
             when / 'super' / {
                 $name = 'base';
                 $type = $base_class;
+                $use = $use (|) get_use($content, $base_class,
+                    $path.dirname.IO.basename);
             }
 
             # primitive type
@@ -119,8 +130,7 @@ sub read_file($path, $use is rw, $output is rw) {
                 $name = $0;
                 $content ~~ / "public var $name:" (\w+) /;
                 $type = "{$0}Variant";
-                $use = $use (|) get_use($content, $0,
-                    $path.dirname.IO.basename, True);
+                $use = $use (|) "use protocol::variants::{$0}Variant;";
             }
 
             # vector of dofus class
@@ -135,8 +145,7 @@ sub read_file($path, $use is rw, $output is rw) {
             when / '(this.' (\w+) '[_' \w+ '_] as ' (\w+) ').s' / {
                 $name = $0;
                 $type = "{$next_vec_type}Vec<{$1}Variant>";
-                $use = $use (|) get_use($content, $1,
-                    $path.dirname.IO.basename, True);
+                $use = $use (|) "use protocol::variants::{$1}Variant;";
             }
 
             default { }
@@ -146,40 +155,27 @@ sub read_file($path, $use is rw, $output is rw) {
             from_camel_case $name;
 
             # avoid using rust reserved names
-            given $name {
-                when 'type' { $name = 'ttype'; }
-                default {}
+            if $name (elem) set('type', 'self') {
+                $name ~= '_';
             }
-            @fields.push("$name| $type");
+
+            $output ~= ", $name| $type";
         }
     }
 
-    $output ~= "impl_type!($class, $id";
-    for @fields {
-        $output ~= ", $_";
-    }
     $output ~= ");\n";
 }
 
 multi sub read_dir($path, $base_path, $output_path) {
-    my $new_path = '';
-    if $path !~~ $base_path {
-        $new_path = $output_path ~ '/' ~ $path.IO.relative($base_path);
-        if !$new_path.IO.e {
-            mkdir $new_path;
-            spurt $new_path ~ '/mod.rs', "use std::io::\{Read, Write\};\n"
-                ~ "use io::Result;\n"
-                ~ "use protocol::*;\n";
-        }
-        $new_path ~= '/mod.rs';
-    }
-
     my $use = '';
     my $output = '';
+    my @mods;
 
     for dir $path {
         if .d {
             say .Str;
+            @mods.push(.basename ~~ 'treasureHunt' ??
+                'treasure_hunt' !! .basename);
             read_dir $_, $base_path, $output_path;
         }
         elsif .extension ~~ "as" {
@@ -187,15 +183,26 @@ multi sub read_dir($path, $base_path, $output_path) {
         }
     }
 
-    if $new_path ~~ '' || $output ~~ '' {
-        return;
+    if $output !~~ '' {
+        for $use {
+            $output = "$_\n" ~ $output;
+        }
+
+        $output = "use std::io::\{Read, Write\};\n"
+            ~ "use io::Result;\n"
+            ~ "use protocol::*;\n"
+            ~ $output;
     }
 
-    for $use {
-        $output = "$_\n" ~ $output;
+    for @mods {
+        $output = "pub mod $_;\n" ~ $output;
     }
 
-    spurt $new_path, $output, :append;
+    my $new_path = $output_path ~ '/' ~ $path.IO.relative($base_path);
+    $new_path ~~ s / 'treasureHunt' /treasure_hunt/;
+    mkdir $new_path;
+
+    spurt $new_path ~ '/mod.rs', $output;
 }
 
 multi read_dir($base_path, $output_path) {
@@ -210,8 +217,8 @@ multi sub MAIN($input_path is rw, $output_path is rw where !.IO.e) {
     $input_path = good_path($input_path);
     $output_path = good_path($output_path);
 
-    read_dir $input_path ~ '/messages', $output_path;
-    read_dir $input_path ~ '/types', $output_path;
+    read_dir $input_path ~ '/messages', $output_path ~ '/messages';
+    read_dir $input_path ~ '/types', $output_path ~ '/types';
 }
 
 multi MAIN($, $ where .IO.e) is hidden-from-USAGE {

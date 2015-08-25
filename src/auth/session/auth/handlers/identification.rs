@@ -1,9 +1,9 @@
 use shared::net::Msg;
 use std::io::{self, Cursor};
 use shared::protocol::*;
-use shared::protocol::connection::*;
-use shared::protocol::security::*;
-use shared::protocol::queues::*;
+use shared::protocol::messages::connection::*;
+use shared::protocol::messages::security::*;
+use shared::protocol::messages::queues::*;
 use shared::protocol::enums::{server_status, identification_failure_reason};
 use session::auth::{AccountData, Session, Chunk};
 use super::{QUEUE_SIZE, QUEUE_COUNTER};

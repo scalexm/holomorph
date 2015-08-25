@@ -1,0 +1,10 @@
+use std::io::{Read, Write};
+use io::Result;
+use protocol::*;
+ use protocol::messages::game::inventory::items::InventoryContentMessage; use protocol::types::game::data::items::ObjectItem;
+impl_type!(StorageInventoryContentMessage, 5646, base| InventoryContentMessage);
+impl_type!(StorageKamasUpdateMessage, 5645, kamas_total| i32);
+impl_type!(StorageObjectRemoveMessage, 5648, object_uid| VarInt);
+impl_type!(StorageObjectsRemoveMessage, 6035, object_uid_list| Vec<VarInt>);
+impl_type!(StorageObjectsUpdateMessage, 6036, object_list| Vec<ObjectItem>);
+impl_type!(StorageObjectUpdateMessage, 5647, object| ObjectItem);

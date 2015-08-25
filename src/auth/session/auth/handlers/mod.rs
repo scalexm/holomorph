@@ -3,10 +3,11 @@ pub mod identification;
 
 use shared::net::Msg;
 use shared::protocol::*;
-use shared::protocol::connection::*;
+use shared::protocol::messages::connection::*;
 use shared::protocol::enums::server_status;
-use shared::protocol::handshake::*;
-use shared::protocol::queues::*;
+use shared::protocol::messages::handshake::*;
+use shared::protocol::messages::queues::*;
+use shared::protocol::types::connection::GameServerInformations;
 use super::{Session, Chunk};
 use std::sync::atomic::{ATOMIC_ISIZE_INIT, AtomicIsize, Ordering};
 use server::data::GameServerData;

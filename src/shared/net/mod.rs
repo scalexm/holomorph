@@ -109,7 +109,7 @@ impl<C: pool::Chunk + 'static> NetworkHandler<C> {
 
         use std::fmt::Write;
         let mut address = String::new();
-        let _ = write!(&mut address, "{}", socket.peer_addr().ok().unwrap());
+        write!(&mut address, "{}", socket.peer_addr().ok().unwrap()).unwrap();
         let client_tok = self.connections
             .insert(Connection::new(socket, tok))
             .ok()

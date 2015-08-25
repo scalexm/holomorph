@@ -1,0 +1,11 @@
+pub mod skill;
+use std::io::{Read, Write};
+use io::Result;
+use protocol::*;
+ use protocol::variants::InteractiveElementSkillVariant;
+impl_type!(InteractiveElement, 80, element_id| i32, element_type_id| i32, enabled_skills| Vec<InteractiveElementSkillVariant>, disabled_skills| Vec<InteractiveElementSkillVariant>);
+impl_type!(InteractiveElementNamedSkill, 220, base| InteractiveElementSkill, name_id| VarInt);
+impl_type!(InteractiveElementSkill, 219, skill_id| VarInt, skill_instance_uid| i32);
+impl_type!(InteractiveElementWithAgeBonus, 398, base| InteractiveElement, age_bonus| i16);
+impl_type!(MapObstacle, 200, obstacle_cell_id| VarShort, state| i8);
+impl_type!(StatedElement, 108, element_id| i32, element_cell_id| VarShort, element_state| VarInt);

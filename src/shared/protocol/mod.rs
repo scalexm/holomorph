@@ -9,6 +9,7 @@ pub struct VarLong(pub i64);
 pub struct VarULong(pub u64);
 pub struct Flag(pub bool);
 pub struct VarIntVec<T>(pub Vec<T>);
+pub struct StaticVec<T>(pub Vec<T>);
 
 fn get_flag(flag: u8, offset: u8) -> bool
 {
@@ -292,7 +293,7 @@ impl<P: Protocol> Protocol for Vec<P> {
     fn deserialize<R: Read>(rdr: &mut R) -> Result<Vec<P>> {
         let len = try!(rdr.read_u16());
         let mut res = Vec::new();
-        for _ in (0..len) {
+        for _ in 0..len {
             res.push(try!(P::deserialize(rdr)));
         }
         Ok(res)
@@ -315,7 +316,7 @@ impl<P: Protocol> Protocol for VarIntVec<P> {
     fn deserialize<R: Read>(rdr: &mut R) -> Result<VarIntVec<P>> {
         let len = try!(rdr.read_var_i32());
         let mut res = Vec::new();
-        for _ in (0..len) {
+        for _ in 0..len {
             res.push(try!(P::deserialize(rdr)));
         }
         Ok(VarIntVec(res))
@@ -334,12 +335,29 @@ impl<P: Protocol> Protocol for VarIntVec<P> {
     }
 }
 
-pub mod enums;
+impl<P: Protocol> Protocol for StaticVec<P> {
+    fn deserialize<R: Read>(rdr: &mut R) -> Result<StaticVec<P>> {
+        let mut res = Vec::new();
+        for _ in 0..5 {
+            res.push(try!(P::deserialize(rdr)));
+        }
+        Ok(StaticVec(res))
+    }
 
-pub mod connection;
-pub mod version;
-pub mod handshake;
-pub mod security;
-pub mod queues;
+    fn serialize<W: Write>(&self, wtr: &mut W) -> Result<()> {
+        for v in &self.0 {
+            try!(P::serialize(&v, wtr));
+        }
+        Ok(())
+    }
+
+    fn id() -> i16 {
+        -1
+    }
+}
+
+pub mod enums;
+pub mod variants;
+pub mod messages;
+pub mod types;
 pub mod holomorph;
-pub mod game;

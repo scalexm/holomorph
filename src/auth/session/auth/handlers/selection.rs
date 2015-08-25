@@ -1,7 +1,7 @@
 use shared::net::Msg;
 use std::io::{self, Cursor};
 use shared::protocol::*;
-use shared::protocol::connection::*;
+use shared::protocol::messages::connection::*;
 use shared::protocol::enums::{server_status, server_connection_error};
 use session::auth::{Session, Chunk};
 use postgres::{self, Connection};
