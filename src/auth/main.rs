@@ -13,7 +13,7 @@ mod session;
 mod config;
 mod server;
 
-use shared::net::{EventLoop, NetworkHandler};
+use shared::net::{EventLoop, NetworkHandler, CallbackType};
 use shared::pool;
 use std::thread;
 use std::fs::File;
@@ -34,7 +34,7 @@ fn main() {
 
     let cnf = shared::config::from_file::<Config>(&env::args()
         .nth(1)
-        .unwrap_or("config.json".to_string()));
+        .unwrap_or("auth_config.json".to_string()));
 
     let db = database::spawn_threads(cnf.database_threads, &cnf.database_uri);
     let key = load(&cnf.key_path);
@@ -60,11 +60,11 @@ fn main() {
     let tx = pool::run_chunk(session::game::Chunk::new(server_data.clone()));
     server::set_game_chunk(&handler, tx);
 
-    network_handler.add_listener(&mut io_loop, &server_data.cnf.bind_address,
-        server::Handler::auth_event);
+    network_handler.add_callback(&mut io_loop, &server_data.cnf.bind_address,
+        server::Handler::auth_event, CallbackType::Listen);
 
-    network_handler.add_listener(&mut io_loop, &server_data.cnf.game_bind_address,
-        server::Handler::game_event);
+    network_handler.add_callback(&mut io_loop, &server_data.cnf.game_bind_address,
+        server::Handler::game_event, CallbackType::Listen);
 
     thread::spawn(move || {
         io::stdin().read_line(&mut String::new())
@@ -74,6 +74,5 @@ fn main() {
     });
 
     server::start_queue_timer(&handler);
-    //server::update_game_server(&handler, 1, 3, "127.0.0.1".to_string(), 5556);
     io_loop.run(&mut network_handler).unwrap();
 }

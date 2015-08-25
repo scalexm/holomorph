@@ -122,6 +122,8 @@ impl Session {
             } as f64,
         }.as_packet_with_buf(&mut buf).unwrap();
 
+        let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
+
         if auto_connect {
             if self.select_server(chunk, data.last_server).ok().is_some() {
                 return ();
@@ -142,11 +144,11 @@ impl Session {
             gs.push(self.get_server_informations(&server.1, status));
         }
 
-        ServersListMessage {
+        let buf = ServersListMessage {
             servers: gs,
             already_connected_to_server_id: VarShort(data.already_logged),
             can_create_new_character: true,
-        }.as_packet_with_buf(&mut buf).unwrap();
+        }.as_packet().unwrap();
 
         let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
     }

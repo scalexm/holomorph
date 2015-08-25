@@ -2,8 +2,9 @@ mod connection;
 mod handler;
 
 use mio::{self, EventSet, PollOpt};
-use mio::tcp::TcpListener;
+use mio::tcp::{TcpStream, TcpListener};
 use mio::util::Slab;
+use std::net::SocketAddr;
 use std::io::{self, Cursor};
 use net::connection::Connection;
 use pool;
@@ -23,8 +24,13 @@ pub enum SessionEvent {
     Disconnect(Token),
 }
 
+pub enum CallbackType {
+    Listen,
+    Connect,
+}
+
 struct Listener<C> {
-    socket: TcpListener,
+    socket: Option<TcpListener>,
     callback: fn(&mut C, SessionEvent),
 }
 
@@ -37,33 +43,56 @@ pub struct NetworkHandler<C: pool::Chunk> {
     connections: Slab<Connection>,
 }
 
-impl<C: pool::Chunk> NetworkHandler<C> {
-    fn add_listener_with_result(&mut self, event_loop: &mut EventLoop<C>, address: &str,
+impl<C: pool::Chunk + 'static> NetworkHandler<C> {
+    fn listen(&mut self, event_loop: &mut EventLoop<C>, address: SocketAddr,
         cb: fn(&mut C, SessionEvent)) -> io::Result<()> {
 
-            let address = match address.parse() {
-                Ok(addr) => addr,
-                Err(_) => panic!("failed to parse address"),
-            };
-
             let socket = try!(TcpListener::bind(&address));
+
             let tok = self.listeners.insert(Listener {
-                socket: socket,
+                socket: Some(socket),
                 callback: cb,
             }).ok().unwrap();
 
-            try!(event_loop.register_opt(&self.listeners[tok].socket, tok,
-                EventSet::readable(), PollOpt::edge()));
+            try!(event_loop.register_opt(self.listeners[tok].socket.as_ref().unwrap(),
+                tok, EventSet::readable(), PollOpt::edge()));
 
             info!("ready to listen on {:?}", address);
             Ok(())
     }
 
-    pub fn add_listener(&mut self, event_loop: &mut EventLoop<C>, address: &str,
-        cb: fn(&mut C, SessionEvent)) {
+    fn connect(&mut self, event_loop: &mut EventLoop<C>, address: SocketAddr,
+        cb: fn(&mut C, SessionEvent)) -> io::Result<()> {
 
-        if let Err(err) = self.add_listener_with_result(event_loop, address, cb) {
-            panic!("listen failed {}", err);
+            use std::thread;
+            let socket = try!(TcpStream::connect(&address));
+            thread::sleep_ms(100);
+            try!(socket.take_socket_error());
+
+            let tok = self.listeners.insert(Listener {
+                socket: None,
+                callback: cb,
+            }).ok().unwrap();
+
+            try!(self.new_connection(event_loop, tok, socket));
+
+            info!("connected to {:?}", address);
+            Ok(())
+    }
+
+    pub fn add_callback(&mut self, event_loop: &mut EventLoop<C>, address: &str,
+        cb: fn(&mut C, SessionEvent), cb_type: CallbackType) {
+
+        let address = match address.parse() {
+            Ok(addr) => addr,
+            Err(_) => panic!("failed to parse address"),
+        };
+
+        if let Err(err) = match cb_type {
+            CallbackType::Listen => self.listen(event_loop, address, cb),
+            CallbackType::Connect => self.connect(event_loop, address, cb),
+        } {
+            panic!("socket error: {}", err);
         }
     }
 
@@ -75,30 +104,36 @@ impl<C: pool::Chunk> NetworkHandler<C> {
         }
     }
 
+    fn new_connection(&mut self, event_loop: &mut EventLoop<C>, tok: Token,
+        socket: TcpStream) -> io::Result<()> {
+
+        use std::fmt::Write;
+        let mut address = String::new();
+        let _ = write!(&mut address, "{}", socket.peer_addr().ok().unwrap());
+        let client_tok = self.connections
+            .insert(Connection::new(socket, tok))
+            .ok()
+            .unwrap();
+
+        let cb = self.listeners[tok].callback;
+        pool::execute(&self.handler, move |handler| {
+            cb(handler, SessionEvent::Connect(client_tok, address))
+        });
+
+        event_loop.register_opt(&self.connections[client_tok].socket,
+            client_tok,
+            EventSet::readable(),
+            PollOpt::level())
+    }
+
     fn handle_server_event(&mut self, event_loop: &mut EventLoop<C>, tok: Token,
         events: EventSet) -> io::Result<()> {
 
         assert!(events.is_readable());
 
-        match try!(self.listeners[tok].socket.accept()) {
+        match try!(self.listeners[tok].socket.as_ref().unwrap().accept()) {
             Some(socket) => {
-                use std::fmt::Write;
-                let mut address = String::new();
-                let _ = write!(&mut address, "{}", socket.peer_addr().ok().unwrap());
-                let client_tok = self.connections
-                    .insert(Connection::new(socket, tok))
-                    .ok()
-                    .unwrap();
-
-                let cb = self.listeners[tok].callback;
-                pool::execute(&self.handler, move |handler| {
-                    cb(handler, SessionEvent::Connect(client_tok, address))
-                });
-
-                event_loop.register_opt(&self.connections[client_tok].socket,
-                    client_tok,
-                    EventSet::readable(),
-                    PollOpt::level())
+                self.new_connection(event_loop, tok, socket)
             }
 
             None => Ok(()),

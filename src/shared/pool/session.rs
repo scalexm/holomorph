@@ -54,8 +54,8 @@ pub trait Chunk : pool::Chunk + Sized {
     }
 }
 
-pub trait Session : Drop {
-    type C: Chunk;
+pub trait Session {
+    type C;
 
     fn new(Token, &Self::C, String) -> Self;
     fn get_handler(u16) -> (fn(&mut Self, &Self::C, Cursor<Vec<u8>>) -> io::Result<()>);

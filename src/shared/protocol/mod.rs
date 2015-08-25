@@ -70,7 +70,7 @@ pub trait Protocol: Sized {
     }
 }
 
-macro_rules! impl_enum {
+macro_rules! impl_variant {
     ($name: ident, $($field_name: ident | $field_type: ty),*) => {
         pub enum $name {
             $(
@@ -342,3 +342,4 @@ pub mod handshake;
 pub mod security;
 pub mod queues;
 pub mod holomorph;
+pub mod game;

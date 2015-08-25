@@ -1,7 +1,5 @@
-use shared::pool;
 use server;
-use shared::net;
-use shared::database;
+use shared::{net, pool, database};
 use config::Config;
 use std::sync::Arc;
 use std::collections::HashMap;

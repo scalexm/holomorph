@@ -85,6 +85,7 @@ impl pool::session::Session for Session {
 
     fn get_handler(id: u16)
         -> (fn(&mut Session, &Chunk, Cursor<Vec<u8>>) -> io::Result<()>) {
+
         match id {
             4 => Session::handle_identification,
             40 => Session::handle_server_selection,

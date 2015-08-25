@@ -3,7 +3,7 @@ use mio::tcp::Shutdown;
 use net::*;
 use pool;
 
-impl<C: pool::Chunk> Handler for NetworkHandler<C> {
+impl<C: pool::Chunk + 'static> Handler for NetworkHandler<C> {
     type Timeout = ();
     type Message = Msg;
 

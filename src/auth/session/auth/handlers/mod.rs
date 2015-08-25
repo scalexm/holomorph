@@ -18,6 +18,7 @@ static QUEUE_COUNTER: AtomicIsize = ATOMIC_ISIZE_INIT;
 impl Session {
     pub fn start(&self, chunk: &Chunk) {
         let mut buf = Vec::new();
+
         ProtocolRequired {
             required_version: 1658,
             current_version: 1658,
