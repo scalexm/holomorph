@@ -1,5 +1,5 @@
 use shared::protocol::*;
-use shared::protocol::connection::*;
+use shared::protocol::messages::connection::*;
 use std::io::Cursor;
 
 #[test]
