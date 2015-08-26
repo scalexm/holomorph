@@ -2,6 +2,8 @@ use session::game::{Session, Chunk, AccountData, QueueState};
 use shared::protocol::*;
 use shared::protocol::messages::game::approach::*;
 use shared::protocol::messages::queues::*;
+use shared::protocol::messages::game::basic::*;
+use shared::protocol::messages::secure::*;
 use std::io::{self, Cursor};
 use shared::net::{Msg, Token};
 use std::sync::atomic::{ATOMIC_ISIZE_INIT, AtomicIsize, Ordering};
@@ -9,6 +11,8 @@ use postgres::{self, Connection};
 use shared::database;
 use server;
 use time;
+use std::collections::HashMap;
+use character::CharacterMinimal;
 
 pub static QUEUE_SIZE: AtomicIsize = ATOMIC_ISIZE_INIT;
 pub static QUEUE_COUNTER: AtomicIsize = ATOMIC_ISIZE_INIT;
@@ -61,7 +65,7 @@ impl Session {
     }
 
     fn identification_success(&mut self, chunk: &Chunk, data: AccountData,
-        already_logged: bool) {
+        already_logged: bool, characters: HashMap<i32, CharacterMinimal>) {
 
         if already_logged {
             let buf = AlreadyConnectedMessage.as_packet().unwrap();
@@ -71,15 +75,49 @@ impl Session {
 
         self.account = Some(data);
         self.queue_state = QueueState::None;
+        self.characters = characters;
 
         let mut buf = Vec::new();
+
+        AuthenticationTicketAcceptedMessage.as_packet_with_buf(&mut buf).unwrap();
 
         QueueStatusMessage {
             position: 0,
             total: 0,
         }.as_packet_with_buf(&mut buf).unwrap();
 
-        AuthenticationTicketAcceptedMessage.as_packet_with_buf(&mut buf).unwrap();
+        BasicTimeMessage {
+            timestamp: (time::get_time().sec * 1000) as f64,
+            timezone_offset: (time::now().tm_utcoff / 60) as i16,
+        }.as_packet_with_buf(&mut buf).unwrap();
+
+        ServerSettingsMessage {
+            lang: "fr".to_string(),
+            community: 0,
+            game_type: 0,
+        }.as_packet_with_buf(&mut buf).unwrap();
+
+        ServerOptionalFeaturesMessage {
+            features: Vec::new(),
+        }.as_packet_with_buf(&mut buf).unwrap();
+
+        ServerSessionConstantsMessage {
+            variables: Vec::new(),
+        }.as_packet_with_buf(&mut buf).unwrap();
+
+        AccountCapabilitiesMessage {
+            tutorial_available: Flag(false),
+            can_create_new_character: Flag(self.characters.len() < 5),
+            account_id: self.account.as_ref().unwrap().id,
+            breeds_visible: -1,
+            breeds_available: -1,
+            status: 0,
+        }.as_packet_with_buf(&mut buf).unwrap();
+
+        TrustStatusMessage { // AnkamaShield
+            trusted: Flag(true),
+            certified: Flag(true),
+        }.as_packet_with_buf(&mut buf).unwrap();
 
         let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
     }
@@ -117,9 +155,9 @@ impl Session {
                 Ok(data) => {
                     let id = data.id;
                     server::identification_success(&handler, token, id,
-                        move |session, chunk, already| {
+                        move |session, chunk, already, characters| {
                             Session::identification_success(session, chunk, data,
-                                already)
+                                already, characters)
                     });
                 }
             }

@@ -31,8 +31,8 @@ impl Session {
         }
 
         let gs = gs.unwrap();
-        
-        if shared::compute_md5(&(shared::compute_md5(&gs.key) + &self.salt)) != msg.key {
+
+        if shared::compute_md5(&(shared::compute_md5(&gs.key()) + &self.salt)) != msg.key {
             let _ = chunk.server.io_loop.send(Msg::Close(self.token));
             return Ok(());
         }

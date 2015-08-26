@@ -48,7 +48,7 @@ impl Session {
                 status.0));
         }
 
-        if server.min_level > account.level {
+        if server.min_level() > account.level {
             return Err(ServerSelectionError(server_connection_error::ACCOUNT_RESTRICTED,
                 status.0));
         }

@@ -42,6 +42,7 @@ impl Connection {
 
     pub fn readable(&mut self) -> io::Result<Option<Packet>> {
         let Buffer(mut buf, pos) = self.read_buffer.take().unwrap();
+
         let s = match try!(self.socket.try_read(&mut buf[pos..])) {
             None | Some(0) => return Err(io::Error::new(io::ErrorKind::Other, "EOF")),
             Some(s) => s,
@@ -58,6 +59,12 @@ impl Connection {
                 let header = try!(buf.read_u16());
                 let id = header >> 2;
                 let nbytes = header & 3;
+
+                if nbytes == 0 {
+                    self.state = State::WaitingForHeader;
+                    return Ok(Some(Packet(id, Cursor::new(Vec::new()))));
+                }
+
                 self.state = State::WaitingForLen(id);
                 self.read_buffer = Some(make_buffer(nbytes as usize));
             }

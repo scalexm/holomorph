@@ -1,4 +1,5 @@
 pub mod approach;
+pub mod characters_list;
 
 use super::{Session, Chunk, QueueState};
 use shared::protocol::*;

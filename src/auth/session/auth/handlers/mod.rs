@@ -59,13 +59,13 @@ impl Session {
         }
 
         GameServerInformations {
-            id: VarShort(server.id),
+            id: VarShort(server.id()),
             status: status,
             completion: 0,
             is_selectable: status == server_status::ONLINE,
             characters_count: *data
                 .character_counts
-                .get(&server.id)
+                .get(&server.id())
                 .unwrap_or(&0),
             date: 0.,
         }
@@ -83,7 +83,7 @@ impl Session {
 
         let server = server.unwrap();
 
-        if server.min_level > self.account.as_ref().unwrap().level {
+        if server.min_level() > self.account.as_ref().unwrap().level {
             return ();
         }
 

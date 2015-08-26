@@ -3,6 +3,9 @@ use std::sync::Arc;
 use config::Config;
 use shared::{net, pool};
 use shared::database;
+use postgres::Result;
+use character::CharacterMinimal;
+use server::Handler;
 
 #[derive(Clone)]
 pub struct GameServerData {
@@ -27,5 +30,18 @@ impl GameServerData {
     pub fn shutdown(&self) {
         let _ = self.io_loop.send(net::Msg::Shutdown);
         let _ = self.handler.send(pool::Msg::Shutdown);
+    }
+}
+
+impl Handler {
+    pub fn load(&mut self, uri: &str) -> Result<()> {
+        let conn = database::connect(uri);
+
+        let stmt = try!(conn.prepare("SELECT * FROM character_minimals"));
+        self.characters = try!(stmt.query(&[])).iter().map(|row|
+            CharacterMinimal::from_sql(row)).collect();
+        info!("loaded {} characters", self.characters.len());
+
+        Ok(())
     }
 }

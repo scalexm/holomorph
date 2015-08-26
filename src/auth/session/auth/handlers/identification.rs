@@ -135,22 +135,21 @@ impl Session {
             }
         }
 
-        let mut gs = Vec::new();
-        for server in &*chunk.server.game_servers {
-            if server.1.min_level > data.level {
-                continue;
+        let servers = chunk.server.game_servers.iter().filter_map(|server| {
+            if server.1.min_level() > data.level {
+                return None;
             }
 
             let status = chunk.game_status
-                .get(&server.1.id)
+                .get(&server.1.id())
                 .map(|status| status.0)
                 .unwrap_or(server_status::OFFLINE);
 
-            gs.push(self.get_server_informations(&server.1, status));
-        }
+            Some(self.get_server_informations(server.1, status))
+        }).collect();
 
         let buf = ServersListMessage {
-            servers: gs,
+            servers: servers,
             already_connected_to_server_id: VarShort(data.already_logged),
             can_create_new_character: true,
         }.as_packet().unwrap();

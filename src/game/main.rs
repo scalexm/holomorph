@@ -10,6 +10,7 @@ extern crate eventual;
 mod config;
 mod session;
 mod server;
+mod character;
 
 use config::Config;
 use shared::net::{EventLoop, NetworkHandler, CallbackType};
@@ -32,7 +33,13 @@ fn main() {
         &cnf.auth_database_uri);
 
     let mut io_loop = EventLoop::new().unwrap();
-    let handler = pool::run_chunk(server::Handler::new(io_loop.channel()));
+
+    let mut handler = server::Handler::new(io_loop.channel());
+    if let Err(err) = handler.load(&cnf.database_uri) {
+        panic!("loading failed: {}", err);
+    }
+
+    let handler = pool::run_chunk(handler);
     let mut network_handler = NetworkHandler::new(handler.clone());
 
     let mut server_data = GameServerData::new(handler.clone(), io_loop.channel(), cnf,

@@ -9,6 +9,8 @@ pub struct Config {
     pub server_id: i16,
     pub auth_database_uri: String,
     pub auth_database_threads: usize,
+    pub database_uri: String,
+    pub database_threads: usize,
 }
 
 impl config::Config for Config {
@@ -21,6 +23,8 @@ impl config::Config for Config {
             server_id: 1,
             auth_database_uri: "postgres://user:pass@localhost:5432/holomorph_auth".to_string(),
             auth_database_threads: 1,
+            database_uri: "postgres://user:pass@localhost:5432/holomorph_game".to_string(),
+            database_threads: 1,
         }
     }
 }

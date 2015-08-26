@@ -9,6 +9,7 @@ use server::data::GameServerData;
 use postgres::{self, Connection};
 use time;
 use shared::database;
+use character::CharacterMinimal;
 
 pub struct Chunk {
     sessions: HashMap<Token, RefCell<Session>>,
@@ -41,6 +42,22 @@ impl pool::session::Chunk for Chunk {
 
     fn mut_sessions(&mut self) -> &mut HashMap<Token, RefCell<Session>> {
         &mut self.sessions
+    }
+}
+
+impl Drop for Chunk {
+    fn drop(&mut self) {
+        use shared::pool::session::Session;
+
+        let mut tokens = Vec::new();
+        for session in &self.sessions {
+            tokens.push(session.1.borrow_mut().token);
+        }
+
+        for tok in tokens {
+            let session = self.sessions.remove(&tok).unwrap();
+            session.into_inner().close(self);
+        }
     }
 }
 
@@ -82,6 +99,7 @@ pub struct Session {
     address: String,
     queue_state: QueueState,
     account: Option<AccountData>,
+    characters: HashMap<i32, CharacterMinimal>,
 }
 
 impl Session {
@@ -117,6 +135,7 @@ impl pool::session::Session for Session {
             address: address,
             queue_state: QueueState::None,
             account: None,
+            characters: HashMap::new(),
         };
 
         s.start(chunk);
@@ -128,6 +147,7 @@ impl pool::session::Session for Session {
 
         match id {
             110 => Session::handle_authentication_ticket,
+            150 => Session::handle_characters_list_request,
             _ => Session::unhandled,
         }
     }

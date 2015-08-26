@@ -6,6 +6,7 @@ use shared::net::{self, Token, SessionEvent};
 use shared::pool;
 use shared::HashBiMap;
 use eventual::{Timer, Async};
+use character::CharacterMinimal;
 
 pub type Sender = pool::Sender<Handler>;
 
@@ -17,6 +18,7 @@ pub struct Handler {
     session_ids: HashBiMap<i32, Token>,
     next_insert: usize,
     queue_timer: Timer,
+    characters: HashMap<i32, CharacterMinimal>,
 }
 
 impl pool::Chunk for Handler { }
@@ -31,6 +33,7 @@ impl Handler {
             next_insert: 0,
             session_ids: HashBiMap::new(),
             queue_timer: Timer::with_capacity(1),
+            characters: HashMap::new(),
         }
     }
 
@@ -74,17 +77,27 @@ pub fn set_auth_chunk(sender: &Sender, chunk: auth::Sender) {
 }
 
 pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32, job: F)
-    where F: FnOnce(&mut game::Session, &game::Chunk, bool) + Send + 'static {
+    where F: FnOnce(&mut game::Session, &game::Chunk, bool,
+        HashMap<i32, CharacterMinimal>) + Send + 'static {
 
     pool::execute(sender, move |handler| {
         let already = handler.session_ids.contains_key(&id);
+        let mut characters = HashMap::new();
+
         if !already {
             let _ = handler.session_ids.insert(id, tok);
+
+            characters = handler.characters.iter().filter_map(|ch| {
+                if ch.1.account_id() == id {
+                    return Some((*ch.0, ch.1.clone()));
+                }
+                None
+            }).collect();
         }
 
         handler.session_callback(tok,
             move |session, chunk|
-                job(session, chunk, already))
+                job(session, chunk, already, characters))
     });
 }
 
