@@ -8,13 +8,9 @@ use shared::protocol::enums::server_status;
 use shared::protocol::messages::handshake::*;
 use shared::protocol::messages::queues::*;
 use shared::protocol::types::connection::GameServerInformations;
-use super::{Session, Chunk};
-use std::sync::atomic::{ATOMIC_ISIZE_INIT, AtomicIsize, Ordering};
+use super::{Session, Chunk, QueueState};
+use std::sync::atomic::Ordering;
 use server::data::GameServerData;
-
-
-static QUEUE_SIZE: AtomicIsize = ATOMIC_ISIZE_INIT;
-static QUEUE_COUNTER: AtomicIsize = ATOMIC_ISIZE_INIT;
 
 impl Session {
     pub fn start(&self, chunk: &Chunk) {
@@ -34,23 +30,23 @@ impl Session {
     }
 
     pub fn update_queue(&self, chunk: &Chunk) {
-        if self.queue_size == -1 {
-            return ();
+        use self::identification::{QUEUE_COUNTER, QUEUE_SIZE};
+
+        if let QueueState::Some(queue_size, queue_counter) = self.queue_state {
+            let mut pos = queue_size -
+                (QUEUE_COUNTER.load(Ordering::Relaxed) - queue_counter);
+
+            if pos < 0 {
+                pos = 0;
+            }
+
+            let buf = LoginQueueStatusMessage {
+                position: pos as i16,
+                total: QUEUE_SIZE.load(Ordering::Relaxed) as i16,
+            }.as_packet().unwrap();
+
+            let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
         }
-
-        let mut pos = self.queue_size -
-            (QUEUE_COUNTER.load(Ordering::Relaxed) - self.queue_counter);
-
-        if pos < 0 {
-            pos = 0;
-        }
-
-        let buf = LoginQueueStatusMessage {
-            position: pos as i16,
-            total: QUEUE_SIZE.load(Ordering::Relaxed) as i16,
-        }.as_packet().unwrap();
-
-        let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
     }
 
     fn get_server_informations(&self, server: &GameServerData, mut status: i8)

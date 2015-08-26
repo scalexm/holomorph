@@ -27,11 +27,24 @@ impl AccountData {
     }
 }
 
+enum QueueState {
+    None,
+    Some(isize, isize),
+}
+
+impl QueueState {
+    fn is_none(&self) -> bool {
+        match *self {
+            QueueState::None => true,
+            _ => false,
+        }
+    }
+}
+
 pub struct Session {
     token: Token,
     account: Option<AccountData>,
-    queue_size: isize,
-    queue_counter: isize,
+    queue_state: QueueState,
     custom_identification: bool,
     aes_key: Vec<u8>,
     address: String,
@@ -72,8 +85,7 @@ impl pool::session::Session for Session {
         let s = Session {
             token: token,
             account: None,
-            queue_size: -1,
-            queue_counter: -1,
+            queue_state: QueueState::None,
             custom_identification: false,
             aes_key: Vec::new(),
             address: address,

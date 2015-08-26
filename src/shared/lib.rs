@@ -1,4 +1,5 @@
 #![feature(fnbox)]
+#![feature(ip_addr)]
 
 #[macro_use]
 extern crate log;

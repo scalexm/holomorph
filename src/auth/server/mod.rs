@@ -91,8 +91,7 @@ pub fn set_game_chunk(sender: &Sender, chunk: game::Sender) {
 
 pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32,
     already_logged: i16, job: F)
-    where F: FnOnce(&mut auth::Session, &auth::Chunk, bool)
-    + Send + 'static {
+    where F: FnOnce(&mut auth::Session, &auth::Chunk, bool) + Send + 'static {
 
     pool::execute(sender, move |handler| {
         let already = handler.session_ids.insert(id, tok);

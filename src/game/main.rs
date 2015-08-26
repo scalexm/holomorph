@@ -3,6 +3,9 @@ extern crate shared;
 extern crate log;
 extern crate env_logger;
 extern crate rustc_serialize;
+extern crate postgres;
+extern crate time;
+extern crate eventual;
 
 mod config;
 mod session;
@@ -16,6 +19,7 @@ use std::env;
 use std::io;
 use std::fmt::Write;
 use server::data::GameServerData;
+use shared::database;
 
 fn main() {
     env_logger::init().unwrap();
@@ -24,11 +28,15 @@ fn main() {
         .nth(1)
         .unwrap_or("game_config.json".to_string()));
 
+    let db = database::spawn_threads(cnf.auth_database_threads,
+        &cnf.auth_database_uri);
+
     let mut io_loop = EventLoop::new().unwrap();
     let handler = pool::run_chunk(server::Handler::new(io_loop.channel()));
     let mut network_handler = NetworkHandler::new(handler.clone());
 
-    let mut server_data = GameServerData::new(handler.clone(), io_loop.channel(), cnf);
+    let mut server_data = GameServerData::new(handler.clone(), io_loop.channel(), cnf,
+        db);
 
     let tx = pool::run_chunk(session::game::Chunk::new(server_data.clone()));
     server::add_chunk(&handler, tx);
@@ -53,5 +61,6 @@ fn main() {
         server_data.shutdown();
     });
 
+    server::start_queue_timer(&handler);
     io_loop.run(&mut network_handler).unwrap();
 }

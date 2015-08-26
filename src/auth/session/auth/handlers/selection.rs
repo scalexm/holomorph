@@ -10,7 +10,7 @@ use rand::{self, Rng};
 use crypto::aes;
 use crypto::buffer::{RefReadBuffer, RefWriteBuffer, BufferResult, WriteBuffer, ReadBuffer};
 use crypto::symmetriccipher::Encryptor;
-use crypto::blockmodes::PkcsPadding;
+use crypto::blockmodes::NoPadding;
 
 struct ServerSelectionError(i8, i8);
 
@@ -53,14 +53,14 @@ impl Session {
                 status.0));
         }
 
-        let ticket: String = rand::thread_rng().gen_ascii_chars().take(10).collect();
+        let ticket: String = rand::thread_rng().gen_ascii_chars().take(32).collect();
         let mut result = Vec::new();
 
         {
             let mut cbc = aes::cbc_encryptor(aes::KeySize::KeySize256, &self.aes_key[0..32],
-                &self.aes_key[0..16], PkcsPadding);
+                &self.aes_key[0..16], NoPadding);
 
-            let mut output = [0; 16];
+            let mut output = [0; 32];
             let mut read_buffer = RefReadBuffer::new(&ticket.as_bytes());
             let mut write_buffer = RefWriteBuffer::new(&mut output);
 

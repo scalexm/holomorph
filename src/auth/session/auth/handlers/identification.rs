@@ -5,14 +5,16 @@ use shared::protocol::messages::connection::*;
 use shared::protocol::messages::security::*;
 use shared::protocol::messages::queues::*;
 use shared::protocol::enums::{server_status, identification_failure_reason};
-use session::auth::{AccountData, Session, Chunk};
-use super::{QUEUE_SIZE, QUEUE_COUNTER};
+use session::auth::{AccountData, Session, Chunk, QueueState};
 use postgres::{self, Connection};
 use server;
 use shared::{self, database};
 use time;
 use std::collections::HashMap;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{ATOMIC_ISIZE_INIT, AtomicIsize, Ordering};
+
+pub static QUEUE_SIZE: AtomicIsize = ATOMIC_ISIZE_INIT;
+pub static QUEUE_COUNTER: AtomicIsize = ATOMIC_ISIZE_INIT;
 
 enum AuthError {
     SqlError(postgres::error::Error),
@@ -31,6 +33,14 @@ impl Session {
         addr: String) -> Result<AccountData, AuthError> {
 
         let trans = try!(conn.transaction());
+
+        let stmt = try!(trans.prepare_cached("SELECT 1 FROM ip_bans WHERE ip
+            = $1"));
+
+        if try!(stmt.query(&[&addr])).len() != 0 {
+            return Err(AuthError::Reason(identification_failure_reason::WRONG_CREDENTIALS));
+        }
+
         let stmt = try!(trans.prepare_cached("SELECT * FROM accounts WHERE account = $1"));
         let rows = try!(stmt.query(&[&account]));
 
@@ -67,10 +77,6 @@ impl Session {
             let _ = character_counts.insert(id, val);
         }
 
-        let stmt = try!(trans.prepare_cached("UPDATE accounts SET last_connection_date = $1,
-            last_ip = $2 WHERE id = $3"));
-        let _ = try!(stmt.execute(&[&time::get_time().sec, &addr, &id]));
-
         try!(trans.commit());
 
         let level: i16 = row.get("level");
@@ -95,8 +101,7 @@ impl Session {
         let mut buf = Vec::new();
         let subscriber = data.is_subscriber();
 
-        self.queue_size = -1;
-        self.queue_counter = -1;
+        self.queue_state = QueueState::None;
 
         LoginQueueStatusMessage {
             position: 0,
@@ -159,7 +164,7 @@ impl Session {
         use std::io::Read;
         use shared::io::ReadExt;
 
-        if self.account.is_some() || self.queue_size != -1  {
+        if self.account.is_some() || !self.queue_state.is_none() {
             return Ok(());
         }
 
@@ -186,8 +191,8 @@ impl Session {
         let token = self.token;
         let addr = self.address.clone();
 
-        self.queue_size = QUEUE_SIZE.fetch_add(1, Ordering::Relaxed) + 1;
-        self.queue_counter = QUEUE_COUNTER.load(Ordering::Relaxed);
+        self.queue_state = QueueState::Some(QUEUE_SIZE.fetch_add(1, Ordering::Relaxed) + 1,
+            QUEUE_COUNTER.load(Ordering::Relaxed));
 
         database::execute(&chunk.server.db, move |conn| {
             match Session::authenticate(conn, username, password, addr) {
@@ -213,6 +218,7 @@ impl Session {
                             }.as_packet().unwrap()
                         }
                     };
+
                     let _ = io_loop.send(Msg::WriteAndClose(token, buf));
                 }
 
@@ -220,9 +226,8 @@ impl Session {
                     let id = data.id;
                     server::identification_success(&handler, token, id, data.already_logged,
                         move |session, chunk, already| {
-
-                        Session::identification_success(session, chunk, data, already,
-                            auto_connect)
+                            Session::identification_success(session, chunk, data, already,
+                                auto_connect)
                     });
                 }
             }

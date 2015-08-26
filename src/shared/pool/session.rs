@@ -25,8 +25,10 @@ pub trait Chunk : pool::Chunk + Sized {
             }
 
             SessionEvent::Disconnect(tok) => {
-                let sessions = self.mut_sessions();
-                let _ = sessions.remove(&tok);
+                let session = self.mut_sessions().remove(&tok);
+                if let Some(session) = session {
+                    session.into_inner().close(self);
+                }
             }
 
             SessionEvent::Packet(tok, id, data) => {
@@ -54,7 +56,7 @@ pub trait Chunk : pool::Chunk + Sized {
     }
 }
 
-pub trait Session {
+pub trait Session: Sized {
     type C;
 
     fn new(Token, &Self::C, String) -> Self;
@@ -69,4 +71,6 @@ pub trait Session {
 
         Self::get_handler(id)(self, chunk, data)
     }
+
+    fn close(self, _: &Self::C) { }
 }

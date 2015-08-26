@@ -7,6 +7,8 @@ pub struct Config {
     pub bind_port: i16,
     pub server_key: String,
     pub server_id: i16,
+    pub auth_database_uri: String,
+    pub auth_database_threads: usize,
 }
 
 impl config::Config for Config {
@@ -17,6 +19,8 @@ impl config::Config for Config {
             bind_port: 5557,
             server_key: "salut".to_string(),
             server_id: 1,
+            auth_database_uri: "postgres://user:pass@localhost:5432/holomorph_auth".to_string(),
+            auth_database_threads: 1,
         }
     }
 }
