@@ -15,7 +15,13 @@ pub struct Handler {
     chunks: Vec<game::Sender>,
     auth_chunk: Option<auth::Sender>,
     session_chunks: HashMap<Token, usize>,
+
+    // a session can be identified by its account id
     session_ids: HashBiMap<i32, Token>,
+
+    // an in-game session can be identified by its character id
+    session_characters: HashBiMap<i32, Token>,
+
     next_insert: usize,
     queue_timer: Timer,
     characters: HashMap<i32, CharacterMinimal>,
@@ -32,6 +38,7 @@ impl Handler {
             session_chunks: HashMap::new(),
             next_insert: 0,
             session_ids: HashBiMap::new(),
+            session_characters: HashBiMap::new(),
             queue_timer: Timer::with_capacity(1),
             characters: HashMap::new(),
         }
@@ -101,6 +108,18 @@ pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32, job: F)
     });
 }
 
+pub fn character_selection_success<F>(sender: &Sender, tok: Token, ch_id: i32,
+    job: F) where F: FnOnce(&mut game::Session, &game::Chunk) + Send + 'static {
+
+    pool::execute(sender, move |handler| {
+        let _ = handler.session_characters.insert(ch_id, tok);
+
+        handler.session_callback(tok,
+            move |session, chunk|
+                job(session, chunk))
+    });
+}
+
 // handling session events from NetworkHandler
 impl Handler {
     pub fn auth_event(&mut self, evt: SessionEvent) {
@@ -143,6 +162,7 @@ impl Handler {
                 }
                 let _ = self.session_chunks.remove(&tok);
                 let _ = self.session_ids.inv_remove(&tok);
+                let _ = self.session_characters.inv_remove(&tok);
             }
         }
     }

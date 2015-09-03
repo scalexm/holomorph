@@ -1,6 +1,6 @@
 pub mod session;
 
-use std::thread;
+use std::thread::{self, JoinHandle};
 use std::sync::mpsc;
 use std::boxed::FnBox;
 
@@ -27,23 +27,23 @@ pub fn execute<F, C: Chunk>(sender: &Sender<C>, job: F)
     let _ = sender.send(Msg::ChunkCallback(boxed_job));
 }
 
-pub fn run_chunk<C: Chunk + Send + 'static>(mut chunk: C)
+pub fn run_chunk<C: Chunk + Send + 'static>(mut chunk: C, joins: &mut Vec<JoinHandle<()>>)
     -> Sender<C> {
     let (tx, rx) = mpsc::channel::<Msg<C>>();
 
-    thread::spawn(move || {
-        loop {
-            match rx.recv() {
-                Ok(msg) => {
-                    match msg {
-                        Msg::Shutdown => return (),
-                        Msg::ChunkCallback(thunk) => chunk.process_cb(thunk),
+    joins.push(thread::spawn(move || {
+            loop {
+                match rx.recv() {
+                    Ok(msg) => {
+                        match msg {
+                            Msg::Shutdown => return (),
+                            Msg::ChunkCallback(thunk) => chunk.process_cb(thunk),
+                        }
                     }
+                    Err(..) => return (),
                 }
-                Err(..) => return (),
             }
-        }
-    });
+    }));
 
     tx
 }

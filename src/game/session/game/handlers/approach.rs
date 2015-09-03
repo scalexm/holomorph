@@ -17,20 +17,20 @@ use character::CharacterMinimal;
 pub static QUEUE_SIZE: AtomicIsize = ATOMIC_ISIZE_INIT;
 pub static QUEUE_COUNTER: AtomicIsize = ATOMIC_ISIZE_INIT;
 
-enum AuthError {
+enum Error {
     SqlError(postgres::error::Error),
     Other,
 }
 
-impl From<postgres::error::Error> for AuthError {
-    fn from(err: postgres::error::Error) -> AuthError {
-        AuthError::SqlError(err)
+impl From<postgres::error::Error> for Error {
+    fn from(err: postgres::error::Error) -> Error {
+        Error::SqlError(err)
     }
 }
 
 impl Session {
     fn authenticate(conn: &mut Connection, ticket: String, server_id: i16, addr: String)
-        -> Result<AccountData, AuthError> {
+        -> Result<AccountData, Error> {
 
         let trans = try!(conn.transaction());
 
@@ -39,12 +39,12 @@ impl Session {
         let rows = try!(stmt.query(&[&ticket]));
 
         if rows.len() == 0 {
-            return Err(AuthError::Other);
+            return Err(Error::Other);
         }
 
         let row = rows.get(0);
 
-        let id: i32 = row.get("id");
+        let id: i32 = try!(row.get_opt("id"));
 
         let stmt = try!(trans.prepare_cached("UPDATE accounts SET logged = $1,
             last_server = $1, last_connection_date = $2, last_ip = $3 WHERE id = $4"));
@@ -52,15 +52,15 @@ impl Session {
 
         try!(trans.commit());
 
-        let level: i16 = row.get("level");
+        let level: i16 = try!(row.get_opt("level"));
         Ok(AccountData {
             id: id,
-            nickname: row.get("nickname"),
-            secret_answer: row.get("secret_answer"),
+            nickname: try!(row.get_opt("nickname")),
+            secret_answer: try!(row.get_opt("secret_answer")),
             level: level as i8,
-            subscription_end: row.get("subscription_end"),
-            last_connection: row.get("last_connection_date"),
-            last_ip: row.get("last_ip"),
+            subscription_end: try!(row.get_opt("subscription_end")),
+            last_connection: try!(row.get_opt("last_connection_date")),
+            last_ip: try!(row.get_opt("last_ip")),
         })
     }
 
@@ -77,9 +77,7 @@ impl Session {
         self.queue_state = QueueState::None;
         self.characters = characters;
 
-        let mut buf = Vec::new();
-
-        AuthenticationTicketAcceptedMessage.as_packet_with_buf(&mut buf).unwrap();
+        let mut buf = AuthenticationTicketAcceptedMessage.as_packet().unwrap();
 
         QueueStatusMessage {
             position: 0,
@@ -144,7 +142,7 @@ impl Session {
         database::execute(&chunk.server.auth_db, move |conn| {
             match Session::authenticate(conn, ticket, server_id, addr) {
                 Err(err) => {
-                    if let AuthError::SqlError(err) = err {
+                    if let Error::SqlError(err) = err {
                         error!("authenticate sql error: {}", err);
                     }
 

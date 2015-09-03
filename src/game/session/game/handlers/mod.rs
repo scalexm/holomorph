@@ -1,5 +1,7 @@
 pub mod approach;
-pub mod characters_list;
+pub mod character;
+pub mod friend;
+mod context;
 
 use super::{Session, Chunk, QueueState};
 use shared::protocol::*;
@@ -12,12 +14,10 @@ use std::sync::atomic::Ordering;
 
 impl Session {
     pub fn start(&self, chunk: &Chunk) {
-        let mut buf = Vec::new();
-
-        ProtocolRequired {
+        let mut buf = ProtocolRequired {
             required_version: 1658,
             current_version: 1658,
-        }.as_packet_with_buf(&mut buf).unwrap();
+        }.as_packet().unwrap();
 
         HelloGameMessage.as_packet_with_buf(&mut buf).unwrap();
 
@@ -32,7 +32,13 @@ impl Session {
                     QUEUE_SIZE.load(Ordering::Relaxed))
             }
 
-            _ => return (),
+            QueueState::SomeGame(..) => {
+                use self::character::{QUEUE_COUNTER, QUEUE_SIZE};
+                (QUEUE_COUNTER.load(Ordering::Relaxed),
+                    QUEUE_SIZE.load(Ordering::Relaxed))
+            }
+
+            QueueState::None => return (),
         };
 
         let (queue_size, queue_counter) = match self.queue_state {

@@ -14,25 +14,25 @@ use server::data::GameServerData;
 
 impl Session {
     pub fn start(&self, chunk: &Chunk) {
-        let mut buf = Vec::new();
+       let mut buf = Vec::new();
 
-        ProtocolRequired {
-            required_version: 1658,
-            current_version: 1658,
-        }.as_packet_with_buf(&mut buf).unwrap();
+       ProtocolRequired {
+           required_version: 1658,
+           current_version: 1658,
+       }.as_packet_with_buf(&mut buf).unwrap();
 
-        HelloConnectMessage {
-            salt: "salut".to_string(),
-            key: VarIntVec((*chunk.server.key).clone()),
-        }.as_packet_with_buf(&mut buf).unwrap();
+       HelloConnectMessage {
+           salt: "salut".to_string(),
+           key: VarIntVec((*chunk.server.key).clone()),
+       }.as_packet_with_buf(&mut buf).unwrap();
 
-        let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
-    }
+       let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
+   }
 
     pub fn update_queue(&self, chunk: &Chunk) {
-        use self::identification::{QUEUE_COUNTER, QUEUE_SIZE};
-
         if let QueueState::Some(queue_size, queue_counter) = self.queue_state {
+            use self::identification::{QUEUE_COUNTER, QUEUE_SIZE};
+
             let mut pos = queue_size -
                 (QUEUE_COUNTER.load(Ordering::Relaxed) - queue_counter);
 
@@ -49,7 +49,7 @@ impl Session {
         }
     }
 
-    fn get_server_informations(&self, server: &GameServerData, mut status: i8)
+    pub fn get_server_informations(&self, server: &GameServerData, mut status: i8)
         -> GameServerInformations {
 
         let data = self.account.as_ref().unwrap();
@@ -72,23 +72,22 @@ impl Session {
     }
 
     pub fn update_server_status(&self, chunk: &Chunk, server_id: i16, status: i8) {
-        if self.account.is_none() {
-            return ();
-        }
+        let account = match self.account.as_ref() {
+            Some(account) => account,
+            None => return (),
+        };
 
-        let server = chunk.server.game_servers.get(&server_id);
-        if server.is_none() {
-            return ();
-        }
+        let server = match chunk.server.game_servers.get(&server_id) {
+            Some(server) => server,
+            None => return (),
+        };
 
-        let server = server.unwrap();
-
-        if server.min_level() > self.account.as_ref().unwrap().level {
+        if server.min_level() > account.level {
             return ();
         }
 
         let buf = ServerStatusUpdateMessage {
-            server: self.get_server_informations(&server, status),
+            server: self.get_server_informations(server, status),
         }.as_packet().unwrap();
         let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
     }

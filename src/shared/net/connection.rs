@@ -12,8 +12,8 @@ fn make_buffer(len: usize) -> Buffer {
 }
 
 pub struct Connection {
-    pub listener_token: Token,
-    pub socket: TcpStream,
+    listener_token: Token,
+    socket: TcpStream,
     read_buffer: Option<Buffer>,
     write_buffer: VecDeque<Buffer>,
     state: State,
@@ -40,6 +40,14 @@ impl Connection {
         }
     }
 
+    pub fn listener(&self) -> Token {
+        self.listener_token
+    }
+
+    pub fn socket(&self) -> &TcpStream {
+        &self.socket
+    }
+
     pub fn readable(&mut self) -> io::Result<Option<Packet>> {
         let Buffer(mut buf, pos) = self.read_buffer.take().unwrap();
 
@@ -62,6 +70,8 @@ impl Connection {
 
                 if nbytes == 0 {
                     self.state = State::WaitingForHeader;
+                    self.read_buffer = Some(make_buffer(2));
+
                     return Ok(Some(Packet(id, Cursor::new(Vec::new()))));
                 }
 
@@ -120,7 +130,6 @@ impl Connection {
     }
 
     pub fn push(&mut self, buffer: Vec<u8>, close: bool) {
-
         self.close_on_next_write = close;
         self.write_buffer.push_front(Buffer(buffer, 0));
     }

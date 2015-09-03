@@ -9,7 +9,7 @@ use server::data::GameServerData;
 use postgres::{self, Connection};
 use time;
 use shared::database;
-use character::CharacterMinimal;
+use character::{Character, CharacterMinimal};
 
 pub struct Chunk {
     sessions: HashMap<Token, RefCell<Session>>,
@@ -25,8 +25,8 @@ impl Chunk {
     }
 
     pub fn update_queue(&self) {
-        for session in &self.sessions {
-            session.1.borrow().update_queue(self);
+        for session in self.sessions.values() {
+            session.borrow().update_queue(self);
         }
     }
 }
@@ -49,10 +49,8 @@ impl Drop for Chunk {
     fn drop(&mut self) {
         use shared::pool::session::Session;
 
-        let mut tokens = Vec::new();
-        for session in &self.sessions {
-            tokens.push(session.1.borrow_mut().token);
-        }
+        let tokens: Vec<Token> = self.sessions.iter().map(|session|
+            session.1.borrow_mut().token).collect();
 
         for tok in tokens {
             let session = self.sessions.remove(&tok).unwrap();
@@ -100,16 +98,17 @@ pub struct Session {
     queue_state: QueueState,
     account: Option<AccountData>,
     characters: HashMap<i32, CharacterMinimal>,
+    current_character: Option<Character>,
 }
 
 impl Session {
     fn save_auth(&mut self, conn: &mut Connection) -> postgres::Result<()> {
 
-        if self.account.is_none () {
-            return Ok(());
-        }
+        let account = match self.account.as_ref() {
+            Some(account) => account,
+            None => return Ok(()),
+        };
 
-        let account = self.account.as_ref().unwrap();
         let stmt = try!(conn.prepare_cached("UPDATE accounts SET logged = 0
             WHERE id = $1"));
         try!(stmt.execute(&[&account.id]));
@@ -136,6 +135,7 @@ impl pool::session::Session for Session {
             queue_state: QueueState::None,
             account: None,
             characters: HashMap::new(),
+            current_character: None,
         };
 
         s.start(chunk);
@@ -148,6 +148,13 @@ impl pool::session::Session for Session {
         match id {
             110 => Session::handle_authentication_ticket,
             150 => Session::handle_characters_list_request,
+            152 => Session::handle_character_selection,
+            250 => Session::handle_game_context_create_request,
+            225 => Session::handle_map_informations_request,
+            4001 => Session::handle_friends_get_list,
+            5676 => Session::handle_ignored_get_list,
+            950 => Session::handle_game_map_movement_request,
+            221 => Session::handle_change_map,
             _ => Session::unhandled,
         }
     }

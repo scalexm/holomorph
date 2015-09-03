@@ -16,100 +16,96 @@ use std::sync::atomic::{ATOMIC_ISIZE_INIT, AtomicIsize, Ordering};
 pub static QUEUE_SIZE: AtomicIsize = ATOMIC_ISIZE_INIT;
 pub static QUEUE_COUNTER: AtomicIsize = ATOMIC_ISIZE_INIT;
 
-enum AuthError {
+enum Error {
     SqlError(postgres::error::Error),
     Reason(i8),
     Banned(i64),
 }
 
-impl From<postgres::error::Error> for AuthError {
-    fn from(err: postgres::error::Error) -> AuthError {
-        AuthError::SqlError(err)
+impl From<postgres::error::Error> for Error {
+    fn from(err: postgres::error::Error) -> Error {
+        Error::SqlError(err)
     }
 }
 
-impl Session {
-    fn authenticate(conn: &mut Connection, account: String, password: String,
-        addr: String) -> Result<AccountData, AuthError> {
+fn authenticate(conn: &mut Connection, account: String, password: String,
+    addr: String) -> Result<AccountData, Error> {
 
-        let trans = try!(conn.transaction());
+    let trans = try!(conn.transaction());
 
-        let stmt = try!(trans.prepare_cached("SELECT 1 FROM ip_bans WHERE ip
-            = $1"));
+    let stmt = try!(trans.prepare_cached("SELECT 1 FROM ip_bans WHERE ip
+        = $1"));
 
-        if try!(stmt.query(&[&addr])).len() != 0 {
-            return Err(AuthError::Reason(identification_failure_reason::WRONG_CREDENTIALS));
-        }
-
-        let stmt = try!(trans.prepare_cached("SELECT * FROM accounts WHERE account = $1"));
-        let rows = try!(stmt.query(&[&account]));
-
-        if rows.len() == 0 {
-            return Err(AuthError::Reason(identification_failure_reason::WRONG_CREDENTIALS));
-        }
-
-        let row = rows.get(0);
-        let ban_end: i64 = row.get("ban_end");
-
-        if ban_end < 0 {
-            return Err(AuthError::Reason(identification_failure_reason::BANNED));
-        }
-
-        if ban_end > time::get_time().sec {
-            return Err(AuthError::Banned(ban_end));
-        }
-
-        let db_password: String = row.get("password");
-        let salt: String = row.get("salt");
-        if shared::compute_md5(&(shared::compute_md5(&password) + &salt)) != db_password {
-            return Err(AuthError::Reason(identification_failure_reason::WRONG_CREDENTIALS));
-        }
-
-        let id: i32 = row.get("id");
-        let mut character_counts = HashMap::new();
-
-        let stmt = try!(trans
-            .prepare_cached("SELECT server_id FROM character_counts WHERE account_id = $1"));
-        let rows = try!(stmt.query(&[&id]));
-        for row in rows {
-            let id: i16 = row.get("server_id");
-            let val = character_counts.get(&id).unwrap_or(&0) + 1;
-            let _ = character_counts.insert(id, val);
-        }
-
-        try!(trans.commit());
-
-        let level: i16 = row.get("level");
-        Ok(AccountData {
-            id: id,
-            account: row.get("account"),
-            nickname: row.get("nickname"),
-            secret_question: row.get("secret_question"),
-            level: level as i8,
-            subscription_end: row.get("subscription_end"),
-            subscription_elapsed: 0,
-            creation_date: row.get("creation_date"),
-            character_counts: character_counts,
-            already_logged: row.get("logged"),
-            last_server: row.get("last_server"),
-        })
+    if try!(stmt.query(&[&addr])).len() != 0 {
+        return Err(Error::Reason(identification_failure_reason::WRONG_CREDENTIALS));
     }
 
+    let stmt = try!(trans.prepare_cached("SELECT * FROM accounts WHERE account = $1"));
+    let rows = try!(stmt.query(&[&account]));
+
+    if rows.len() == 0 {
+        return Err(Error::Reason(identification_failure_reason::WRONG_CREDENTIALS));
+    }
+
+    let row = rows.get(0);
+    let ban_end: i64 = try!(row.get_opt("ban_end"));
+
+    if ban_end < 0 {
+        return Err(Error::Reason(identification_failure_reason::BANNED));
+    }
+
+    if ban_end > time::get_time().sec {
+        return Err(Error::Banned(ban_end));
+    }
+
+    let db_password: String = try!(row.get_opt("password"));
+    let salt: String = try!(row.get_opt("salt"));
+    if shared::compute_md5(&(shared::compute_md5(&password) + &salt)) != db_password {
+        return Err(Error::Reason(identification_failure_reason::WRONG_CREDENTIALS));
+    }
+
+    let id: i32 = try!(row.get_opt("id"));
+    let mut character_counts = HashMap::new();
+
+    let stmt = try!(trans
+        .prepare_cached("SELECT server_id FROM character_counts WHERE account_id = $1"));
+    let rows = try!(stmt.query(&[&id]));
+    for row in rows {
+        let id: i16 = try!(row.get_opt("server_id"));
+        *character_counts.entry(id).or_insert(0) += 1;
+    }
+
+    try!(trans.commit());
+
+    let level: i16 = try!(row.get_opt("level"));
+    Ok(AccountData {
+        id: id,
+        account: try!(row.get_opt("account")),
+        nickname: try!(row.get_opt("nickname")),
+        secret_question: try!(row.get_opt("secret_question")),
+        level: level as i8,
+        subscription_end: try!(row.get_opt("subscription_end")),
+        subscription_elapsed: 0,
+        creation_date: try!(row.get_opt("creation_date")),
+        character_counts: character_counts,
+        already_logged: try!(row.get_opt("logged")),
+        last_server: try!(row.get_opt("last_server")),
+    })
+}
+
+impl Session {
     fn identification_success(&mut self, chunk: &Chunk, data: AccountData,
         already_logged: bool, auto_connect: bool) {
 
-        let mut buf = Vec::new();
-        let subscriber = data.is_subscriber();
-
         self.queue_state = QueueState::None;
-
-        LoginQueueStatusMessage {
-            position: 0,
-            total: 0,
-        }.as_packet_with_buf(&mut buf).unwrap();
-
         self.account = Some(data);
         let data = self.account.as_ref().unwrap();
+        let subscriber = data.is_subscriber();
+
+        let mut buf = LoginQueueStatusMessage {
+            position: 0,
+            total: 0,
+        }.as_packet().unwrap();
 
         IdentificationSuccessMessage {
             has_rights: Flag(data.level > 0),
@@ -135,17 +131,17 @@ impl Session {
             }
         }
 
-        let servers = chunk.server.game_servers.iter().filter_map(|server| {
-            if server.1.min_level() > data.level {
+        let servers = chunk.server.game_servers.values().filter_map(|server| {
+            if server.min_level() > data.level {
                 return None;
             }
 
             let status = chunk.game_status
-                .get(&server.1.id())
+                .get(&server.id())
                 .map(|status| status.0)
                 .unwrap_or(server_status::OFFLINE);
 
-            Some(self.get_server_informations(server.1, status))
+            Some(self.get_server_informations(server, status))
         }).collect();
 
         let buf = ServersListMessage {
@@ -194,10 +190,10 @@ impl Session {
             QUEUE_COUNTER.load(Ordering::Relaxed));
 
         database::execute(&chunk.server.db, move |conn| {
-            match Session::authenticate(conn, username, password, addr) {
+            match authenticate(conn, username, password, addr) {
                 Err(err) => {
                     let buf = match err {
-                        AuthError::Banned(ban_end) =>
+                        Error::Banned(ban_end) =>
                             IdentificationFailedBannedMessage {
                                 base: IdentificationFailedMessage {
                                     reason: identification_failure_reason::BANNED,
@@ -205,12 +201,12 @@ impl Session {
                                 ban_end_date: (ban_end * 1000) as f64,
                             }.as_packet().unwrap(),
 
-                        AuthError::Reason(reason) =>
+                        Error::Reason(reason) =>
                             IdentificationFailedMessage { reason: reason, }
                                 .as_packet()
                                 .unwrap(),
 
-                        AuthError::SqlError(err) => {
+                        Error::SqlError(err) => {
                             error!("authenticate sql error: {}", err);
                             IdentificationFailedMessage {
                                 reason: identification_failure_reason::UNKNOWN_AUTH_ERROR,
@@ -225,8 +221,8 @@ impl Session {
                     let id = data.id;
                     server::identification_success(&handler, token, id, data.already_logged,
                         move |session, chunk, already| {
-                            Session::identification_success(session, chunk, data, already,
-                                auto_connect)
+                            Session::identification_success(session, chunk, data,
+                                already, auto_connect)
                     });
                 }
             }

@@ -24,13 +24,13 @@ impl Session {
 
         let msg = try!(IdentificationMessage::deserialize(&mut data));
 
-        let gs = chunk.server.game_servers.get(&msg.id);
-        if gs.is_none() {
-            let _ = chunk.server.io_loop.send(Msg::Close(self.token));
-            return Ok(());
-        }
-
-        let gs = gs.unwrap();
+        let gs = match chunk.server.game_servers.get(&msg.id) {
+            Some(gs) => gs,
+            None => {
+                let _ = chunk.server.io_loop.send(Msg::Close(self.token));
+                return Ok(());
+            }
+        };
 
         if shared::compute_md5(&(shared::compute_md5(&gs.key()) + &self.salt)) != msg.key {
             let _ = chunk.server.io_loop.send(Msg::Close(self.token));
@@ -52,20 +52,19 @@ impl Session {
             let _ = chunk.server.io_loop.send(Msg::Close(self.token));
             return ();
         }
-
         self.server_id = server_id;
     }
 
     pub fn handle_state(&mut self, chunk: &Chunk, mut data: Cursor<Vec<u8>>)
         -> io::Result<()> {
 
-        if self.server_id.is_none() {
-            return Ok(());
-        }
+        let server_id = *match self.server_id.as_ref() {
+            Some(server_id) => server_id,
+            None => return Ok(())
+        };
 
         let msg = try!(StateMessage::deserialize(&mut data));
 
-        let server_id = *self.server_id.as_ref().unwrap();
         server::update_game_server(&chunk.server.handler, server_id, msg.state,
             self.ip.clone(), self.port);
 

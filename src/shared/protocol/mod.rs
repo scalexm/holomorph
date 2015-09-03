@@ -1,31 +1,31 @@
 use std::io::{Read, Write};
 use io::{ReadExt, WriteExt, Result};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct VarInt(pub i32);
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct VarUInt(pub u32);
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct VarShort(pub i16);
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct VarUShort(pub u16);
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct VarLong(pub i64);
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct VarULong(pub u64);
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Flag(pub bool);
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct VarIntVec<T>(pub Vec<T>);
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct StaticVec<T>(pub Vec<T>);
 
 fn get_flag(flag: u8, offset: u8) -> bool
@@ -91,7 +91,7 @@ pub trait Protocol: Sized {
 macro_rules! impl_variant {
     ($name: ident, $($field_name: ident | $field_type: ty),*) => {
 
-        #[derive(Clone)]
+        #[derive(Clone, Debug)]
         pub enum $name {
             $(
                 $field_name($field_type),
@@ -131,12 +131,20 @@ macro_rules! impl_variant {
                 -1
             }
         }
+
+        $(
+            impl Into<$name> for $field_type {
+                fn into(self) -> $name {
+                    $name::$field_name(self)
+                }
+            }
+        )*
     };
 }
 
 macro_rules! impl_type {
     ($name: ident, $id: expr) => {
-        #[derive(Clone)]
+        #[derive(Clone, Debug)]
         pub struct $name;
 
         impl Protocol for $name {
@@ -156,7 +164,7 @@ macro_rules! impl_type {
 
     ($name: ident, $id: expr, $($field_name: ident | $field_type: ty),*) => {
 
-        #[derive(Clone)]
+        #[derive(Clone, Debug)]
         pub struct $name {
             $(
                 pub $field_name: $field_type,

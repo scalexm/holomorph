@@ -1,9 +1,9 @@
-use mio::{EventSet, Handler, PollOpt};
+use mio::{self, EventSet, PollOpt};
 use mio::tcp::Shutdown;
 use net::*;
 use pool;
 
-impl<C: pool::Chunk + 'static> Handler for NetworkHandler<C> {
+impl<C: pool::Chunk + 'static> mio::Handler for Handler<C> {
     type Timeout = ();
     type Message = Msg;
 
@@ -22,9 +22,9 @@ impl<C: pool::Chunk + 'static> Handler for NetworkHandler<C> {
             _ => {
                 if let Err(_) = self.handle_client_event(event_loop, tok, events) {
                     // if an error occurs, we disconnect the session (typically: EOF)
-                    let _ = event_loop.deregister(&self.connections[tok].socket);
+                    let _ = event_loop.deregister(self.connections[tok].socket());
 
-                    let cb = self.listeners[self.connections[tok].listener_token].callback;
+                    let cb = self.listeners[self.connections[tok].listener()].callback;
                     pool::execute(&self.handler, move |handler|
                         cb(handler, SessionEvent::Disconnect(tok)));
 
@@ -49,7 +49,7 @@ impl<C: pool::Chunk + 'static> Handler for NetworkHandler<C> {
                 let _ = self.connections.get_mut(tok).map(|conn| {
                     conn.push(buf, close);
 
-                    event_loop.reregister(&conn.socket, tok,
+                    event_loop.reregister(conn.socket(), tok,
                         EventSet::readable() | EventSet::writable(),
                         PollOpt::level()).unwrap();
                 });
@@ -57,7 +57,7 @@ impl<C: pool::Chunk + 'static> Handler for NetworkHandler<C> {
 
             Msg::Close(tok) => {
                 let _ = self.connections.get_mut(tok).map(|conn|
-                    conn.socket.shutdown(Shutdown::Both));
+                    conn.socket().shutdown(Shutdown::Both));
             }
         }
     }

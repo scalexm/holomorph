@@ -52,7 +52,7 @@ pub struct Session {
 impl pool::session::Session for Session {
     type C = Chunk;
 
-    fn new(token: Token, chunk: &Chunk, address: String) -> Session {
+    fn new(token: Token, _: &Chunk, address: String) -> Session {
         Session {
             token: token,
             address: address,

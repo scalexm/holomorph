@@ -98,6 +98,7 @@ pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32,
         if let Some(session) = already {
             let _ = handler.io_loop.send(net::Msg::Close(session));
         }
+
         if let Some(tok) = handler.game_session_ids.get(&already_logged) {
             let buf = DisconnectPlayerMessage {
                 id: id,
@@ -145,10 +146,10 @@ impl Handler {
         use shared::pool::session::Chunk;
 
         if let SessionEvent::Disconnect(tok) = evt {
-           let id = self.game_session_ids.inv_remove(&tok);
-           if id.is_some() {
-               self.update_game_server(id.unwrap(),
-                   server_status::OFFLINE, "".to_string(), 0);
+            match self.game_session_ids.inv_remove(&tok) {
+                Some(id) => self.update_game_server(id,
+                   server_status::OFFLINE, String::new(), 0),
+                None => (),
            }
        }
 

@@ -11,9 +11,10 @@ mod config;
 mod session;
 mod server;
 mod character;
+mod stats;
 
 use config::Config;
-use shared::net::{EventLoop, NetworkHandler, CallbackType};
+use shared::net::{self, EventLoop, CallbackType};
 use shared::pool;
 use std::thread;
 use std::env;
@@ -24,13 +25,19 @@ use shared::database;
 
 fn main() {
     env_logger::init().unwrap();
+    let time_point = time::precise_time_ns();
 
     let cnf = shared::config::from_file::<Config>(&env::args()
         .nth(1)
         .unwrap_or("game_config.json".to_string()));
 
-    let db = database::spawn_threads(cnf.auth_database_threads,
-        &cnf.auth_database_uri);
+    let mut join_handles = Vec::new();
+
+    let db = database::spawn_threads(cnf.database_threads,
+            &cnf.database_uri, &mut join_handles);
+
+    let auth_db = database::spawn_threads(cnf.auth_database_threads,
+            &cnf.auth_database_uri, &mut join_handles);
 
     let mut io_loop = EventLoop::new().unwrap();
 
@@ -39,16 +46,23 @@ fn main() {
         panic!("loading failed: {}", err);
     }
 
-    let handler = pool::run_chunk(handler);
-    let mut network_handler = NetworkHandler::new(handler.clone());
+    let handler = pool::run_chunk(handler, &mut join_handles);
+
+    let mut network_handler = net::Handler::new(handler.clone());
 
     let mut server_data = GameServerData::new(handler.clone(), io_loop.channel(), cnf,
-        db);
+        db, auth_db);
 
-    let tx = pool::run_chunk(session::game::Chunk::new(server_data.clone()));
+    if let Err(err) = server_data.load() {
+        panic!("loading failed: {}", err);
+    }
+
+    let tx = pool::run_chunk(session::game::Chunk::new(server_data.clone()),
+        &mut join_handles);
     server::add_chunk(&handler, tx);
 
-    let tx = pool::run_chunk(session::auth::Chunk::new(server_data.clone()));
+    let tx = pool::run_chunk(session::auth::Chunk::new(server_data.clone()),
+        &mut join_handles);
     server::set_auth_chunk(&handler, tx);
 
     let mut bind_address = String::new();
@@ -68,6 +82,12 @@ fn main() {
         server_data.shutdown();
     });
 
+    info!("server loaded in {} ms", (time::precise_time_ns() - time_point) / 1000000);
+
     server::start_queue_timer(&handler);
     io_loop.run(&mut network_handler).unwrap();
+
+    for handle in join_handles {
+        let _ = handle.join();
+    }
 }

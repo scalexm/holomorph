@@ -14,28 +14,27 @@ use crypto::blockmodes::NoPadding;
 
 struct ServerSelectionError(i8, i8);
 
+fn update_ticket(conn: &mut Connection, id: i32, ticket: String)
+    -> Result<(), postgres::error::Error> {
+
+    let stmt = try!(conn.prepare_cached("UPDATE accounts SET ticket = $1 WHERE id = $2"));
+    let _ = try!(stmt.execute(&[&ticket, &id]));
+
+    Ok(())
+}
+
 impl Session {
-    fn update_ticket(conn: &mut Connection, id: i32, ticket: String)
-        -> Result<(), postgres::error::Error> {
-
-        let stmt = try!(conn.prepare_cached("UPDATE accounts SET ticket = $1 WHERE id = $2"));
-        let _ = try!(stmt.execute(&[&ticket, &id]));
-
-        Ok(())
-    }
-
     pub fn select_server(&self, chunk: &Chunk, server_id: i16)
         -> Result<(), ServerSelectionError> {
 
         let ref account = self.account.as_ref().unwrap();
 
-        let status = chunk.game_status.get(&server_id);
-        if status.is_none() {
-            return Err(ServerSelectionError(server_connection_error::NO_REASON,
-                server_status::OFFLINE));
-        }
+        let status = match chunk.game_status.get(&server_id) {
+            Some(status) => status,
+            None => return Err(ServerSelectionError(server_connection_error::NO_REASON,
+                server_status::OFFLINE)),
+        };
 
-        let ref status = status.unwrap();
         let server = chunk.server.game_servers.get(&server_id).unwrap();
 
         if status.0 != server_status::ONLINE && status.0 != server_status::FULL {
@@ -94,6 +93,7 @@ impl Session {
             can_create_new_character: true,
             ticket: VarIntVec(result),
         }.as_packet().unwrap();
+
         let _ = chunk.server.io_loop.send(Msg::Write(self.token, buf));
 
         let io_loop = chunk.server.io_loop.clone();
@@ -102,7 +102,7 @@ impl Session {
         let status = status.0;
 
         database::execute(&chunk.server.db, move |conn| {
-            match Session::update_ticket(conn, id, ticket) {
+            match update_ticket(conn, id, ticket) {
                 Ok(()) => {
                     // the client expects this socket shutdown
                     let _ = io_loop.send(Msg::Close(tok));

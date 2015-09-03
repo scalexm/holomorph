@@ -1,7 +1,7 @@
 use postgres::{Connection, SslMode};
 use std::sync::{Arc, Mutex, mpsc};
 use std::boxed::FnBox;
-use std::thread;
+use std::thread::{self, JoinHandle};
 
 // same as Connection::connect but panics on fail
 pub fn connect(uri: &str) -> Connection {
@@ -15,7 +15,9 @@ type Thunk = Box<FnBox(&mut Connection) + Send + 'static>;
 pub type Sender = mpsc::Sender<Thunk>;
 
 // starts a thread pool
-pub fn spawn_threads(threads: usize, uri: &str) -> Sender {
+pub fn spawn_threads(threads: usize, uri: &str, joins: &mut Vec<JoinHandle<()>>)
+    -> Sender {
+
     assert!(threads >= 1);
 
     let (tx, rx) = mpsc::channel::<Thunk>();
@@ -24,7 +26,7 @@ pub fn spawn_threads(threads: usize, uri: &str) -> Sender {
     for _ in 0..threads {
         let rx = rx.clone();
         let uri = uri.to_string();
-        thread::spawn(move || {
+        joins.push(thread::spawn(move || {
             let mut conn = connect(&uri);
 
             loop {
@@ -39,7 +41,7 @@ pub fn spawn_threads(threads: usize, uri: &str) -> Sender {
                     Err(..) => return(),
                 }
             }
-        });
+        }));
     }
 
     tx
@@ -50,5 +52,8 @@ pub fn execute<F>(sender: &Sender, job: F)
     where F : FnOnce(&mut Connection) + Send + 'static {
 
     let boxed_job: Thunk = Box::new(move |conn: &mut Connection| job(conn));
-    let _ = sender.send(boxed_job);
+    match sender.send(boxed_job) {
+        Ok(..) => (),
+        Err(err) => info!("err {:?}", err),
+    }
 }

@@ -35,15 +35,15 @@ struct Listener<C> {
 }
 
 pub type Sender = mio::Sender<Msg>;
-pub type EventLoop<C> = mio::EventLoop<NetworkHandler<C>>;
+pub type EventLoop<C> = mio::EventLoop<Handler<C>>;
 
-pub struct NetworkHandler<C: pool::Chunk> {
+pub struct Handler<C: pool::Chunk> {
     handler: pool::Sender<C>,
     listeners: Slab<Listener<C>>,
     connections: Slab<Connection>,
 }
 
-impl<C: pool::Chunk + 'static> NetworkHandler<C> {
+impl<C: pool::Chunk + 'static> Handler<C> {
     fn listen(&mut self, event_loop: &mut EventLoop<C>, address: SocketAddr,
         cb: fn(&mut C, SessionEvent)) -> io::Result<()> {
 
@@ -96,8 +96,8 @@ impl<C: pool::Chunk + 'static> NetworkHandler<C> {
         }
     }
 
-    pub fn new(handler: pool::Sender<C>) -> NetworkHandler<C> {
-        NetworkHandler {
+    pub fn new(handler: pool::Sender<C>) -> Handler<C> {
+        Handler {
             handler: handler,
             listeners: Slab::new(10), // we keep 10 tokens for the Listeners
             connections: Slab::new_starting_at(Token(10), 65535),
@@ -120,7 +120,7 @@ impl<C: pool::Chunk + 'static> NetworkHandler<C> {
             cb(handler, SessionEvent::Connect(client_tok, address))
         });
 
-        event_loop.register_opt(&self.connections[client_tok].socket,
+        event_loop.register_opt(self.connections[client_tok].socket(),
             client_tok,
             EventSet::readable(),
             PollOpt::level())
@@ -145,7 +145,7 @@ impl<C: pool::Chunk + 'static> NetworkHandler<C> {
 
         if events.is_readable() {
             if let Some(packet) = try!(self.connections[tok].readable()) {
-                let cb = self.listeners[self.connections[tok].listener_token].callback;
+                let cb = self.listeners[self.connections[tok].listener()].callback;
                 pool::execute(&self.handler, move |handler| {
                     cb(handler, SessionEvent::Packet(tok, packet.0, packet.1));
                 });
@@ -154,7 +154,7 @@ impl<C: pool::Chunk + 'static> NetworkHandler<C> {
 
         if events.is_writable() {
             if try!(self.connections[tok].writable()) {
-                event_loop.reregister(&self.connections[tok].socket, tok,
+                event_loop.reregister(self.connections[tok].socket(), tok,
                     EventSet::readable(),
                     PollOpt::level()).unwrap();
             }

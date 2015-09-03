@@ -3,6 +3,9 @@ sub from_camel_case($str is rw) {
     $str ~~ s / 'GID' /Gid/;
     $str ~~ s / 'UID' /Uid/;
     $str ~~ s / 'AVA' /Ava/;
+    $str ~~ s / 'PA' /Pa/;
+    $str ~~ s / 'PM' /Pm/;
+    $str ~~ s / 'NPC' /Npc/;
     $str ~~ s:g / (<:Lu>) /_$0/;
     $str.= lc;
 }
