@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex, mpsc};
 use std::boxed::FnBox;
 use std::thread::{self, JoinHandle};
 
-// same as Connection::connect but panics on fail
+// same as Connection::connect but panics on failure
 pub fn connect(uri: &str) -> Connection {
     match Connection::connect(uri, &SslMode::None) {
         Ok(conn) => conn,

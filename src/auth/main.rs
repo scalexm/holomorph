@@ -1,5 +1,7 @@
 
+#[macro_use]
 extern crate shared;
+
 #[macro_use]
 extern crate log;
 extern crate env_logger;
@@ -15,7 +17,7 @@ mod config;
 mod server;
 
 use shared::net::{self, EventLoop, CallbackType};
-use shared::pool;
+use shared::chunk;
 use std::thread;
 use std::fs::File;
 use std::io::{self, Read};
@@ -23,7 +25,9 @@ use std::env;
 use shared::database;
 use server::data::AuthServerData;
 use config::Config;
+use session::{auth, game};
 
+// for loading dofus public key and authentification patch
 fn load(path: &str) -> Vec<u8> {
     let mut data = Vec::new();
     File::open(path).unwrap().read_to_end(&mut data).unwrap();
@@ -46,7 +50,7 @@ fn main() {
     let patch = load(&cnf.patch_path);
 
     let mut io_loop = EventLoop::new().unwrap();
-    let handler = pool::run_chunk(server::Handler::new(io_loop.channel()),
+    let handler = chunk::run(server::Handler::new(io_loop.channel()),
         &mut join_handles);
     let mut network_handler = net::Handler::new(handler.clone());
 
@@ -59,12 +63,12 @@ fn main() {
 
     assert!(server_data.cnf.server_threads >= 1);
     for _ in (0..server_data.cnf.server_threads) {
-        let tx = pool::run_chunk(session::auth::Chunk::new(server_data.clone()),
+        let tx = chunk::run(auth::chunk::new(server_data.clone()),
             &mut join_handles);
         server::add_chunk(&handler, tx);
     }
 
-    let tx = pool::run_chunk(session::game::Chunk::new(server_data.clone()),
+    let tx = chunk::run(game::chunk::new(server_data.clone()),
         &mut join_handles);
     server::set_game_chunk(&handler, tx);
 
@@ -86,6 +90,7 @@ fn main() {
     server::start_queue_timer(&handler);
     io_loop.run(&mut network_handler).unwrap();
 
+    // joining all threads so that all callbacks (especially database ones) can be called
     for handle in join_handles {
         let _ = handle.join();
     }

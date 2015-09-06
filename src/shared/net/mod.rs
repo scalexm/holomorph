@@ -7,7 +7,7 @@ use mio::util::Slab;
 use std::net::SocketAddr;
 use std::io::{self, Cursor};
 use net::connection::Connection;
-use pool;
+use chunk;
 
 pub use mio::Token;
 
@@ -37,13 +37,13 @@ struct Listener<C> {
 pub type Sender = mio::Sender<Msg>;
 pub type EventLoop<C> = mio::EventLoop<Handler<C>>;
 
-pub struct Handler<C: pool::Chunk> {
-    handler: pool::Sender<C>,
+pub struct Handler<C> {
+    handler: chunk::Sender<C>,
     listeners: Slab<Listener<C>>,
     connections: Slab<Connection>,
 }
 
-impl<C: pool::Chunk + 'static> Handler<C> {
+impl<C: 'static> Handler<C> {
     fn listen(&mut self, event_loop: &mut EventLoop<C>, address: SocketAddr,
         cb: fn(&mut C, SessionEvent)) -> io::Result<()> {
 
@@ -96,7 +96,7 @@ impl<C: pool::Chunk + 'static> Handler<C> {
         }
     }
 
-    pub fn new(handler: pool::Sender<C>) -> Handler<C> {
+    pub fn new(handler: chunk::Sender<C>) -> Self {
         Handler {
             handler: handler,
             listeners: Slab::new(10), // we keep 10 tokens for the Listeners
@@ -116,7 +116,7 @@ impl<C: pool::Chunk + 'static> Handler<C> {
             .unwrap();
 
         let cb = self.listeners[tok].callback;
-        pool::execute(&self.handler, move |handler| {
+        chunk::send(&self.handler, move |handler| {
             cb(handler, SessionEvent::Connect(client_tok, address))
         });
 
@@ -146,7 +146,7 @@ impl<C: pool::Chunk + 'static> Handler<C> {
         if events.is_readable() {
             if let Some(packet) = try!(self.connections[tok].readable()) {
                 let cb = self.listeners[self.connections[tok].listener()].callback;
-                pool::execute(&self.handler, move |handler| {
+                chunk::send(&self.handler, move |handler| {
                     cb(handler, SessionEvent::Packet(tok, packet.0, packet.1));
                 });
             }

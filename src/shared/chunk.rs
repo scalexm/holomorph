@@ -1,17 +1,8 @@
-pub mod session;
-
 use std::thread::{self, JoinHandle};
 use std::sync::mpsc;
 use std::boxed::FnBox;
 
-// marker trait
-pub trait Chunk {
-    fn process_cb(&mut self, thunk: Thunk<Self>) {
-        thunk.call_box((self, ))
-    }
-}
-
-pub enum Msg<C: Chunk> {
+pub enum Msg<C> {
     Shutdown,
     ChunkCallback(Thunk<C>),
 }
@@ -20,14 +11,14 @@ pub type Thunk<C> = Box<FnBox(&mut C) + Send + 'static>;
 pub type Sender<C> = mpsc::Sender<Msg<C>>;
 
 // helper function to convert an FnOnce into an FnBox and send it to a chunk
-pub fn execute<F, C: Chunk>(sender: &Sender<C>, job: F)
+pub fn send<F, C>(sender: &Sender<C>, job: F)
     where F : FnOnce(&mut C) + Send + 'static {
 
     let boxed_job: Thunk<C> = Box::new(move |chunk: &mut C| job(chunk));
     let _ = sender.send(Msg::ChunkCallback(boxed_job));
 }
 
-pub fn run_chunk<C: Chunk + Send + 'static>(mut chunk: C, joins: &mut Vec<JoinHandle<()>>)
+pub fn run<C: Send + 'static>(mut chunk: C, joins: &mut Vec<JoinHandle<()>>)
     -> Sender<C> {
     let (tx, rx) = mpsc::channel::<Msg<C>>();
 
@@ -37,7 +28,7 @@ pub fn run_chunk<C: Chunk + Send + 'static>(mut chunk: C, joins: &mut Vec<JoinHa
                     Ok(msg) => {
                         match msg {
                             Msg::Shutdown => return (),
-                            Msg::ChunkCallback(thunk) => chunk.process_cb(thunk),
+                            Msg::ChunkCallback(thunk) => thunk.call_box((&mut chunk,)),
                         }
                     }
                     Err(..) => return (),

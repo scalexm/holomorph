@@ -1,3 +1,5 @@
+
+#[macro_use]
 extern crate shared;
 #[macro_use]
 extern crate log;
@@ -15,7 +17,7 @@ mod stats;
 
 use config::Config;
 use shared::net::{self, EventLoop, CallbackType};
-use shared::pool;
+use shared::chunk;
 use std::thread;
 use std::env;
 use std::io;
@@ -46,7 +48,7 @@ fn main() {
         panic!("loading failed: {}", err);
     }
 
-    let handler = pool::run_chunk(handler, &mut join_handles);
+    let handler = chunk::run(handler, &mut join_handles);
 
     let mut network_handler = net::Handler::new(handler.clone());
 
@@ -57,11 +59,11 @@ fn main() {
         panic!("loading failed: {}", err);
     }
 
-    let tx = pool::run_chunk(session::game::Chunk::new(server_data.clone()),
+    let tx = chunk::run(session::game::chunk::new(server_data.clone()),
         &mut join_handles);
     server::add_chunk(&handler, tx);
 
-    let tx = pool::run_chunk(session::auth::Chunk::new(server_data.clone()),
+    let tx = chunk::run(session::auth::chunk::new(server_data.clone()),
         &mut join_handles);
     server::set_auth_chunk(&handler, tx);
 

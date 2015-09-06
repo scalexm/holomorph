@@ -1,5 +1,5 @@
 use server;
-use shared::{net, pool, database};
+use shared::{net, chunk, database};
 use config::Config;
 use std::sync::Arc;
 use std::collections::HashMap;
@@ -13,7 +13,7 @@ pub struct GameServerData {
 }
 
 impl GameServerData {
-    pub fn from_sql<'a>(row: Row<'a>) -> (i16, GameServerData) {
+    pub fn from_sql<'a>(row: Row<'a>) -> (i16, Self) {
         let id = row.get("id");
         assert!(id > 0); // id 0 is used as a null value
         let min_level: i16 = row.get("min_level");
@@ -52,7 +52,7 @@ pub struct AuthServerData {
 impl AuthServerData {
     pub fn new(handler: server::Sender, io_loop: net::Sender,
         db: database::Sender, key: Vec<u8>, patch: Vec<u8>,
-        cnf: Config) -> AuthServerData {
+        cnf: Config) -> Self {
 
             AuthServerData {
                 handler: handler,
@@ -78,6 +78,6 @@ impl AuthServerData {
 
     pub fn shutdown(&self) {
         let _ = self.io_loop.send(net::Msg::Shutdown);
-        let _ = self.handler.send(pool::Msg::Shutdown);
+        let _ = self.handler.send(chunk::Msg::Shutdown);
     }
 }

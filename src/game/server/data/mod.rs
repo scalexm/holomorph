@@ -3,7 +3,7 @@ mod map;
 use server;
 use std::sync::Arc;
 use config::Config;
-use shared::{net, pool};
+use shared::{net, chunk};
 use shared::database;
 use postgres::Result;
 use character::CharacterMinimal;
@@ -25,8 +25,7 @@ pub struct GameServerData {
 
 impl GameServerData {
     pub fn new(handler: server::Sender, io_loop: net::Sender,
-        cnf: Config, db: database::Sender, auth_db: database::Sender)
-        -> GameServerData {
+        cnf: Config, db: database::Sender, auth_db: database::Sender) -> Self {
 
         GameServerData {
             handler: handler,
@@ -64,7 +63,7 @@ impl GameServerData {
 
     pub fn shutdown(&self) {
         let _ = self.io_loop.send(net::Msg::Shutdown);
-        let _ = self.handler.send(pool::Msg::Shutdown);
+        let _ = self.handler.send(chunk::Msg::Shutdown);
     }
 }
 

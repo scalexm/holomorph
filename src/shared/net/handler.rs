@@ -1,9 +1,9 @@
 use mio::{self, EventSet, PollOpt};
 use mio::tcp::Shutdown;
 use net::*;
-use pool;
+use chunk;
 
-impl<C: pool::Chunk + 'static> mio::Handler for Handler<C> {
+impl<C: 'static> mio::Handler for Handler<C> {
     type Timeout = ();
     type Message = Msg;
 
@@ -25,7 +25,7 @@ impl<C: pool::Chunk + 'static> mio::Handler for Handler<C> {
                     let _ = event_loop.deregister(self.connections[tok].socket());
 
                     let cb = self.listeners[self.connections[tok].listener()].callback;
-                    pool::execute(&self.handler, move |handler|
+                    chunk::send(&self.handler, move |handler|
                         cb(handler, SessionEvent::Disconnect(tok)));
 
                     let _ = self.connections.remove(tok).unwrap();

@@ -12,9 +12,18 @@ extern crate crypto;
 pub mod net;
 pub mod io;
 pub mod protocol;
-pub mod pool;
+pub mod chunk;
 pub mod database;
 pub mod config;
+pub mod session;
+
+// helper macro for less verbosity
+#[macro_export]
+macro_rules! send {
+    ($chunk: expr, $msg: expr) => {{
+        let _ = $chunk.server.io_loop.send($msg);
+    }};
+}
 
 use crypto::digest::Digest;
 use crypto::md5::Md5;

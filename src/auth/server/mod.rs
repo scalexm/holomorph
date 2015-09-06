@@ -1,6 +1,6 @@
 pub mod data;
 
-use shared::pool;
+use shared::chunk;
 use session::{auth, game};
 use shared::net::{self, Token, SessionEvent};
 use std::collections::HashMap;
@@ -10,12 +10,12 @@ use shared::protocol::Protocol;
 use shared::protocol::enums::server_status;
 use shared::protocol::holomorph::DisconnectPlayerMessage;
 
-pub type Sender = pool::Sender<Handler>;
+pub type Sender = chunk::Sender<Handler>;
 
 pub struct Handler {
     io_loop: net::Sender,
-    chunks: Vec<auth::Sender>,
-    game_chunk: Option<game::Sender>,
+    chunks: Vec<auth::chunk::Sender>,
+    game_chunk: Option<game::chunk::Sender>,
     session_chunks: HashMap<Token, usize>,
     session_ids: HashBiMap<i32, Token>,
     game_session_ids: HashBiMap<i16, Token>,
@@ -23,10 +23,8 @@ pub struct Handler {
     queue_timer: Timer,
 }
 
-impl pool::Chunk for Handler { }
-
 impl Handler {
-    pub fn new(io_loop: net::Sender) -> Handler {
+    pub fn new(io_loop: net::Sender) -> Self {
         Handler {
             io_loop: io_loop,
             chunks: Vec::new(),
@@ -40,11 +38,10 @@ impl Handler {
     }
 
     fn session_callback<F>(&self, tok: Token, job: F)
-        where F: FnOnce(&mut auth::Session, &auth::Chunk) + Send + 'static {
+        where F: FnOnce(&mut auth::Session, &auth::chunk::Chunk) + Send + 'static {
 
         if let Some(chunk) = self.session_chunks.get(&tok) {
-            pool::execute(&self.chunks[*chunk], move |chunk| {
-                use shared::pool::session::Chunk;
+            chunk::send(&self.chunks[*chunk], move |chunk| {
                 chunk.session_callback(tok, job)
             });
         }
@@ -55,8 +52,8 @@ impl Handler {
 
         for chunk in &self.chunks {
             let ip = ip.clone();
-            pool::execute(chunk, move |chunk| {
-                chunk.update_game_server(id, status, ip, port);
+            chunk::send(chunk, move |chunk| {
+                auth::chunk::update_game_server(chunk, id, status, ip, port);
             });
         }
     }
@@ -64,12 +61,12 @@ impl Handler {
 
 pub fn start_queue_timer(sender: &Sender) {
     let tx = sender.clone();
-    pool::execute(sender, move |handler| {
+    chunk::send(sender, move |handler| {
         handler.queue_timer.interval_ms(2000).each(move |()| {
-            pool::execute(&tx, move |handler| {
+            chunk::send(&tx, move |handler| {
                 for chunk in &handler.chunks {
-                    pool::execute(chunk, |chunk| {
-                        chunk.update_queue();
+                    chunk::send(chunk, |chunk| {
+                        auth::chunk::update_queue(chunk);
                     });
                 }
             })
@@ -77,23 +74,24 @@ pub fn start_queue_timer(sender: &Sender) {
     });
 }
 
-pub fn add_chunk(sender: &Sender, chunk: auth::Sender) {
-    pool::execute(sender, move |handler| {
+pub fn add_chunk(sender: &Sender, chunk: auth::chunk::Sender) {
+    chunk::send(sender, move |handler| {
         handler.chunks.push(chunk)
     });
 }
 
-pub fn set_game_chunk(sender: &Sender, chunk: game::Sender) {
-    pool::execute(sender, move |handler| {
+pub fn set_game_chunk(sender: &Sender, chunk: game::chunk::Sender) {
+    chunk::send(sender, move |handler| {
         handler.game_chunk = Some(chunk);
     });
 }
 
 pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32,
     already_logged: i16, job: F)
-    where F: FnOnce(&mut auth::Session, &auth::Chunk, bool) + Send + 'static {
+    where F: FnOnce(&mut auth::Session, &auth::chunk::Chunk, bool)
+    + Send + 'static {
 
-    pool::execute(sender, move |handler| {
+    chunk::send(sender, move |handler| {
         let already = handler.session_ids.insert(id, tok);
         if let Some(session) = already {
             let _ = handler.io_loop.send(net::Msg::Close(session));
@@ -114,10 +112,10 @@ pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32,
 
 pub fn register_game_server<F>(sender: &Sender, tok: Token, id: i16, state: i8,
     ip: String, port: i16, job: F)
-    where F: FnOnce(&mut game::Session, &game::Chunk, Option<i16>)
+    where F: FnOnce(&mut game::Session, &game::chunk::Chunk, Option<i16>)
     + Send + 'static {
 
-    pool::execute(sender, move |handler| {
+    chunk::send(sender, move |handler| {
         let mut server_id = None;
         if !handler.game_session_ids.contains_key(&id) {
             let _ = handler.game_session_ids.insert(id, tok);
@@ -125,8 +123,7 @@ pub fn register_game_server<F>(sender: &Sender, tok: Token, id: i16, state: i8,
             server_id = Some(id);
         }
 
-        pool::execute(handler.game_chunk.as_ref().unwrap(), move |chunk| {
-            use shared::pool::session::Chunk;
+        chunk::send(handler.game_chunk.as_ref().unwrap(), move |chunk| {
             chunk.session_callback(tok, move |session, chunk| {
                 job(session, chunk, server_id)
             });
@@ -135,7 +132,7 @@ pub fn register_game_server<F>(sender: &Sender, tok: Token, id: i16, state: i8,
 }
 
 pub fn update_game_server(sender: &Sender, id: i16, state: i8, ip: String, port: i16) {
-    pool::execute(sender, move |handler| {
+    chunk::send(sender, move |handler| {
         handler.update_game_server(id, state, ip, port)
     });
 }
@@ -143,8 +140,6 @@ pub fn update_game_server(sender: &Sender, id: i16, state: i8, ip: String, port:
 // handling session events from NetworkHandler
 impl Handler {
     pub fn game_event(&mut self, evt: SessionEvent) {
-        use shared::pool::session::Chunk;
-
         if let SessionEvent::Disconnect(tok) = evt {
             match self.game_session_ids.inv_remove(&tok) {
                 Some(id) => self.update_game_server(id,
@@ -153,14 +148,10 @@ impl Handler {
            }
        }
 
-       pool::execute(self.game_chunk.as_ref().unwrap(), move |chunk| {
-           chunk.process_event(evt);
-       });
+       chunk::send(self.game_chunk.as_ref().unwrap(), move |chunk| chunk.process_event(evt));
    }
 
     pub fn auth_event(&mut self, evt: SessionEvent) {
-        use shared::pool::session::Chunk;
-
         match evt {
             SessionEvent::Connect(tok, _) => {
                 if self.session_chunks.contains_key(&tok) {
@@ -169,7 +160,7 @@ impl Handler {
 
                 let chunk = self.next_insert % self.chunks.len();
                 let _ = self.session_chunks.insert(tok, chunk);
-                pool::execute(&self.chunks[chunk], move |chunk| {
+                chunk::send(&self.chunks[chunk], move |chunk| {
                     chunk.process_event(evt);
                 });
 
@@ -178,7 +169,7 @@ impl Handler {
 
             SessionEvent::Packet(tok, _, _) => {
                 if let Some(chunk) = self.session_chunks.get(&tok) {
-                    pool::execute(&self.chunks[*chunk], move |chunk| {
+                    chunk::send(&self.chunks[*chunk], move |chunk| {
                         chunk.process_event(evt);
                     });
                 }
@@ -186,7 +177,7 @@ impl Handler {
 
             SessionEvent::Disconnect(tok) => {
                 if let Some(chunk) = self.session_chunks.get(&tok) {
-                    pool::execute(&self.chunks[*chunk], move |chunk| {
+                    chunk::send(&self.chunks[*chunk], move |chunk| {
                         chunk.process_event(evt);
                     });
                 }

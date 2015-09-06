@@ -27,9 +27,7 @@ enum State {
 }
 
 impl Connection {
-    pub fn new(socket: TcpStream, listener_token: Token)
-        -> Connection {
-
+    pub fn new(socket: TcpStream, listener_token: Token) -> Self {
         Connection {
             listener_token: listener_token,
             socket: socket,

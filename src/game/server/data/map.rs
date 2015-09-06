@@ -15,7 +15,7 @@ pub struct MapData {
 }
 
 impl MapData {
-    pub fn from_sql<'a>(row: Row<'a>) -> (i32, MapData) {
+    pub fn from_sql<'a>(row: Row<'a>) -> (i32, Self) {
         let id = row.get("id");
         let cells: Vec<u8> = row.get("cells");
         if cells.len() != 1120 {
@@ -45,7 +45,7 @@ pub struct SubAreaData {
 }
 
 impl SubAreaData {
-    pub fn from_sql<'a>(row: Row<'a>) -> (i16, SubAreaData) {
+    pub fn from_sql<'a>(row: Row<'a>) -> (i16, Self) {
         use std::fmt::Write;
 
         let id = row.get("id");
@@ -70,7 +70,7 @@ pub struct AreaData {
 }
 
 impl AreaData {
-    pub fn from_sql<'a>(row: Row<'a>) -> (i16, AreaData) {
+    pub fn from_sql<'a>(row: Row<'a>) -> (i16, Self) {
         let id = row.get("id");
 
         (id, AreaData {

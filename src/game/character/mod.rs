@@ -26,7 +26,7 @@ pub struct CharacterMinimal {
 }
 
 impl CharacterMinimal {
-    pub fn from_sql<'a>(row: Row<'a>) -> (i32, CharacterMinimal) {
+    pub fn from_sql<'a>(row: Row<'a>) -> (i32, Self) {
         let id = row.get("id");
         let breed: i16 = row.get("breed");
 
