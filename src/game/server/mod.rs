@@ -38,6 +38,10 @@ impl Server {
     }
 
     pub fn game_event(&mut self, evt: SessionEvent) {
+        if let SessionEvent::Disconnect(tok) = evt {
+            let _ = self.session_characters.inv_remove(&tok);
+        }
+
         self.base.main_event(evt);
     }
 }

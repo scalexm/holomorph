@@ -10,6 +10,7 @@ use shared::protocol::Protocol;
 use shared::protocol::holomorph::DisconnectPlayerMessage;
 use std::sync::Mutex;
 use self::data::AuthServerData;
+use shared::protocol::enums::server_status;
 
 pub type Sender = chunk::Sender<Server>;
 
@@ -31,6 +32,14 @@ impl Server {
     }
 
     pub fn game_event(&mut self, evt: SessionEvent) {
+        if let SessionEvent::Disconnect(tok) = evt {
+            match self.game_session_ids.inv_remove(&tok) {
+                Some(id) => self.update_game_server(id,
+                   server_status::OFFLINE, String::new(), 0),
+                None => (),
+           }
+        }
+
         self.base.secondary_event(evt);
     }
 

@@ -7,7 +7,6 @@ use shared;
 use shared::session::{self, SessionBase};
 use server::{self, SERVER};
 use rand::{self, Rng};
-use shared::protocol::enums::server_status;
 
 impl session::Session<ChunkImpl> for Session {
     fn new(base: SessionBase) -> Self {
@@ -38,17 +37,7 @@ impl session::Session<ChunkImpl> for Session {
         }
     }
 
-    fn close<'a>(self, _: Ref<'a>) {
-        let id = match self.server_id {
-            Some(id) => id,
-            None => return (),
-        };
-
-        SERVER.with(|s| {
-            server::update_game_server(&s.server, id, server_status::OFFLINE,
-                String::new(), 0);
-        });
-    }
+    fn close<'a>(self, _: Ref<'a>) { }
 }
 
 impl Session {

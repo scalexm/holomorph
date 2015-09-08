@@ -3,7 +3,6 @@ pub mod identification;
 
 use shared::protocol::*;
 use shared::protocol::messages::connection::*;
-use shared::protocol::enums::server_status;
 use shared::protocol::messages::handshake::*;
 use shared::protocol::messages::queues::*;
 use shared::protocol::types::connection::GameServerInformations;
@@ -14,6 +13,7 @@ use shared::session::{self, SessionBase};
 use super::chunk::{ChunkImpl, Ref};
 use std::io::{self, Cursor};
 use server::SERVER;
+use shared::protocol::enums::server_status;
 
 impl session::Session<ChunkImpl> for Session {
     fn new(base: SessionBase) -> Self {
