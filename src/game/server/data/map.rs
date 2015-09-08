@@ -46,13 +46,10 @@ pub struct SubAreaData {
 
 impl SubAreaData {
     pub fn from_sql<'a>(row: Row<'a>) -> (i16, Self) {
-        use std::fmt::Write;
-
         let id = row.get("id");
         let monsters: String = row.get("monsters");
 
-        let mut error = String::new();
-        write!(&mut error, "bad monsters data, sub area id {}", id).unwrap();
+        let error = format!("bad monsters data, sub area id {}", id);
 
         (id, SubAreaData {
             id: id,

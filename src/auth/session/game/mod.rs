@@ -1,11 +1,10 @@
 pub mod chunk;
 mod handlers;
 
-use shared::session;
+use shared::session::SessionBase;
 
-pub type Session = session::Session<SessionImpl>;
-
-struct SessionImpl {
+pub struct Session {
+    base: SessionBase,
     server_id: Option<i16>,
     salt: String,
     ip: String,

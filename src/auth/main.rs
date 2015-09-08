@@ -1,9 +1,9 @@
-
 #[macro_use]
 extern crate shared;
-
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate lazy_static;
 extern crate env_logger;
 extern crate postgres;
 extern crate crypto;
@@ -26,6 +26,8 @@ use shared::database;
 use server::data::AuthServerData;
 use config::Config;
 use session::{auth, game};
+use server::SYNC_SERVER;
+use std::collections::LinkedList;
 
 // for loading dofus public key and authentification patch
 fn load(path: &str) -> Vec<u8> {
@@ -42,7 +44,7 @@ fn main() {
         .nth(1)
         .unwrap_or("auth_config.json".to_string()));
 
-    let mut join_handles = Vec::new();
+    let mut join_handles = LinkedList::new();
 
     let db = database::spawn_threads(cnf.database_threads, &cnf.database_uri,
         &mut join_handles);
@@ -50,33 +52,40 @@ fn main() {
     let patch = load(&cnf.patch_path);
 
     let mut io_loop = EventLoop::new().unwrap();
-    let handler = chunk::run(server::Handler::new(io_loop.channel()),
-        &mut join_handles);
-    let mut network_handler = net::Handler::new(handler.clone());
 
-    let mut server_data = AuthServerData::new(handler.clone(), io_loop.channel(),
-        db, key, patch, cnf);
+    let mut server_data;
+    {
+        let mut conn = database::connect(&cnf.database_uri);
+        let server = chunk::run(server::Server::new(), &mut join_handles);
 
-    if let Err(err) = server_data.load() {
-        panic!("loading failed: {}", err);
+        server_data = AuthServerData::new(server, io_loop.channel(),
+            db, key, patch, cnf);
+
+        if let Err(err) = server_data.load(&mut conn) {
+            panic!("loading failed: {}", err);
+        }
     }
+
+    *SYNC_SERVER.lock().unwrap() = Some(server_data.clone());
 
     assert!(server_data.cnf.server_threads >= 1);
     for _ in (0..server_data.cnf.server_threads) {
-        let tx = chunk::run(auth::chunk::new(server_data.clone()),
-            &mut join_handles);
-        server::add_chunk(&handler, tx);
+        let tx = chunk::run(auth::chunk::new(), &mut join_handles);
+        server::add_chunk(&server_data.server, tx);
     }
 
-    let tx = chunk::run(game::chunk::new(server_data.clone()),
-        &mut join_handles);
-    server::set_game_chunk(&handler, tx);
+    let tx = chunk::run(game::chunk::new(), &mut join_handles);
+    server::set_game_chunk(&server_data.server, tx);
+
+    let mut network_handler = net::Handler::new(server_data.server.clone());
 
     network_handler.add_callback(&mut io_loop, &server_data.cnf.bind_address,
-        server::Handler::auth_event, CallbackType::Listen);
+        server::Server::auth_event, CallbackType::Listen);
 
     network_handler.add_callback(&mut io_loop, &server_data.cnf.game_bind_address,
-        server::Handler::game_event, CallbackType::Listen);
+        server::Server::game_event, CallbackType::Listen);
+
+    server::start_queue_timer(&server_data.server);
 
     thread::spawn(move || {
         io::stdin().read_line(&mut String::new())
@@ -87,7 +96,6 @@ fn main() {
 
     info!("server loaded in {} ms", (time::precise_time_ns() - time_point) / 1000000);
 
-    server::start_queue_timer(&handler);
     io_loop.run(&mut network_handler).unwrap();
 
     // joining all threads so that all callbacks (especially database ones) can be called

@@ -13,6 +13,7 @@ postgres = "*"
 byteorder = "*"
 mio = "*"
 rust-crypto = "*"
+lazy_static = "*"
 
 [dependencies.eventual]
 git = "https://github.com/carllerche/eventual"

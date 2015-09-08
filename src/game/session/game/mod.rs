@@ -2,11 +2,9 @@ pub mod chunk;
 mod handlers;
 
 use std::collections::HashMap;
-use shared::session;
+use shared::session::SessionBase;
 use time;
 use character::{Character, CharacterMinimal};
-
-pub type Session = session::Session<SessionImpl>;
 
 enum QueueState {
     None,
@@ -39,7 +37,8 @@ impl AccountData {
     }
 }
 
-struct SessionImpl {
+pub struct Session {
+    base: SessionBase,
     queue_state: QueueState,
     account: Option<AccountData>,
     characters: HashMap<i32, CharacterMinimal>,

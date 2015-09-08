@@ -2,6 +2,7 @@ use postgres::{Connection, SslMode};
 use std::sync::{Arc, Mutex, mpsc};
 use std::boxed::FnBox;
 use std::thread::{self, JoinHandle};
+use std::collections::LinkedList;
 
 // same as Connection::connect but panics on failure
 pub fn connect(uri: &str) -> Connection {
@@ -15,7 +16,7 @@ type Thunk = Box<FnBox(&mut Connection) + Send + 'static>;
 pub type Sender = mpsc::Sender<Thunk>;
 
 // starts a thread pool
-pub fn spawn_threads(threads: usize, uri: &str, joins: &mut Vec<JoinHandle<()>>)
+pub fn spawn_threads(threads: usize, uri: &str, joins: &mut LinkedList<JoinHandle<()>>)
     -> Sender {
 
     assert!(threads >= 1);
@@ -26,7 +27,7 @@ pub fn spawn_threads(threads: usize, uri: &str, joins: &mut Vec<JoinHandle<()>>)
     for _ in 0..threads {
         let rx = rx.clone();
         let uri = uri.to_string();
-        joins.push(thread::spawn(move || {
+        joins.push_back(thread::spawn(move || {
             let mut conn = connect(&uri);
 
             loop {

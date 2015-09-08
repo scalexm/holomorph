@@ -1,11 +1,9 @@
 pub mod chunk;
 mod handlers;
 
-use shared::session;
+use shared::session::SessionBase;
 use std::collections::HashMap;
 use time;
-
-pub type Session = session::Session<SessionImpl>;
 
 struct AccountData {
     id: i32,
@@ -41,7 +39,8 @@ impl QueueState {
     }
 }
 
-struct SessionImpl {
+pub struct Session {
+    base: SessionBase,
     account: Option<AccountData>,
     queue_state: QueueState,
     custom_identification: bool,

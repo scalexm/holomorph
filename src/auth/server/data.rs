@@ -1,10 +1,10 @@
-use server;
 use shared::{net, chunk, database};
 use config::Config;
 use std::sync::Arc;
 use std::collections::HashMap;
-use postgres::Result;
+use postgres::{Connection, Result};
 use postgres::rows::Row;
+use server::{self, SYNC_SERVER};
 
 pub struct GameServerData {
     id: i16,
@@ -40,7 +40,7 @@ impl GameServerData {
 
 #[derive(Clone)]
 pub struct AuthServerData {
-    pub handler: server::Sender,
+    pub server: server::Sender,
     pub io_loop: net::Sender,
     pub db: database::Sender,
     pub key: Arc<Vec<u8>>,
@@ -50,12 +50,11 @@ pub struct AuthServerData {
 }
 
 impl AuthServerData {
-    pub fn new(handler: server::Sender, io_loop: net::Sender,
-        db: database::Sender, key: Vec<u8>, patch: Vec<u8>,
-        cnf: Config) -> Self {
+    pub fn new(server: server::Sender, io_loop: net::Sender,
+        db: database::Sender, key: Vec<u8>, patch: Vec<u8>, cnf: Config) -> Self {
 
             AuthServerData {
-                handler: handler,
+                server: server,
                 io_loop: io_loop,
                 db: db,
                 key: Arc::new(key),
@@ -65,9 +64,7 @@ impl AuthServerData {
             }
     }
 
-    pub fn load(&mut self) -> Result<()> {
-        let conn = database::connect(&self.cnf.database_uri);
-
+    pub fn load(&mut self, conn: &mut Connection) -> Result<()> {
         let stmt = try!(conn.prepare("SELECT * FROM game_servers"));
         self.game_servers = Arc::new(try!(stmt.query(&[])).iter().map(|row|
             GameServerData::from_sql(row)).collect());
@@ -78,6 +75,7 @@ impl AuthServerData {
 
     pub fn shutdown(&self) {
         let _ = self.io_loop.send(net::Msg::Shutdown);
-        let _ = self.handler.send(chunk::Msg::Shutdown);
+        let _ = self.server.send(chunk::Msg::Shutdown);
+        *SYNC_SERVER.lock().unwrap() = None;
     }
 }

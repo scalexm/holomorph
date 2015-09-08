@@ -1,19 +1,17 @@
 use shared::chunk;
 use shared::session;
-use super::SessionImpl;
-use server::data::GameServerData;
+use super::Session;
 
-pub type Chunk = session::chunk::Chunk<SessionImpl, ChunkImpl>;
+pub type Chunk = session::chunk::Chunk<Session, ChunkImpl>;
+pub type Ref<'a> = session::chunk::Ref<'a, Session, ChunkImpl>;
 pub type Sender = chunk::Sender<Chunk>;
 
-struct ChunkImpl {
+pub struct ChunkImpl {
     pub connected: bool,
-    pub server: GameServerData,
 }
 
-pub fn new(server: GameServerData) -> Chunk {
+pub fn new() -> Chunk {
     Chunk::new(ChunkImpl {
         connected: false,
-        server: server,
     })
 }

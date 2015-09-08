@@ -105,7 +105,7 @@ impl ::std::error::Error for CellError {
 
 impl ::std::fmt::Display for CellError {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        write!(f, "invalid cell: {}", self.0)
+        f.write_fmt(format_args!("invalid cell: {}", self.0))
     }
 }
 

@@ -1,23 +1,19 @@
-use server::data::GameServerData;
 use shared::chunk;
 use shared::session;
-use super::{SessionImpl, handlers};
+use super::Session;
 
-pub type Chunk = session::chunk::Chunk<SessionImpl, ChunkImpl>;
+pub type Chunk = session::chunk::Chunk<Session, ChunkImpl>;
+pub type Ref<'a> = session::chunk::Ref<'a, Session, ChunkImpl>;
 pub type Sender = chunk::Sender<Chunk>;
 
-struct ChunkImpl {
-    pub server: GameServerData,
+pub struct ChunkImpl;
+
+pub fn new() -> Chunk {
+    Chunk::new(ChunkImpl)
 }
 
-pub fn new(server: GameServerData) -> Chunk {
-    Chunk::new(ChunkImpl {
-        server: server,
-    })
-}
-
-pub fn update_queue(self_: &Chunk) {
-    for session in self_.sessions.values() {
-        handlers::update_queue(&session.borrow(), self_);
+pub fn update_queue(chunk: &Chunk) {
+    for session in chunk.sessions.values() {
+        session.update_queue();
     }
 }

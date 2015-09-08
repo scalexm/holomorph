@@ -1,6 +1,7 @@
 use std::thread::{self, JoinHandle};
 use std::sync::mpsc;
 use std::boxed::FnBox;
+use std::collections::LinkedList;
 
 pub enum Msg<C> {
     Shutdown,
@@ -18,11 +19,11 @@ pub fn send<F, C>(sender: &Sender<C>, job: F)
     let _ = sender.send(Msg::ChunkCallback(boxed_job));
 }
 
-pub fn run<C: Send + 'static>(mut chunk: C, joins: &mut Vec<JoinHandle<()>>)
+pub fn run<C: Send + 'static>(mut chunk: C, joins: &mut LinkedList<JoinHandle<()>>)
     -> Sender<C> {
     let (tx, rx) = mpsc::channel::<Msg<C>>();
 
-    joins.push(thread::spawn(move || {
+    joins.push_back(thread::spawn(move || {
             loop {
                 match rx.recv() {
                     Ok(msg) => {

@@ -1,5 +1,6 @@
 #![feature(fnbox)]
 #![feature(ip_addr)]
+#![feature(unboxed_closures)]
 
 #[macro_use]
 extern crate log;
@@ -8,6 +9,7 @@ extern crate byteorder;
 extern crate postgres;
 extern crate rustc_serialize;
 extern crate crypto;
+extern crate eventual;
 
 pub mod net;
 pub mod io;
@@ -16,12 +18,31 @@ pub mod chunk;
 pub mod database;
 pub mod config;
 pub mod session;
+pub mod server;
 
-// helper macro for less verbosity
+/* helper macros for less verbosity */
 #[macro_export]
-macro_rules! send {
-    ($chunk: expr, $msg: expr) => {{
-        let _ = $chunk.server.io_loop.send($msg);
+macro_rules! write {
+    ($server: expr, $token: expr, $data: expr) => {{
+        use $crate::net::Msg;
+        let tok = $token;
+        let _ = $server.with(move |s| s.io_loop.send(Msg::Write(tok, $data)));
+    }};
+}
+
+#[macro_export]
+macro_rules! close {
+    ($server: expr, $token: expr) => {{
+        use $crate::net::Msg;
+        let _ = $server.with(move |s| s.io_loop.send(Msg::Close($token)));
+    }};
+}
+
+#[macro_export]
+macro_rules! write_and_close {
+    ($server: expr, $token: expr, $data: expr) => {{
+        use $crate::net::Msg;
+        let _ = $server.with(move |s| s.io_loop.send(Msg::WriteAndClose($token, $data)));
     }};
 }
 

@@ -1,9 +1,5 @@
 use session::game::Chunk;
 
-trait Actor {
+struct Map {
 
-}
-
-struct Map<'a> {
-    parent: &'a Chunk,
 }

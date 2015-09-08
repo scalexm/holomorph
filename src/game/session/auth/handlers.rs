@@ -1,54 +1,58 @@
-use super::{Session, SessionImpl};
-use super::chunk::Chunk;
+use super::Session;
+use super::chunk::{ChunkImpl, Ref};
 use shared::protocol::*;
 use shared::protocol::holomorph::*;
-use shared::{self, session};
-use shared::net::{Token, Msg};
+use shared;
+use shared::session::{self, SessionBase};
 use std::io::{self, Cursor};
+use server::SERVER;
 
-impl session::SessionImpl for SessionImpl {
-    type Chunk = Chunk;
-
-    fn new(_: Token, _: &Chunk) -> Self {
-        SessionImpl
-    }
-
-    fn get_handler(id: u16)
-        -> (fn(&mut Session, &Chunk, Cursor<Vec<u8>>) -> io::Result<()>) {
-
-        match id {
-            1 => handle_hello,
-            _ => SessionImpl::unhandled,
+impl session::Session<ChunkImpl> for Session {
+    fn new(base: SessionBase) -> Self {
+        Session {
+            base: base,
         }
     }
 
-    fn close(_: Session, chunk: &Chunk) {
+    fn get_handler<'a>(id: u16)
+        -> (fn(&mut Session, Ref<'a>, Cursor<Vec<u8>>) -> io::Result<()>) {
+
+        match id {
+            1 => Session::handle_hello,
+            _ => Session::unhandled,
+        }
+    }
+
+    fn close<'a>(self, _: Ref<'a>) {
         error!("FATAL ERROR: lost connection with auth server");
-        chunk.server.shutdown();
+        SERVER.with(|s| s.shutdown());
     }
 }
 
-pub fn handle_hello(self_: &mut Session, chunk: &Chunk, mut data: Cursor<Vec<u8>>)
-    -> io::Result<()> {
+impl Session {
+    fn handle_hello<'a>(&mut self, mut chunk: Ref<'a>, mut data: Cursor<Vec<u8>>)
+        -> io::Result<()> {
 
-    if chunk.connected {
-        send!(chunk, Msg::Close(self_.token));
-        return Ok(());
+        if chunk.connected {
+            close!(SERVER, self.base.token);
+            return Ok(());
+        }
+
+        let msg = try!(HelloMessage::deserialize(&mut data));
+
+        let md5_key = SERVER.with(|s| shared::compute_md5(&s.cnf.server_key));
+
+        let buf = IdentificationMessage {
+            id: SERVER.with(|s| s.cnf.server_id),
+            key: shared::compute_md5(&(md5_key + &msg.salt)),
+            state: 3,
+            ip: SERVER.with(|s| s.cnf.bind_ip.clone()),
+            port: SERVER.with(|s| s.cnf.bind_port),
+        }.as_packet().unwrap();
+
+        write!(SERVER, self.base.token, buf);
+
+        chunk.eventually(|chunk| chunk.impl_.connected = true);
+        Ok(())
     }
-
-    let msg = try!(HelloMessage::deserialize(&mut data));
-
-    let buf = IdentificationMessage {
-        id: chunk.server.cnf.server_id,
-        key: shared::compute_md5(&(shared::compute_md5(&chunk.server.cnf.server_key)
-            + &msg.salt)),
-        state: 3,
-        ip: chunk.server.cnf.bind_ip.clone(),
-        port: chunk.server.cnf.bind_port,
-    }.as_packet().unwrap();
-
-    send!(chunk, Msg::Write(self_.token, buf));
-
-    chunk.eventually(|chunk| chunk.connected = true);
-    Ok(())
 }

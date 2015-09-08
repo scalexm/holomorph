@@ -107,9 +107,7 @@ impl<C: 'static> Handler<C> {
     fn new_connection(&mut self, event_loop: &mut EventLoop<C>, tok: Token,
         socket: TcpStream) -> io::Result<()> {
 
-        use std::fmt::Write;
-        let mut address = String::new();
-        write!(&mut address, "{}", socket.peer_addr().ok().unwrap().ip()).unwrap();
+        let address = format!("{}", socket.peer_addr().ok().unwrap().ip());
         let client_tok = self.connections
             .insert(Connection::new(socket, tok))
             .ok()

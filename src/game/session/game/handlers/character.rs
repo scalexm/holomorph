@@ -1,5 +1,5 @@
 use session::game::{Session, QueueState};
-use session::game::chunk::Chunk;
+use session::game::chunk::Ref;
 use std::io::{self, Cursor};
 use shared::protocol::*;
 use shared::protocol::messages::game::character::choice::*;
@@ -11,7 +11,7 @@ use postgres::{self, Connection};
 use character::{CharacterMinimal, Character};
 use std::sync::atomic::{ATOMIC_ISIZE_INIT, AtomicIsize, Ordering};
 use shared::database;
-use server;
+use server::{self, SERVER};
 
 pub static QUEUE_SIZE: AtomicIsize = ATOMIC_ISIZE_INIT;
 pub static QUEUE_COUNTER: AtomicIsize = ATOMIC_ISIZE_INIT;
@@ -27,27 +27,6 @@ impl From<postgres::error::Error> for Error {
     }
 }
 
-pub fn handle_characters_list_request(self_: &mut Session, chunk: &Chunk, _: Cursor<Vec<u8>>)
-    -> io::Result<()> {
-
-    if self_.account.is_none() || !self_.queue_state.is_none() {
-        return Ok(());
-    }
-
-    let buf = CharactersListMessage {
-        base: BasicCharactersListMessage {
-            characters: self_.characters
-                .iter()
-                .map(|ch| ch.1.as_character_base().into())
-                .collect(),
-        },
-        has_startup_actions: false,
-    }.as_packet().unwrap();
-
-    send!(chunk, Msg::Write(self_.token, buf));
-    Ok(())
-}
-
 fn load_character(conn: &mut Connection, base: CharacterMinimal)
     -> Result<Character, Error> {
 
@@ -61,84 +40,106 @@ fn load_character(conn: &mut Connection, base: CharacterMinimal)
     Ok(try!(Character::from_sql(base, rows.get(0))))
 }
 
-fn character_selection_success(self_: &mut Session, chunk: &Chunk, ch: Character) {
-    self_.current_character = Some(ch);
-    self_.queue_state = QueueState::None;
-    let ch = self_.current_character.as_ref().unwrap();
+impl Session {
+    pub fn handle_characters_list_request<'a>(&mut self, _: Ref<'a>, _: Cursor<Vec<u8>>)
+        -> io::Result<()> {
 
-    let mut buf = CharacterSelectedSuccessMessage {
-        infos: ch.minimal().as_character_base(),
-        is_collecting_stats: false,
-    }.as_packet().unwrap();
-
-    InventoryContentMessage {
-        objects: Vec::new(),
-        kamas: VarInt(ch.kamas()),
-    }.as_packet_with_buf(&mut buf).unwrap();
-
-    InventoryWeightMessage {
-        weight: VarInt(0),
-        weight_max: VarInt(0),
-    }.as_packet_with_buf(&mut buf).unwrap();
-
-    NotificationListMessage {
-        flags: Vec::new(),
-    }.as_packet_with_buf(&mut buf).unwrap();
-
-    CharacterStatsListMessage {
-        stats: ch.get_character_characteristics(),
-    }.as_packet_with_buf(&mut buf).unwrap();
-
-    send!(chunk, Msg::Write(self_.token, buf));
-}
-
-pub fn handle_character_selection(self_: &mut Session, chunk: &Chunk, mut data: Cursor<Vec<u8>>)
-    -> io::Result<()> {
-
-    if self_.account.is_none() || !self_.queue_state.is_none() {
-        return Ok(());
-    }
-
-    let msg = try!(CharacterSelectionMessage::deserialize(&mut data));
-
-    let ch = match self_.characters.remove(&msg.id) {
-        Some(ch) => ch,
-        None => {
-            let buf = CharacterSelectedErrorMessage.as_packet().unwrap();
-            let _ = chunk.server.io_loop.send(Msg::Write(self_.token, buf));
+        if self.account.is_none() || !self.queue_state.is_none() {
             return Ok(());
         }
-    };
 
-    let token = self_.token;
-    let handler = chunk.server.handler.clone();
-    let io_loop = chunk.server.io_loop.clone();
+        let buf = CharactersListMessage {
+            base: BasicCharactersListMessage {
+                characters: self.characters
+                    .iter()
+                    .map(|ch| ch.1.as_character_base().into())
+                    .collect(),
+            },
+            has_startup_actions: false,
+        }.as_packet().unwrap();
 
-    self_.queue_state = QueueState::SomeGame(QUEUE_SIZE.fetch_add(1, Ordering::Relaxed)
-        + 1, QUEUE_COUNTER.load(Ordering::Relaxed));
+        write!(SERVER, self.base.token, buf);
+        Ok(())
+    }
 
-    database::execute(&chunk.server.db, move |conn| {
-        match load_character(conn, ch) {
-            Err(err) => {
-                if let Error::SqlError(err) = err {
-                    error!("load_character sql error: {}", err);
-                }
+    fn character_selection_success(&mut self, ch: Character) {
+        self.current_character = Some(ch);
+        self.queue_state = QueueState::None;
+        let ch = self.current_character.as_ref().unwrap();
 
-                let buf = CharacterSelectedErrorMessage.as_packet().unwrap();
-                let _ = io_loop.send(Msg::Write(token, buf));
-            }
+        let mut buf = CharacterSelectedSuccessMessage {
+            infos: ch.minimal().as_character_base(),
+            is_collecting_stats: false,
+        }.as_packet().unwrap();
 
-            Ok(ch) => {
-                let ch_id = ch.minimal().id();
-                server::character_selection_success(&handler, token, ch_id,
-                    move |session, chunk|
-                        character_selection_success(session, chunk, ch));
-            }
+        InventoryContentMessage {
+            objects: Vec::new(),
+            kamas: VarInt(ch.kamas()),
+        }.as_packet_with_buf(&mut buf).unwrap();
+
+        InventoryWeightMessage {
+            weight: VarInt(0),
+            weight_max: VarInt(0),
+        }.as_packet_with_buf(&mut buf).unwrap();
+
+        NotificationListMessage {
+            flags: Vec::new(),
+        }.as_packet_with_buf(&mut buf).unwrap();
+
+        CharacterStatsListMessage {
+            stats: ch.get_character_characteristics(),
+        }.as_packet_with_buf(&mut buf).unwrap();
+
+        write!(SERVER, self.base.token, buf);
+    }
+
+    pub fn handle_character_selection<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>)
+        -> io::Result<()> {
+
+        if self.account.is_none() || !self.queue_state.is_none() {
+            return Ok(());
         }
 
-        let _ = QUEUE_SIZE.fetch_sub(1, Ordering::Relaxed);
-        let _ = QUEUE_COUNTER.fetch_add(1, Ordering::Relaxed);
-    });
+        let msg = try!(CharacterSelectionMessage::deserialize(&mut data));
 
-    Ok(())
+        let ch = match self.characters.remove(&msg.id) {
+            Some(ch) => ch,
+            None => {
+                let buf = CharacterSelectedErrorMessage.as_packet().unwrap();
+                write!(SERVER, self.base.token, buf);
+                return Ok(());
+            }
+        };
+
+        let token = self.base.token;
+        let server = SERVER.with(|s| s.server.clone());
+        let io_loop = SERVER.with(|s| s.io_loop.clone());
+
+        self.queue_state = QueueState::SomeGame(QUEUE_SIZE.fetch_add(1, Ordering::Relaxed)
+            + 1, QUEUE_COUNTER.load(Ordering::Relaxed));
+
+        SERVER.with(|s| database::execute(&s.db, move |conn| {
+            match load_character(conn, ch) {
+                Err(err) => {
+                    if let Error::SqlError(err) = err {
+                        error!("load_character sql error: {}", err);
+                    }
+
+                    let buf = CharacterSelectedErrorMessage.as_packet().unwrap();
+                    let _ = io_loop.send(Msg::Write(token, buf));
+                }
+
+                Ok(ch) => {
+                    let ch_id = ch.minimal().id();
+                    server::character_selection_success(&server, token, ch_id,
+                        move |session| session.character_selection_success(ch));
+                }
+            }
+
+            let _ = QUEUE_SIZE.fetch_sub(1, Ordering::Relaxed);
+            let _ = QUEUE_COUNTER.fetch_add(1, Ordering::Relaxed);
+        }));
+
+        Ok(())
+    }
 }

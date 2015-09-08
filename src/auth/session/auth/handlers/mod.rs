@@ -1,24 +1,22 @@
 pub mod selection;
 pub mod identification;
 
-use shared::net::{Token, Msg};
 use shared::protocol::*;
 use shared::protocol::messages::connection::*;
 use shared::protocol::enums::server_status;
 use shared::protocol::messages::handshake::*;
 use shared::protocol::messages::queues::*;
 use shared::protocol::types::connection::GameServerInformations;
-use super::{Session, SessionImpl, QueueState};
+use super::{Session, QueueState};
 use std::sync::atomic::Ordering;
 use server::data::GameServerData;
-use shared::session;
-use super::chunk::Chunk;
+use shared::session::{self, SessionBase};
+use super::chunk::{ChunkImpl, Ref};
 use std::io::{self, Cursor};
+use server::SERVER;
 
-impl session::SessionImpl for SessionImpl {
-    type Chunk = Chunk;
-
-    fn new(token: Token, chunk: &Chunk) -> Self {
+impl session::Session<ChunkImpl> for Session {
+    fn new(base: SessionBase) -> Self {
         let mut buf = Vec::new();
 
         ProtocolRequired {
@@ -28,12 +26,13 @@ impl session::SessionImpl for SessionImpl {
 
         HelloConnectMessage {
             salt: "salut".to_string(),
-            key: VarIntVec((*chunk.server.key).clone()),
+            key: VarIntVec(SERVER.with(|s| (*s.key).clone())),
         }.as_packet_with_buf(&mut buf).unwrap();
 
-        send!(chunk, Msg::Write(token, buf));
+        write!(SERVER, base.token, buf);
 
-        SessionImpl {
+        Session {
+            base: base,
             account: None,
             queue_state: QueueState::None,
             custom_identification: false,
@@ -41,81 +40,83 @@ impl session::SessionImpl for SessionImpl {
         }
     }
 
-    fn get_handler(id: u16)
-        -> (fn(&mut Session, &Chunk, Cursor<Vec<u8>>) -> io::Result<()>) {
-
-        use self::{selection, identification};
+    fn get_handler<'a>(id: u16)
+        -> (fn(&mut Session, Ref<'a>, Cursor<Vec<u8>>) -> io::Result<()>) {
 
         match id {
-            4 => identification::handle_identification,
-            40 => selection::handle_server_selection,
-            _ => SessionImpl::unhandled,
+            4 => Session::handle_identification,
+            40 => Session::handle_server_selection,
+            _ => Session::unhandled,
         }
     }
 
-    fn close(_: Session, _: &Chunk) { }
+    fn close<'a>(self, _: Ref<'a>) { }
 }
 
-pub fn update_queue(self_: &Session, chunk: &Chunk) {
-    if let QueueState::Some(queue_size, queue_counter) = self_.queue_state {
-        use self::identification::{QUEUE_COUNTER, QUEUE_SIZE};
+impl Session {
+    pub fn update_queue(&self) {
+        if let QueueState::Some(queue_size, queue_counter) = self.queue_state {
+            use self::identification::{QUEUE_COUNTER, QUEUE_SIZE};
 
-        let mut pos = queue_size -
-            (QUEUE_COUNTER.load(Ordering::Relaxed) - queue_counter);
+            let mut pos = queue_size -
+                (QUEUE_COUNTER.load(Ordering::Relaxed) - queue_counter);
 
-        if pos < 0 {
-            pos = 0;
+            if pos < 0 {
+                pos = 0;
+            }
+
+            let buf = LoginQueueStatusMessage {
+                position: pos as i16,
+                total: QUEUE_SIZE.load(Ordering::Relaxed) as i16,
+            }.as_packet().unwrap();
+
+            write!(SERVER, self.base.token, buf);
+        }
+    }
+
+    fn get_server_informations(&self, server: &GameServerData, mut status: i8)
+        -> GameServerInformations {
+
+        let data = self.account.as_ref().unwrap();
+
+        if data.is_subscriber() && status == server_status::FULL {
+            status = server_status::ONLINE;
         }
 
-        let buf = LoginQueueStatusMessage {
-            position: pos as i16,
-            total: QUEUE_SIZE.load(Ordering::Relaxed) as i16,
-        }.as_packet().unwrap();
-
-        send!(chunk, Msg::Write(self_.token, buf));
-    }
-}
-
-fn get_server_informations(self_: &Session, server: &GameServerData, mut status: i8)
-    -> GameServerInformations {
-
-    let data = self_.account.as_ref().unwrap();
-
-    if data.is_subscriber() && status == server_status::FULL {
-        status = server_status::ONLINE;
+        GameServerInformations {
+            id: VarShort(server.id()),
+            status: status,
+            completion: 0,
+            is_selectable: status == server_status::ONLINE,
+            characters_count: *data
+                .character_counts
+                .get(&server.id())
+                .unwrap_or(&0),
+            date: 0.,
+        }
     }
 
-    GameServerInformations {
-        id: VarShort(server.id()),
-        status: status,
-        completion: 0,
-        is_selectable: status == server_status::ONLINE,
-        characters_count: *data
-            .character_counts
-            .get(&server.id())
-            .unwrap_or(&0),
-        date: 0.,
+    pub fn update_server_status(&self, server_id: i16, status: i8) {
+        let account = match self.account.as_ref() {
+            Some(account) => account,
+            None => return (),
+        };
+
+        SERVER.with(|s| {
+            let server = match s.game_servers.get(&server_id) {
+                Some(server) => server,
+                None => return (),
+            };
+
+            if server.min_level() > account.level {
+                return ();
+            }
+
+            let buf = ServerStatusUpdateMessage {
+                server: self.get_server_informations(server, status),
+            }.as_packet().unwrap();
+
+            write!(SERVER, self.base.token, buf);
+        });
     }
-}
-
-pub fn update_server_status(self_: &Session, chunk: &Chunk, server_id: i16, status: i8) {
-    let account = match self_.account.as_ref() {
-        Some(account) => account,
-        None => return (),
-    };
-
-    let server = match chunk.server.game_servers.get(&server_id) {
-        Some(server) => server,
-        None => return (),
-    };
-
-    if server.min_level() > account.level {
-        return ();
-    }
-
-    let buf = ServerStatusUpdateMessage {
-        server: get_server_informations(self_, server, status),
-    }.as_packet().unwrap();
-
-    send!(chunk, Msg::Write(self_.token, buf));
 }
