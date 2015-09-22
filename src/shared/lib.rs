@@ -61,12 +61,12 @@ use std::hash::Hash;
 use std::borrow::Borrow;
 
 // bijective mapping between two sets, used for the shared memory thread
-pub struct HashBiMap<K: Hash + Eq + Copy, V: Hash + Eq + Copy> {
+pub struct HashBiMap<K: Hash + Eq + Clone, V: Hash + Eq + Clone> {
     kv: HashMap<K, V>,
     vk: HashMap<V, K>,
 }
 
-impl<K: Hash + Eq + Copy, V: Hash + Eq + Copy> HashBiMap<K, V> {
+impl<K: Hash + Eq + Clone, V: Hash + Eq + Clone> HashBiMap<K, V> {
     pub fn new() -> HashBiMap<K, V> {
         HashBiMap {
             kv: HashMap::new(),
@@ -145,7 +145,7 @@ impl<K: Hash + Eq + Copy, V: Hash + Eq + Copy> HashBiMap<K, V> {
 
     pub fn insert(&mut self, k: K, v: V) -> Option<V> {
         let old = self.remove(&k);
-        let _ = self.kv.insert(k, v);
+        let _ = self.kv.insert(k.clone(), v.clone());
         let _ = self.vk.insert(v, k);
         old
     }
@@ -154,7 +154,7 @@ impl<K: Hash + Eq + Copy, V: Hash + Eq + Copy> HashBiMap<K, V> {
         where K: Borrow<Q>, Q: Hash + Eq {
 
         let v = self.kv.remove(k);
-        if let Some(v) = v {
+        if let Some(ref v) = v {
             let _ = self.vk.remove(&v);
         }
         v
@@ -164,8 +164,8 @@ impl<K: Hash + Eq + Copy, V: Hash + Eq + Copy> HashBiMap<K, V> {
         where V: Borrow<Q>, Q: Hash + Eq {
 
         let k = self.vk.remove(v);
-        if let Some(k) = k {
-            let _ = self.kv.remove(&k);
+        if let Some(ref k) = k {
+            let _ = self.kv.remove(k);
         }
         k
     }

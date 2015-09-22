@@ -220,9 +220,9 @@ impl Session {
 
                 Ok(data) => {
                     let id = data.id;
-                    server::identification_success(&server, token, id,
-                        data.already_logged, move |session, chunk, already| {
-                        session.identification_success(chunk, data, already, auto_connect)
+                    server::identification_success(&server, token, id, data.already_logged,
+                        move |session, chunk, already| {
+                            session.identification_success(chunk, data, already, auto_connect)
                     });
                 }
             }

@@ -6,19 +6,10 @@ use shared::session::SessionBase;
 use time;
 use character::{Character, CharacterMinimal};
 
-enum QueueState {
-    None,
-    SomeTicket(isize, isize),
-    SomeGame(isize, isize),
-}
-
-impl QueueState {
-    fn is_none(&self) -> bool {
-        match *self {
-            QueueState::None => true,
-            _ => false,
-        }
-    }
+pub struct CharacterRef {
+    id: i32,
+    map_id: i32,
+    movements: Option<Vec<i16>>,
 }
 
 struct AccountData {
@@ -37,10 +28,26 @@ impl AccountData {
     }
 }
 
+enum GameState {
+    None,
+    TicketQueue(isize, isize),
+    CharacterSelection(HashMap<i32, CharacterMinimal>), // at this point, self.account is some
+    GameQueue(isize, isize),
+    SwitchingContext(i32, Character),
+    InContext(CharacterRef),
+}
+
+impl GameState {
+    fn is_none(&self) -> bool {
+        match *self {
+            GameState::None => true,
+            _ => false,
+        }
+    }
+}
+
 pub struct Session {
     base: SessionBase,
-    queue_state: QueueState,
     account: Option<AccountData>,
-    characters: HashMap<i32, CharacterMinimal>,
-    current_character: Option<Character>,
+    state: GameState,
 }

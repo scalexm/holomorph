@@ -50,10 +50,10 @@ impl Session {
 
         let msg = try!(IdentificationMessage::deserialize(&mut data));
 
-        let md5_key = match SERVER.with(|s| match s.game_servers.get(&msg.id) {
-            Some(gs) => Some(shared::compute_md5(&gs.key())),
-            None => None,
-        }) {
+        let md5_key = match SERVER.with(|s| s.game_servers
+            .get(&msg.id)
+            .map(|gs| shared::compute_md5(&gs.key()))) {
+
             Some(key) => key,
             None => {
                 close!(SERVER, self.base.token);

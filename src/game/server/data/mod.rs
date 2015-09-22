@@ -39,21 +39,21 @@ impl GameServerData {
     }
 
     pub fn load(&mut self, conn: &mut Connection) -> Result<()> {
-        let stmt = try!(conn.prepare("SELECT * FROM map_positions JOIN maps
-            ON map_positions.id = maps.id"));
-        self.maps = Arc::new(try!(stmt.query(&[])).iter().map(|row|
-            MapData::from_sql(row)).collect());
-        info!("loaded {} maps", self.maps.len());
-
-        let stmt = try!(conn.prepare("SELECT * FROM sub_areas"));
-        self.sub_areas = Arc::new(try!(stmt.query(&[])).iter().map(|row|
-            SubAreaData::from_sql(row)).collect());
-        info!("loaded {} sub areas", self.sub_areas.len());
-
         let stmt = try!(conn.prepare("SELECT * FROM areas"));
         self.areas = Arc::new(try!(stmt.query(&[])).iter().map(|row|
             AreaData::from_sql(row)).collect());
         info!("loaded {} areas", self.areas.len());
+
+        let stmt = try!(conn.prepare("SELECT * FROM sub_areas"));
+        self.sub_areas = Arc::new(try!(stmt.query(&[])).iter().map(|row|
+            SubAreaData::from_sql(&*self.areas, row)).collect());
+        info!("loaded {} sub areas", self.sub_areas.len());
+
+        let stmt = try!(conn.prepare("SELECT * FROM map_positions JOIN maps
+            ON map_positions.id = maps.id"));
+        self.maps = Arc::new(try!(stmt.query(&[])).iter().map(|row|
+            MapData::from_sql(&*self.sub_areas, row)).collect());
+        info!("loaded {} maps", self.maps.len());
 
         Ok(())
     }

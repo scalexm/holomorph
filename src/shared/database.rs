@@ -26,10 +26,9 @@ pub fn spawn_threads(threads: usize, uri: &str, joins: &mut LinkedList<JoinHandl
 
     for _ in 0..threads {
         let rx = rx.clone();
-        let uri = uri.to_string();
-        joins.push_back(thread::spawn(move || {
-            let mut conn = connect(&uri);
+        let mut conn = connect(uri);
 
+        joins.push_back(thread::spawn(move || {
             loop {
                 // we acquire the lock only for receiving, not for executing a job
                 let msg = {

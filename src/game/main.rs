@@ -15,6 +15,7 @@ mod session;
 mod server;
 mod character;
 mod stats;
+mod map;
 
 use config::Config;
 use shared::net::{self, EventLoop, CallbackType};
@@ -25,8 +26,9 @@ use std::io;
 use server::data::GameServerData;
 use shared::database;
 use server::SYNC_SERVER;
-use std::collections::LinkedList;
+use std::collections::{HashSet, LinkedList};
 use session::{auth, game};
+use std::cmp::Ordering;
 
 fn main() {
     env_logger::init().unwrap();
@@ -67,8 +69,29 @@ fn main() {
 
     *SYNC_SERVER.lock().unwrap() = Some(server_data.clone());
 
-    let tx = chunk::run(game::chunk::new(), &mut join_handles);
-    server::add_chunk(&server_data.server, tx);
+    // dividing all areas between chunks
+    {
+        let mut chunk_areas: Vec<HashSet<i16>> = (0..server_data.cnf.server_threads)
+            .map(|_| HashSet::new()).collect();
+        let len = chunk_areas.len();
+        let mut sorted_areas: Vec<(i16, i16)> = server_data.areas
+            .values()
+            .map(|a| (a.id(), a.priority()))
+            .collect();
+        sorted_areas.sort_by(|&(_, p1), &(_, p2)| {
+            if p1 > p2 { Ordering::Less } else { Ordering::Greater }
+        });
+
+        for i in 0..sorted_areas.len() {
+            let _ = chunk_areas[i % len].insert(sorted_areas[i].0);
+        }
+
+        for set in chunk_areas {
+            let tx = chunk::run(game::chunk::new(set.clone(), &server_data),
+                &mut join_handles);
+            server::add_chunk(&server_data.server, tx, set);
+        }
+    }
 
     let tx = chunk::run(auth::chunk::new(), &mut join_handles);
     server::set_auth_chunk(&server_data.server, tx);

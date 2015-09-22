@@ -208,6 +208,10 @@ impl List {
         self.rows[&ty].total()
     }
 
+    pub fn get(&self, ty: Type, field: Field) -> i16 {
+        self.rows[&ty].get(field)
+    }
+
     pub fn as_base_characteristic(&self, ty: Type) -> CharacterBaseCharacteristic {
         self.rows[&ty].as_base_characteristic()
     }

@@ -1,17 +1,18 @@
-use session::game::{Session, QueueState};
-use session::game::chunk::Ref;
+use session::game::{Session, GameState};
+use session::game::chunk::{Ref, ChunkImpl};
 use std::io::{self, Cursor};
 use shared::protocol::*;
 use shared::protocol::messages::game::character::choice::*;
 use shared::protocol::messages::game::inventory::items::*;
 use shared::protocol::messages::game::character::stats::*;
 use shared::protocol::messages::game::context::notification::*;
-use shared::net::Msg;
+use shared::net::{Token, Msg};
 use postgres::{self, Connection};
 use character::{CharacterMinimal, Character};
 use std::sync::atomic::{ATOMIC_ISIZE_INIT, AtomicIsize, Ordering};
 use shared::database;
 use server::{self, SERVER};
+use shared::protocol::messages::queues::*;
 
 pub static QUEUE_SIZE: AtomicIsize = ATOMIC_ISIZE_INIT;
 pub static QUEUE_COUNTER: AtomicIsize = ATOMIC_ISIZE_INIT;
@@ -27,8 +28,8 @@ impl From<postgres::error::Error> for Error {
     }
 }
 
-fn load_character(conn: &mut Connection, base: CharacterMinimal)
-    -> Result<Character, Error> {
+fn load_character(conn: &mut Connection, tok: Token, base: CharacterMinimal)
+    -> Result<(Character, i32), Error> {
 
     let stmt = try!(conn.prepare_cached("SELECT * FROM characters WHERE id = $1"));
     let rows = try!(stmt.query(&[&base.id()]));
@@ -37,20 +38,23 @@ fn load_character(conn: &mut Connection, base: CharacterMinimal)
         return Err(Error::Other);
     }
 
-    Ok(try!(Character::from_sql(base, rows.get(0))))
+    let row = rows.get(0);
+    let map_id: i32 = try!(row.get_opt("map_id"));
+    Ok((try!(Character::from_sql(tok, base, row)), map_id))
 }
 
 impl Session {
     pub fn handle_characters_list_request<'a>(&mut self, _: Ref<'a>, _: Cursor<Vec<u8>>)
         -> io::Result<()> {
 
-        if self.account.is_none() || !self.queue_state.is_none() {
-            return Ok(());
-        }
+        let characters = match self.state {
+            GameState::CharacterSelection(ref characters) => characters,
+            _ => return Ok(()),
+        };
 
         let buf = CharactersListMessage {
             base: BasicCharactersListMessage {
-                characters: self.characters
+                characters: characters
                     .iter()
                     .map(|ch| ch.1.as_character_base().into())
                     .collect(),
@@ -62,15 +66,16 @@ impl Session {
         Ok(())
     }
 
-    fn character_selection_success(&mut self, ch: Character) {
-        self.current_character = Some(ch);
-        self.queue_state = QueueState::None;
-        let ch = self.current_character.as_ref().unwrap();
-
+    fn character_selection_success(&mut self, _: &mut ChunkImpl, ch: Character, map_id: i32) {
         let mut buf = CharacterSelectedSuccessMessage {
             infos: ch.minimal().as_character_base(),
             is_collecting_stats: false,
         }.as_packet().unwrap();
+
+        QueueStatusMessage {
+            position: 0,
+            total: 0,
+        }.as_packet_with_buf(&mut buf).unwrap();
 
         InventoryContentMessage {
             objects: Vec::new(),
@@ -91,48 +96,54 @@ impl Session {
         }.as_packet_with_buf(&mut buf).unwrap();
 
         write!(SERVER, self.base.token, buf);
+
+        self.state = GameState::SwitchingContext(map_id, ch);
     }
 
     pub fn handle_character_selection<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>)
         -> io::Result<()> {
 
-        if self.account.is_none() || !self.queue_state.is_none() {
-            return Ok(());
-        }
+        let ch = {
+            let characters = match self.state {
+                GameState::CharacterSelection(ref mut characters) => characters,
+                _ => return Ok(()),
+            };
 
-        let msg = try!(CharacterSelectionMessage::deserialize(&mut data));
+            let msg = try!(CharacterSelectionMessage::deserialize(&mut data));
 
-        let ch = match self.characters.remove(&msg.id) {
-            Some(ch) => ch,
-            None => {
-                let buf = CharacterSelectedErrorMessage.as_packet().unwrap();
-                write!(SERVER, self.base.token, buf);
-                return Ok(());
+            match characters.remove(&msg.id) {
+                Some(ch) => ch,
+                None => {
+                    let buf = CharacterSelectedErrorMessage.as_packet().unwrap();
+                    write!(SERVER, self.base.token, buf);
+                    return Ok(());
+                }
             }
         };
 
         let token = self.base.token;
-        let server = SERVER.with(|s| s.server.clone());
-        let io_loop = SERVER.with(|s| s.io_loop.clone());
+        let (server, io_loop) = SERVER.with(|s| {
+            (s.server.clone(), s.io_loop.clone())
+        });
+        let nickname = self.account.as_ref().unwrap().nickname.clone();
 
-        self.queue_state = QueueState::SomeGame(QUEUE_SIZE.fetch_add(1, Ordering::Relaxed)
+        self.state = GameState::GameQueue(QUEUE_SIZE.fetch_add(1, Ordering::Relaxed)
             + 1, QUEUE_COUNTER.load(Ordering::Relaxed));
 
         SERVER.with(|s| database::execute(&s.db, move |conn| {
-            match load_character(conn, ch) {
+            match load_character(conn, token, ch) {
                 Err(err) => {
                     if let Error::SqlError(err) = err {
                         error!("load_character sql error: {}", err);
                     }
-
-                    let buf = CharacterSelectedErrorMessage.as_packet().unwrap();
-                    let _ = io_loop.send(Msg::Write(token, buf));
+                    let _ = io_loop.send(Msg::Close(token));
                 }
 
-                Ok(ch) => {
+                Ok((ch, map_id)) => {
                     let ch_id = ch.minimal().id();
-                    server::character_selection_success(&server, token, ch_id,
-                        move |session| session.character_selection_success(ch));
+                    server::character_selection_success(&server, token, ch_id, nickname,
+                        move |session, chunk|
+                            session.character_selection_success(chunk, ch, map_id));
                 }
             }
 

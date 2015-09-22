@@ -1,28 +1,46 @@
-use session::game::Session;
-use session::game::chunk::Ref;
+use session::game::{GameState, Session, CharacterRef};
+use session::game::chunk::{self, Ref};
 use shared::protocol::messages::game::context::{GameContextCreateMessage,
-    GameContextDestroyMessage, GameMapMovementMessage, GameMapMovementRequestMessage};
+    GameContextDestroyMessage, GameMapMovementRequestMessage, GameMapMovementCancelMessage};
 use shared::protocol::*;
 use shared::protocol::messages::game::context::roleplay::*;
+use shared::protocol::messages::game::basic::BasicNoOperationMessage;
 use std::io::{self, Cursor};
 use server::SERVER;
+use std::mem;
 
 impl Session {
-    pub fn handle_game_context_create_request<'a>(&mut self, _: Ref<'a>, _: Cursor<Vec<u8>>)
-        -> io::Result<()> {
+    pub fn handle_game_context_create_request<'a>(&mut self, mut chunk: Ref<'a>,
+        _: Cursor<Vec<u8>>) -> io::Result<()> {
 
-        let ch = match self.current_character.as_ref() {
-            Some(ch) => ch,
-            None => return Ok(())
+        let (map_id, ch_id) = match self.state {
+            GameState::SwitchingContext(map_id, ref ch) => (map_id, ch.minimal().id()),
+            _ => return Ok(()),
         };
 
-        // 176 (noop)
-        // 201 (context_destroy)
-        // 200: 01 (context_create)
-        // 5684: 0a (LifePointsRegenBeginMessage)
-        // 220: 84675074 65d3b2572282191e2224dc4651d97ae2 (CurrentMapMessage)
-        // 175 (BasicTimeMessage)
-        // 500 (CharacterStatsListMessage)
+        let tok = self.base.token;
+
+        if !SERVER.with(|s| s.maps.contains_key(&map_id)) {
+            error!("context_create: map not found {}", map_id);
+            close!(SERVER, tok);
+            return Ok(());
+        }
+
+        let state = mem::replace(&mut self.state, GameState::InContext(CharacterRef {
+            id: ch_id,
+            map_id: map_id,
+            movements: None,
+        }));
+
+        let ch = match state {
+            GameState::SwitchingContext(_, ch) => ch,
+            _ => unreachable!(),
+        };
+
+        let cell_id = ch.cell_id();
+        chunk.eventually(move |chunk| {
+            chunk::teleport_character(chunk, ch, map_id, cell_id)
+        });
 
         let mut buf = GameContextDestroyMessage.as_packet().unwrap();
 
@@ -30,77 +48,131 @@ impl Session {
             context: 1,
         }.as_packet_with_buf(&mut buf).unwrap();
 
-        CurrentMapMessage {
-            map_id: ch.map_id(),
-            //"65d3b2572282191e2224dc4651d97ae2".to_string(),
-            map_key: "bite".to_string(),
-        }.as_packet_with_buf(&mut buf).unwrap();
-
         write!(SERVER, self.base.token, buf);
 
         Ok(())
     }
 
-    pub fn handle_map_informations_request<'a>(&mut self, _: Ref<'a>, _: Cursor<Vec<u8>>)
+    pub fn handle_map_informations_request<'a>(&mut self, chunk: Ref<'a>, _: Cursor<Vec<u8>>)
         -> io::Result<()> {
 
-        let ch = match self.current_character.as_ref() {
-            Some(ch) => ch,
-            None => return Ok(())
+        let ch = match self.state {
+            GameState::InContext(ref ch) => ch,
+            _ => return Ok(()),
         };
 
-        let buf = MapComplementaryInformationsDataMessage {
-            sub_area_id: VarShort(1),
-            map_id: ch.map_id(),
-            houses: Vec::new(),
-            actors: vec![ch.as_actor().into()],
-            interactive_elements: Vec::new(),
-            stated_elements: Vec::new(),
-            obstacles: Vec::new(),
-            fights: Vec::new(),
-        }.as_packet().unwrap();
+        let map = chunk.maps.get(&ch.map_id).unwrap();
+        let buf = map
+            .get_complementary_informations()
+            .as_packet()
+            .unwrap();
 
         write!(SERVER, self.base.token, buf);
+
         Ok(())
     }
 
-    pub fn handle_game_map_movement_request<'a>(&mut self, _: Ref<'a>,
+    pub fn handle_game_map_movement_request<'a>(&mut self, chunk: Ref<'a>,
         mut data: Cursor<Vec<u8>>) -> io::Result<()> {
 
-        let ch = match self.current_character.as_ref() {
-            Some(ch) => ch,
-            None => return Ok(())
+        let ch = match self.state {
+            GameState::InContext(ref mut ch) => ch,
+            _ => return Ok(()),
         };
+
+        if ch.movements.is_some() {
+            return Ok(());
+        }
 
         let msg = try!(GameMapMovementRequestMessage::deserialize(&mut data));
 
-        let buf = GameMapMovementMessage {
-            key_movements: msg.key_movements,
-            actor_id: ch.minimal().id(),
-        }.as_packet().unwrap();
+        ch.movements = Some(msg.key_movements.clone());
+        chunk.maps.get(&ch.map_id).unwrap().start_move_actor(ch.id, msg.key_movements);
 
-        write!(SERVER, self.base.token, buf);
         Ok(())
     }
 
-    pub fn handle_change_map<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>)
-        -> io::Result<()> {
+    pub fn handle_game_map_movement_confirm<'a>(&mut self, mut chunk: Ref<'a>,
+        _: Cursor<Vec<u8>>) -> io::Result<()> {
 
-        let ch = match self.current_character {
-            Some(ref ch) => ch,
-            None => return Ok(())
+        let ch = match self.state {
+            GameState::InContext(ref mut ch) => ch,
+            _ => return Ok(()),
         };
 
+        let movements = mem::replace(&mut ch.movements, None);
+        let movements = match movements {
+            Some(movements) => movements,
+            None => return Ok(()),
+        };
+
+        let last_mov = movements[movements.len() - 1];
+        let new_cell = last_mov & 4095;
+        let new_dir = ((new_cell ^ last_mov) >> 12) as i8;
+
+        let ch = get_mut_character!(ch, chunk);
+        ch.set_cell_id(new_cell);
+        ch.set_direction(new_dir);
+
+        write!(SERVER, self.base.token, BasicNoOperationMessage.as_packet().unwrap());
+
+        Ok(())
+    }
+
+    pub fn handle_game_map_movement_cancel<'a>(&mut self, mut chunk: Ref<'a>,
+        mut data: Cursor<Vec<u8>>) -> io::Result<()> {
+
+        let ch = match self.state {
+            GameState::InContext(ref mut ch) => ch,
+            _ => return Ok(()),
+        };
+
+        let msg = try!(GameMapMovementCancelMessage::deserialize(&mut data));
+
+        let movements = mem::replace(&mut ch.movements, None);
+        let movements = match movements {
+            Some(movements) => movements,
+            None => return Ok(()),
+        };
+
+        chunk.maps.get(&ch.map_id).unwrap().end_move_actor(ch.id);
+
+        let ch = get_mut_character!(ch, chunk);
+        ch.set_cell_id(msg.cell_id.0);
+
+        Ok(())
+    }
+
+    pub fn handle_change_map<'a>(&mut self, chunk: Ref<'a>, mut data: Cursor<Vec<u8>>)
+        -> io::Result<()> {
+
+        let ch = match self.state {
+            GameState::InContext(ref mut ch) => ch,
+            _ => return Ok(()),
+        };
+
+        if ch.movements.is_some() {
+            return Ok(());
+        }
+
         let msg = try!(ChangeMapMessage::deserialize(&mut data));
-        //ch.set_map_id(msg.map_id);
+        let cell = get_character!(ch, chunk).cell_id();
 
-        let buf = CurrentMapMessage {
-            map_id: msg.map_id,
-            //"65d3b2572282191e2224dc4651d97ae2".to_string(),
-            map_key: "bite".to_string(),
-        }.as_packet().unwrap();
+        let new_cell = SERVER.with(|s| {
+            let map = s.maps.get(&ch.map_id).unwrap();
+            match msg.map_id {
+                id if id == map.left() => Some(cell + 13),
+                id if id == map.right() => Some(cell - 13),
+                id if id == map.bottom() => Some(cell - 532),
+                id if id == map.top() => Some(cell + 532),
+                _ => None,
+            }
+        });
 
-        write!(SERVER, self.base.token, buf);
+        if let Some(new_cell) = new_cell {
+            let _ = chunk::teleport(chunk, ch, msg.map_id, new_cell);
+        }
+
         Ok(())
     }
 }

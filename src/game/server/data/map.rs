@@ -1,4 +1,5 @@
 use postgres::rows::Row;
+use std::collections::HashMap;
 
 pub struct MapData {
     id: i32,
@@ -12,11 +13,21 @@ pub struct MapData {
     top: i32,
     bottom: i32,
     cells: Vec<u8>,
+    bad: bool,
+    relative: i32,
 }
 
 impl MapData {
-    pub fn from_sql<'a>(row: Row<'a>) -> (i32, Self) {
+    pub fn from_sql<'a>(subareas: &HashMap<i16, SubAreaData>, row: Row<'a>)
+        -> (i32, Self) {
+
         let id = row.get("id");
+        let sub_area_id = row.get("sub_area_id");
+
+        if !subareas.contains_key(&sub_area_id) {
+            panic!("map id {} has an unknown sub area id", id);
+        }
+
         let cells: Vec<u8> = row.get("cells");
         if cells.len() != 1120 {
             panic!("bad cell data, map id {}", id);
@@ -28,13 +39,56 @@ impl MapData {
             pos_y: row.get("pos_y"),
             outdoor: row.get("outdoor"),
             capabilities: row.get("capabilities"),
-            sub_area_id: row.get("sub_area_id"),
+            sub_area_id: sub_area_id,
             left: row.get("left"),
             right: row.get("right"),
             top: row.get("top"),
             bottom: row.get("bottom"),
             cells: cells,
+            bad: row.get("bad"),
+            relative: row.get("relative"),
         })
+    }
+
+    pub fn is_bad(&self) -> bool {
+        self.bad
+    }
+
+    pub fn relative(&self) -> i32 {
+        self.relative
+    }
+
+    pub fn id(&self) -> i32 {
+        self.id
+    }
+
+    pub fn sub_area_id(&self) -> i16 {
+        self.sub_area_id
+    }
+
+    pub fn get_free_cell(&self) -> Option<i16> {
+        for i in 0..560 {
+            if self.cells[i * 2] >> 7 != 1 {
+                return Some(i as i16)
+            }
+        }
+        None
+    }
+
+    pub fn left(&self) -> i32 {
+        self.left
+    }
+
+    pub fn right(&self) -> i32 {
+        self.right
+    }
+
+    pub fn top(&self) -> i32 {
+        self.top
+    }
+
+    pub fn bottom(&self) -> i32 {
+        self.bottom
     }
 }
 
@@ -45,19 +99,32 @@ pub struct SubAreaData {
 }
 
 impl SubAreaData {
-    pub fn from_sql<'a>(row: Row<'a>) -> (i16, Self) {
+    pub fn from_sql<'a>(areas: &HashMap<i16, AreaData>, row: Row<'a>) -> (i16, Self) {
         let id = row.get("id");
-        let monsters: String = row.get("monsters");
+        let area_id = row.get("area_id");
 
+        if !areas.contains_key(&area_id) {
+            panic!("sub area id {} has an unknown area id", id);
+        }
+
+        let monsters: String = row.get("monsters");
         let error = format!("bad monsters data, sub area id {}", id);
 
         (id, SubAreaData {
             id: id,
-            area_id: row.get("area_id"),
+            area_id: area_id,
             monsters: if monsters.is_empty() { Vec::new() } else {
                 monsters.split(",").map(|s| s.parse().ok().expect(&error)).collect()
             },
         })
+    }
+
+    pub fn area_id(&self) -> i16 {
+        self.area_id
+    }
+
+    pub fn id(&self) -> i16 {
+        self.id
     }
 }
 
@@ -74,5 +141,13 @@ impl AreaData {
             id: id,
             priority: row.get("priority"),
         })
+    }
+
+    pub fn id(&self) -> i16 {
+        self.id
+    }
+
+    pub fn priority(&self) -> i16 {
+        self.priority
     }
 }

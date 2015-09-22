@@ -1,7 +1,7 @@
 pub mod data;
 
 use session::{auth, game};
-use std::collections::HashMap;
+use std::collections::{HashSet, HashMap};
 use shared::net::{Token, SessionEvent};
 use shared::chunk;
 use shared::HashBiMap;
@@ -19,9 +19,15 @@ thread_local!(pub static SERVER: GameServerData = SYNC_SERVER.lock().unwrap().cl
 pub struct Server {
     base: ServerBase<game::Session, game::chunk::ChunkImpl,
         auth::Session, auth::chunk::ChunkImpl>,
+
     // an in-game session can be identified by its character id
     session_characters: HashBiMap<i32, Token>,
+
+    // and also by its nickname
+    session_nicknames: HashBiMap<String, Token>,
+
     characters: HashMap<i32, CharacterMinimal>,
+    chunk_areas: HashMap<i16, usize>,
 }
 
 impl Server {
@@ -29,7 +35,9 @@ impl Server {
         Server {
             base: ServerBase::new(),
             session_characters: HashBiMap::new(),
+            session_nicknames: HashBiMap::new(),
             characters: HashMap::new(),
+            chunk_areas: HashMap::new(),
         }
     }
 
@@ -40,6 +48,7 @@ impl Server {
     pub fn game_event(&mut self, evt: SessionEvent) {
         if let SessionEvent::Disconnect(tok) = evt {
             let _ = self.session_characters.inv_remove(&tok);
+            let _ = self.session_nicknames.inv_remove(&tok);
         }
 
         self.base.main_event(evt);
@@ -61,8 +70,12 @@ pub fn start_queue_timer(sender: &Sender) {
     });
 }
 
-pub fn add_chunk(sender: &Sender, chunk: game::chunk::Sender) {
+pub fn add_chunk(sender: &Sender, chunk: game::chunk::Sender, areas: HashSet<i16>) {
     chunk::send(sender, move |server| {
+        let len = server.base.main_chunks.len();
+        for a in areas {
+            let _ = server.chunk_areas.insert(a, len);
+        }
         server.base.main_chunks.push(chunk)
     });
 }
@@ -70,6 +83,17 @@ pub fn add_chunk(sender: &Sender, chunk: game::chunk::Sender) {
 pub fn set_auth_chunk(sender: &Sender, chunk: auth::chunk::Sender) {
     chunk::send(sender, move |server| {
         server.base.secondary_chunk = Some(chunk);
+    });
+}
+
+pub fn teleport<F>(sender: &Sender, tok: Token, area_id: i16, job: F)
+    where F: FnOnce(&mut game::chunk::Chunk) + Send + 'static {
+
+    chunk::send(sender, move |server| {
+        let chunk = server.chunk_areas.get(&area_id).unwrap();
+        let _ = server.base.session_chunks.remove(&tok);
+        let _ = server.base.session_chunks.insert(tok, *chunk);
+        chunk::send(&server.base.main_chunks[*chunk], job);
     });
 }
 
@@ -97,11 +121,13 @@ pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32, job: F)
 }
 
 pub fn character_selection_success<F>(sender: &Sender, tok: Token, ch_id: i32,
-    job: F) where F: FnOnce(&mut game::Session) + Send + 'static {
+    nickname: String, job: F)
+    where F: FnOnce(&mut game::Session, &mut game::chunk::ChunkImpl) + Send + 'static {
 
     chunk::send(sender, move |server| {
         let _ = server.session_characters.insert(ch_id, tok);
+        let _ = server.session_nicknames.insert(nickname, tok);
 
-        server.base.session_callback(tok, move |session, _| job(session))
+        server.base.session_callback(tok, move |session, mut chunk| job(session, &mut *chunk))
     });
 }

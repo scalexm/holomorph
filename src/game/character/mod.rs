@@ -9,9 +9,10 @@ use shared::protocol::types::game::context::roleplay::*;
 use shared::protocol::types::game::context::*;
 use std::io::Cursor;
 use postgres::rows::Row;
-use postgres;
+use postgres::{self, Transaction};
 use stats::{self, Type};
 use stats::row::Field;
+use shared::net::Token;
 
 #[derive(Clone)]
 pub struct CharacterMinimal {
@@ -51,6 +52,22 @@ impl CharacterMinimal {
         })
     }
 
+    pub fn save<'a>(&self, trans: &Transaction<'a>) -> postgres::Result<()> {
+        let mut look = Vec::new();
+        self.look.serialize(&mut look).unwrap();
+
+        let stmt = try!(trans.prepare_cached("UPDATE character_minimals SET level = $1,
+            name = $2, breed = $3, sex = $4, look = $5 WHERE id = $6"));
+        let _ = try!(stmt.execute(&[&self.level,
+            &self.name,
+            &(self.breed as i16),
+            &self.sex,
+            &look,
+            &self.id]));
+
+        Ok(())
+    }
+
     pub fn id(&self) -> i32 {
         self.id
     }
@@ -79,6 +96,7 @@ impl CharacterMinimal {
 
 pub struct Character {
     base: CharacterMinimal,
+    session: Token,
     xp: i64,
     kamas: i32,
     stats_points: i16,
@@ -86,8 +104,8 @@ pub struct Character {
     spells_points: i16,
     energy_points: i16,
     stats: stats::List,
-    map_id: i32,
     cell_id: i16,
+    direction: i8,
 }
 
 #[derive(Debug)]
@@ -110,7 +128,7 @@ impl ::std::fmt::Display for CellError {
 }
 
 impl Character {
-    pub fn from_sql<'a>(base: CharacterMinimal, row: Row<'a>)
+    pub fn from_sql<'a>(session: Token, base: CharacterMinimal, row: Row<'a>)
         -> postgres::Result<Character> {
 
         let mut stats = stats::List::new();
@@ -146,8 +164,10 @@ impl Character {
             return Err(postgres::error::Error::Conversion(Box::new(CellError(cell_id))));
         }
 
+        let direction: i16 = try!(row.get_opt("direction"));
         Ok(Character {
             base: base,
+            session: session,
             xp: try!(row.get_opt("xp")),
             kamas: try!(row.get_opt("kamas")),
             stats_points: try!(row.get_opt("stats_points")),
@@ -155,21 +175,60 @@ impl Character {
             spells_points: try!(row.get_opt("spells_points")),
             energy_points: try!(row.get_opt("energy_points")),
             stats: stats,
-            map_id: try!(row.get_opt("map_id")),
             cell_id: cell_id,
+            direction: direction as i8,
         })
     }
 
-    pub fn map_id(&self) -> i32 {
-        self.map_id
+    pub fn save<'a>(&self, trans: &Transaction<'a>, map: i32) -> postgres::Result<()> {
+        let stmt = try!(trans.prepare_cached("UPDATE characters SET base_vitality = $1,
+            base_wisdom = $2, base_strength = $3, base_intelligence = $4, base_chance = $5,
+            base_agility = $6, additionnal_vitality = $7, additionnal_wisdom = $8,
+            additionnal_strength = $9, additionnal_intelligence = $10,
+            additionnal_chance = $11, additionnal_agility = $12, cell_id = $13,
+            map_id = $14, direction = $15, xp = $16, kamas = $17, stats_points = $18,
+            additionnal_points = $19, spells_points = $20, energy_points = $21
+            WHERE id = $22"));
+        let _ = try!(stmt.execute(&[&self.stats.get(Type::Vitality, Field::Base),
+            &self.stats.get(Type::Wisdom, Field::Base),
+            &self.stats.get(Type::Strength, Field::Base),
+            &self.stats.get(Type::Intelligence, Field::Base),
+            &self.stats.get(Type::Chance, Field::Base),
+            &self.stats.get(Type::Agility, Field::Base),
+            &self.stats.get(Type::Vitality, Field::Additionnal),
+            &self.stats.get(Type::Wisdom, Field::Additionnal),
+            &self.stats.get(Type::Strength, Field::Additionnal),
+            &self.stats.get(Type::Intelligence, Field::Additionnal),
+            &self.stats.get(Type::Chance, Field::Additionnal),
+            &self.stats.get(Type::Agility, Field::Additionnal),
+            &self.cell_id,
+            &map,
+            &(self.direction as i16),
+            &self.xp,
+            &self.kamas,
+            &self.stats_points,
+            &self.additionnal_points,
+            &self.spells_points,
+            &self.energy_points,
+            &self.base.id]));
+
+        self.base.save(trans)
     }
 
-    pub fn set_map_id(&mut self, map_id: i32) {
-        self.map_id = map_id;
+    pub fn session(&self) -> Token {
+        self.session
     }
 
     pub fn cell_id(&self) -> i16 {
         self.cell_id
+    }
+
+    pub fn set_cell_id(&mut self, id: i16) {
+        self.cell_id = id;
+    }
+
+    pub fn set_direction(&mut self, dir: i8) {
+        self.direction = dir;
     }
 
     pub fn kamas(&self) -> i32 {
@@ -207,7 +266,7 @@ impl Character {
                             look: self.base.look.clone(),
                             disposition: EntityDispositionInformations {
                                 cell_id: self.cell_id,
-                                direction: 0,
+                                direction: self.direction,
                             }.into(),
                         },
                     },

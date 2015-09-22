@@ -103,10 +103,7 @@ impl Session {
         };
 
         SERVER.with(|s| {
-            let server = match s.game_servers.get(&server_id) {
-                Some(server) => server,
-                None => return (),
-            };
+            let server = s.game_servers.get(&server_id).unwrap();
 
             if server.min_level() > account.level {
                 return ();

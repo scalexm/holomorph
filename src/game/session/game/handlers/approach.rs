@@ -1,4 +1,4 @@
-use session::game::{Session, AccountData, QueueState};
+use session::game::{Session, AccountData, GameState};
 use session::game::chunk::Ref;
 use shared::protocol::*;
 use shared::protocol::messages::game::approach::*;
@@ -68,22 +68,18 @@ impl Session {
     fn identification_success(&mut self, data: AccountData, already_logged: bool,
         characters: HashMap<i32, CharacterMinimal>) {
 
+        let mut buf = QueueStatusMessage {
+            position: 0,
+            total: 0,
+        }.as_packet().unwrap();
+
         if already_logged {
-            let buf = AlreadyConnectedMessage.as_packet().unwrap();
+            AlreadyConnectedMessage.as_packet_with_buf(&mut buf).unwrap();
             write!(SERVER, self.base.token, buf);
             return ();
         }
 
-        self.account = Some(data);
-        self.queue_state = QueueState::None;
-        self.characters = characters;
-
-        let mut buf = AuthenticationTicketAcceptedMessage.as_packet().unwrap();
-
-        QueueStatusMessage {
-            position: 0,
-            total: 0,
-        }.as_packet_with_buf(&mut buf).unwrap();
+        AuthenticationTicketAcceptedMessage.as_packet_with_buf(&mut buf).unwrap();
 
         BasicTimeMessage {
             timestamp: (time::get_time().sec * 1000) as f64,
@@ -106,8 +102,8 @@ impl Session {
 
         AccountCapabilitiesMessage {
             tutorial_available: Flag(false),
-            can_create_new_character: Flag(self.characters.len() < 5),
-            account_id: self.account.as_ref().unwrap().id,
+            can_create_new_character: Flag(characters.len() < 5),
+            account_id: data.id,
             breeds_visible: -1,
             breeds_available: -1,
             status: 0,
@@ -119,25 +115,28 @@ impl Session {
         }.as_packet_with_buf(&mut buf).unwrap();
 
         write!(SERVER, self.base.token, buf);
+
+        self.account = Some(data);
+        self.state = GameState::CharacterSelection(characters);
     }
 
     pub fn handle_authentication_ticket<'a>(&mut self, _: Ref<'a>,
         mut data: Cursor<Vec<u8>>) -> io::Result<()> {
 
-        if self.account.is_some() || !self.queue_state.is_none() {
+        if !self.state.is_none() {
             return Ok(());
         }
 
         let msg = try!(AuthenticationTicketMessage::deserialize(&mut data));
 
         let ticket = msg.ticket;
-        let server_id = SERVER.with(|s| s.cnf.server_id);
-        let io_loop = SERVER.with(|s| s.io_loop.clone());
-        let server = SERVER.with(|s| s.server.clone());
+        let (server_id, io_loop, server) = SERVER.with(|s| {
+            (s.cnf.server_id, s.io_loop.clone(), s.server.clone())
+        });
         let token = self.base.token;
         let addr = self.base.address.clone();
 
-        self.queue_state = QueueState::SomeTicket(QUEUE_SIZE.fetch_add(1, Ordering::Relaxed)
+        self.state = GameState::TicketQueue(QUEUE_SIZE.fetch_add(1, Ordering::Relaxed)
             + 1, QUEUE_COUNTER.load(Ordering::Relaxed));
 
         SERVER.with(|s| database::execute(&s.auth_db, move |conn| {

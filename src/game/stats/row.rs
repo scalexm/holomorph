@@ -29,6 +29,10 @@ impl Row {
         }
     }
 
+    pub fn get(&self, field: Field) -> i16 {
+        self.fields[&field] as i16
+    }
+
     pub fn total(&self) -> i16 {
         (self.fields[&Field::Base] as i16)
             + (self.fields[&Field::Additionnal] as i16)

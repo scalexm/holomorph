@@ -52,7 +52,7 @@ impl Session {
 
         write!(SERVER, self.base.token, buf);
 
-        chunk.eventually(|chunk| chunk.impl_.connected = true);
+        chunk.connected = true;
         Ok(())
     }
 }

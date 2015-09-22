@@ -1,9 +1,27 @@
+macro_rules! get_mut_character {
+    ($ch: ident, $chunk: ident) => {
+        $chunk.maps
+            .get_mut(&$ch.map_id).unwrap()
+            .get_mut_actor($ch.id).unwrap()
+            .as_mut_character()
+    };
+}
+
+macro_rules! get_character {
+    ($ch: ident, $chunk: ident) => {
+        $chunk.maps
+            .get(&$ch.map_id).unwrap()
+            .get_actor($ch.id).unwrap()
+            .as_character()
+    };
+}
+
 mod approach;
 mod character;
 mod friend;
 mod context;
 
-use super::{Session, QueueState};
+use super::{Session, GameState};
 use super::chunk::{ChunkImpl, Ref};
 use shared::session::{self, SessionBase};
 use shared::protocol::*;
@@ -14,8 +32,9 @@ use std::io::{self, Cursor};
 use std::sync::atomic::Ordering;
 use shared::database;
 use postgres::{self, Connection};
-use std::collections::HashMap;
 use server::SERVER;
+use character::Character;
+use std::mem;
 
 impl session::Session<ChunkImpl> for Session {
     fn new(base: SessionBase) -> Self {
@@ -30,10 +49,8 @@ impl session::Session<ChunkImpl> for Session {
 
         Session {
             base: base,
-            queue_state: QueueState::None,
             account: None,
-            characters: HashMap::new(),
-            current_character: None,
+            state: GameState::None,
         }
     }
 
@@ -49,41 +66,61 @@ impl session::Session<ChunkImpl> for Session {
             4001 => Session::handle_friends_get_list,
             5676 => Session::handle_ignored_get_list,
             950 => Session::handle_game_map_movement_request,
+            952 => Session::handle_game_map_movement_confirm,
+            953 => Session::handle_game_map_movement_cancel,
             221 => Session::handle_change_map,
             _ => Session::unhandled,
         }
     }
 
-    fn close<'a>(self, _: Ref<'a>) {
-        SERVER.with(|s| database::execute(&s.auth_db, move |conn| {
-            if let Err(err) = self.save_auth(conn) {
-                error!("error while saving session to auth db: {:?}", err);
-            }
-        }));
+    fn close<'a>(mut self, mut chunk: Ref<'a>) {
+        if let Some(account) = self.account.as_ref() {
+            let id = account.id;
+
+            SERVER.with(|s| database::execute(&s.auth_db, move |conn| {
+                if let Err(err) = Session::save_auth(id, conn) {
+                    error!("error while saving session to auth db: {:?}", err);
+                }
+            }));
+        }
+
+        let state = mem::replace(&mut self.state, GameState::None);
+        if let GameState::InContext(ch) = state {
+            let map_id = ch.map_id;
+            let ch = chunk.maps.get_mut(&ch.map_id).unwrap()
+                .remove_actor(ch.id).unwrap()
+                .into_character();
+
+            SERVER.with(|s| database::execute(&s.db, move |conn| {
+                if let Err(err) = self.save_game(conn, ch, map_id) {
+                    error!("error while saving session to game db: {:?}", err);
+                }
+            }));
+        }
     }
 }
 
 impl Session {
     pub fn update_queue(&self) {
-        let (QUEUE_SIZE, QUEUE_COUNTER) = match self.queue_state {
-            QueueState::SomeTicket(..) => {
+        let (QUEUE_SIZE, QUEUE_COUNTER) = match self.state {
+            GameState::TicketQueue(..) => {
                 use self::approach::{QUEUE_COUNTER, QUEUE_SIZE};
                 (QUEUE_COUNTER.load(Ordering::Relaxed),
                     QUEUE_SIZE.load(Ordering::Relaxed))
             }
 
-            QueueState::SomeGame(..) => {
+            GameState::GameQueue(..) => {
                 use self::character::{QUEUE_COUNTER, QUEUE_SIZE};
                 (QUEUE_COUNTER.load(Ordering::Relaxed),
                     QUEUE_SIZE.load(Ordering::Relaxed))
             }
 
-            QueueState::None => return (),
+            _ => return (),
         };
 
-        let (queue_size, queue_counter) = match self.queue_state {
-            QueueState::SomeTicket(qs, qc) | QueueState::SomeGame(qs, qc) => (qs, qc),
-            QueueState::None => unreachable!(),
+        let (queue_size, queue_counter) = match self.state {
+            GameState::TicketQueue(qs, qc) | GameState::GameQueue(qs, qc) => (qs, qc),
+            _ => unreachable!(),
         };
 
         let mut pos = queue_size - (QUEUE_COUNTER - queue_counter);
@@ -100,16 +137,18 @@ impl Session {
         write!(SERVER, self.base.token, buf);
     }
 
-    fn save_auth(&self, conn: &mut Connection) -> postgres::Result<()> {
-        let account = match self.account.as_ref() {
-            Some(account) => account,
-            None => return Ok(()),
-        };
-
+    fn save_auth(id: i32, conn: &mut Connection) -> postgres::Result<()> {
         let stmt = try!(conn.prepare_cached("UPDATE accounts SET logged = 0
             WHERE id = $1"));
-        try!(stmt.execute(&[&account.id]));
-
+        let _ = try!(stmt.execute(&[&id]));
         Ok(())
+    }
+
+    fn save_game(&self, conn: &mut Connection, ch: Character, map: i32)
+        -> postgres::Result<()> {
+
+        let trans = try!(conn.transaction());
+        try!(ch.save(&trans, map));
+        trans.commit()
     }
 }
