@@ -5,7 +5,7 @@ use shared::protocol::holomorph::*;
 use shared;
 use shared::session::{self, SessionBase};
 use std::io::{self, Cursor};
-use server::SERVER;
+use server::{self, SERVER};
 
 impl session::Session<ChunkImpl> for Session {
     fn new(base: SessionBase) -> Self {
@@ -19,6 +19,7 @@ impl session::Session<ChunkImpl> for Session {
 
         match id {
             1 => Session::handle_hello,
+            4 => Session::handle_disconnect_player,
             _ => Session::unhandled,
         }
     }
@@ -33,13 +34,7 @@ impl Session {
     fn handle_hello<'a>(&mut self, mut chunk: Ref<'a>, mut data: Cursor<Vec<u8>>)
         -> io::Result<()> {
 
-        if chunk.connected {
-            close!(SERVER, self.base.token);
-            return Ok(());
-        }
-
         let msg = try!(HelloMessage::deserialize(&mut data));
-
         let md5_key = SERVER.with(|s| shared::compute_md5(&s.cnf.server_key));
 
         let buf = IdentificationMessage {
@@ -53,6 +48,15 @@ impl Session {
         write!(SERVER, self.base.token, buf);
 
         chunk.connected = true;
+        Ok(())
+    }
+
+    pub fn handle_disconnect_player<'a>(&mut self, chunk: Ref<'a>, mut data: Cursor<Vec<u8>>)
+        -> io::Result<()> {
+
+        let msg = try!(DisconnectPlayerMessage::deserialize(&mut data));
+        SERVER.with(|s| server::disconnect_player(&s.server, msg.id));
+
         Ok(())
     }
 }

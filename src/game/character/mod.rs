@@ -72,6 +72,10 @@ impl CharacterMinimal {
         self.id
     }
 
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     pub fn account_id(&self) -> i32 {
         self.account_id
     }

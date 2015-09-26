@@ -131,3 +131,11 @@ pub fn character_selection_success<F>(sender: &Sender, tok: Token, ch_id: i32,
         server.base.session_callback(tok, move |session, mut chunk| job(session, &mut *chunk))
     });
 }
+
+pub fn disconnect_player(sender: &Sender, id: i32) {
+    chunk::send(sender, move |server| {
+        if let Some(tok) = server.base.session_ids.get(&id) {
+            close!(SERVER, *tok);
+        }
+    });
+}

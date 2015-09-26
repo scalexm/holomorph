@@ -35,3 +35,17 @@ pub mod server_connection_error {
     pub const SUBSCRIBERS_ONLY: i8 = 5;
     pub const REGULAR_PLAYERS_ONLY: i8 = 6;
 }
+
+pub mod chat_channels_multi {
+    pub const GLOBAL: i8 = 0;
+    pub const TEAM: i8 = 1;
+    pub const GUILD: i8 = 2;
+    pub const ALLIANCE: i8 = 3;
+    pub const PARTY: i8 = 4;
+    pub const SALES: i8 = 5;
+    pub const SEEK: i8 = 6;
+    pub const NOOB: i8 = 7;
+    pub const ADMIN: i8 = 8;
+    pub const ADS: i8 = 12;
+    pub const ARENA: i8 = 13;
+}

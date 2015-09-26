@@ -1,7 +1,7 @@
 use std::io::{Read, Write};
 use io::Result;
 use protocol::*;
- use protocol::variants::ObjectEffectVariant; use protocol::messages::game::inventory::exchanges::ExchangeObjectMessage; use protocol::types::game::data::items::GoldItem; use protocol::types::game::data::items::ObjectItemQuantity; use protocol::types::game::data::items::ObjectItem; use protocol::types::game::inventory::preset::Preset;
+ use protocol::types::game::inventory::preset::IdolsPreset; use protocol::variants::ObjectEffectVariant; use protocol::messages::game::inventory::exchanges::ExchangeObjectMessage; use protocol::types::game::data::items::GoldItem; use protocol::types::game::data::items::ObjectItemQuantity; use protocol::types::game::data::items::ObjectItem; use protocol::types::game::inventory::preset::Preset;
 impl_type!(ExchangeKamaModifiedMessage, 5521, base| ExchangeObjectMessage, quantity| VarInt);
 impl_type!(ExchangeMultiCraftCrafterCanUseHisRessourcesMessage, 6020, allowed| bool);
 impl_type!(ExchangeMultiCraftSetCrafterCanUseHisRessourcesMessage, 6021, allow| bool);
@@ -13,7 +13,7 @@ impl_type!(ExchangeObjectRemovedMessage, 5517, base| ExchangeObjectMessage, obje
 impl_type!(ExchangeObjectsModifiedMessage, 6533, base| ExchangeObjectMessage, object| Vec<ObjectItem>);
 impl_type!(ExchangeObjectsRemovedMessage, 6532, base| ExchangeObjectMessage, object_uid| Vec<VarInt>);
 impl_type!(GoldAddedMessage, 6030, gold| GoldItem);
-impl_type!(InventoryContentAndPresetMessage, 6162, base| InventoryContentMessage, presets| Vec<Preset>);
+impl_type!(InventoryContentAndPresetMessage, 6162, base| InventoryContentMessage, presets| Vec<Preset>, idols_presets| Vec<IdolsPreset>);
 impl_type!(InventoryContentMessage, 3016, objects| Vec<ObjectItem>, kamas| VarInt);
 impl_type!(InventoryWeightMessage, 3009, weight| VarInt, weight_max| VarInt);
 impl_type!(LivingObjectChangeSkinRequestMessage, 5725, living_uid| VarInt, living_position| i8, skin_id| VarInt);

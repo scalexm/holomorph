@@ -1,6 +1,25 @@
 use postgres::rows::Row;
 use std::collections::HashMap;
 
+fn init_grid() -> Vec<(i8, i8)> {
+    let mut cells = Vec::new();
+    let mut loc1 = 0;
+	let mut loc2 = 0;
+	for loc5 in 0..20 {
+		for loc4 in 0..14 {
+            cells.push((loc1 + loc4, loc2 + loc4));
+		}
+		loc1 += 1;
+		for loc4 in 0..14 {
+            cells.push((loc1 + loc4, loc2 + loc4));
+		}
+		loc2 += 1;
+	}
+    cells
+}
+
+lazy_static! { pub static ref GRID: Vec<(i8, i8)> = init_grid(); }
+
 pub struct MapData {
     id: i32,
     pos_x: i16,
@@ -13,8 +32,16 @@ pub struct MapData {
     top: i32,
     bottom: i32,
     cells: Vec<u8>,
-    bad: bool,
-    relative: i32,
+
+    client_left: i32,
+    client_right: i32,
+    client_top: i32,
+    client_bottom: i32,
+
+    custom_left_cell: i16,
+    custom_right_cell: i16,
+    custom_top_cell: i16,
+    custom_bottom_cell: i16,
 }
 
 impl MapData {
@@ -45,17 +72,17 @@ impl MapData {
             top: row.get("top"),
             bottom: row.get("bottom"),
             cells: cells,
-            bad: row.get("bad"),
-            relative: row.get("relative"),
+
+            client_left: row.get("client_left"),
+            client_right: row.get("client_right"),
+            client_top: row.get("client_top"),
+            client_bottom: row.get("client_bottom"),
+
+            custom_left_cell: row.get("custom_left_cell"),
+            custom_right_cell: row.get("custom_right_cell"),
+            custom_top_cell: row.get("custom_top_cell"),
+            custom_bottom_cell: row.get("custom_bottom_cell"),
         })
-    }
-
-    pub fn is_bad(&self) -> bool {
-        self.bad
-    }
-
-    pub fn relative(&self) -> i32 {
-        self.relative
     }
 
     pub fn id(&self) -> i32 {
@@ -68,11 +95,15 @@ impl MapData {
 
     pub fn get_free_cell(&self) -> Option<i16> {
         for i in 0..560 {
-            if self.cells[i * 2] >> 7 != 1 {
+            if self.cells[i * 2] & 1 == 1 {
                 return Some(i as i16)
             }
         }
         None
+    }
+
+    pub fn get_cell_data(&self, cell: i16) -> (u8, u8) {
+        (self.cells[(cell * 2) as usize], self.cells[(cell * 2 + 1) as usize])
     }
 
     pub fn left(&self) -> i32 {
@@ -89,6 +120,38 @@ impl MapData {
 
     pub fn bottom(&self) -> i32 {
         self.bottom
+    }
+
+    pub fn client_left(&self) -> i32 {
+        self.client_left
+    }
+
+    pub fn client_right(&self) -> i32 {
+        self.client_right
+    }
+
+    pub fn client_top(&self) -> i32 {
+        self.client_top
+    }
+
+    pub fn client_bottom(&self) -> i32 {
+        self.client_bottom
+    }
+
+    pub fn custom_left_cell(&self) -> i16 {
+        self.custom_left_cell
+    }
+
+    pub fn custom_right_cell(&self) -> i16 {
+        self.custom_right_cell
+    }
+
+    pub fn custom_top_cell(&self) -> i16 {
+        self.custom_top_cell
+    }
+
+    pub fn custom_bottom_cell(&self) -> i16 {
+        self.custom_bottom_cell
     }
 }
 

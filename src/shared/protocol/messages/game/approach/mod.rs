@@ -10,7 +10,7 @@ impl_type!(AuthenticationTicketMessage, 110, lang| String, ticket| String);
 impl_type!(AuthenticationTicketRefusedMessage, 112);
 impl_type!(HelloGameMessage, 101);
 impl_type!(ReloginTokenRequestMessage, 6540);
-impl_type!(ReloginTokenStatusMessage, 6539, valid_token| bool, token| String);
+impl_type!(ReloginTokenStatusMessage, 6539, valid_token| bool, ticket| VarIntVec<u8>);
 impl_type!(ServerOptionalFeaturesMessage, 6305, features| Vec<u8>);
 impl_type!(ServerSessionConstantsMessage, 6434, variables| Vec<ServerSessionConstantVariant>);
 impl_type!(ServerSettingsMessage, 6340, lang| String, community| i8, game_type| i8);

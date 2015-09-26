@@ -158,19 +158,55 @@ impl Session {
         let msg = try!(ChangeMapMessage::deserialize(&mut data));
         let cell = get_character!(ch, chunk).cell_id();
 
-        let new_cell = SERVER.with(|s| {
+        let new_pos = SERVER.with(|s| {
             let map = s.maps.get(&ch.map_id).unwrap();
-            match msg.map_id {
-                id if id == map.left() => Some(cell + 13),
-                id if id == map.right() => Some(cell - 13),
-                id if id == map.bottom() => Some(cell - 532),
-                id if id == map.top() => Some(cell + 532),
-                _ => None,
+            let (_, change_data) = map.get_cell_data(cell);
+
+            if change_data == 0 {
+                return None;
             }
+
+            let id = msg.map_id;
+            let offset = match cell {
+                0 | 14 => if id == map.client_top() { 64 } else { 16 },
+                545 | 559 => if id == map.client_bottom() { 4 } else { 1 },
+
+                1 ... 14 | 15 ... 27 => 64,
+                533 ... 545 | 546 ... 559 => 4,
+                _ if cell % 14 == 0 => 16,
+                _ if (cell + 1) % 14 == 0 => 1,
+
+                _ => return None,
+            };
+
+            let (new_map, cell_add, cell_add_left, cell_add_right, custom_cell) = match offset {
+                1 => (map.right(), -13, 1, -27, map.custom_right_cell()),
+                4 => (map.bottom(), -532, -545, -546, map.custom_bottom_cell()),
+                16 => (map.left(), 13, -1, 27, map.custom_left_cell()),
+                64 => (map.top(), 532, 546, 545, map.custom_top_cell()),
+                _ => unreachable!(),
+            };
+
+            if custom_cell >= 0 && custom_cell <= 559 {
+                return Some((new_map, custom_cell));
+            }
+
+            let left_offset = 2 * offset;
+            let right_offset = offset / 2 + if offset == 1 { 128 } else { 0 };
+
+            Some((new_map, cell + if change_data & offset == offset {
+                cell_add
+            } else if change_data & right_offset == right_offset {
+                cell_add_right
+            } else if change_data & left_offset == left_offset {
+                cell_add_left
+            } else {
+                return None
+            }))
         });
 
-        if let Some(new_cell) = new_cell {
-            let _ = chunk::teleport(chunk, ch, msg.map_id, new_cell);
+        if let Some((new_map, new_cell)) = new_pos {
+            chunk::teleport(chunk, ch, new_map, new_cell);
         }
 
         Ok(())

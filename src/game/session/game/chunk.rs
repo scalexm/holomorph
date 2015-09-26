@@ -1,6 +1,6 @@
 use shared::chunk;
 use shared::session;
-use super::{Session, CharacterRef};
+use super::{Session, CharacterRef, GameState};
 use map::{Actor, Map};
 use std::collections::{HashSet, HashMap};
 use server::data::GameServerData;
@@ -86,36 +86,47 @@ pub fn teleport_character(chunk: &mut Chunk, mut ch: Character, map_id: i32, cel
     })
 }
 
-pub fn teleport<'a>(mut chunk: Ref<'a>, ch_ref: &mut CharacterRef, mut map_id: i32, cell_id: i16)
-    -> bool {
+pub fn teleport<'a>(mut chunk: Ref<'a>, ch_ref: &mut CharacterRef, map_id: i32,
+    cell_id: i16) {
 
     let ch = {
         let map = chunk.maps.get_mut(&ch_ref.map_id).unwrap();
 
         if ch_ref.map_id == map_id {
-            return map.teleport(ch_ref.id, cell_id);
+            map.teleport(ch_ref.id, cell_id);
+            return ();
         }
 
-        if !SERVER.with(|s| {
-            if let Some(map_data) = s.maps.get(&map_id) {
-                if map_data.is_bad() {
-                    map_id = map_data.relative();
-                }
-                return true;
-            }
-            false
-        }) {
-
-            return false;
+        if !SERVER.with(|s| s.maps.contains_key(&map_id)) {
+            return ();
         }
 
         match map.remove_actor(ch_ref.id).map(|ch| ch.into_character()) {
             Some(ch) => ch,
-            None => return false,
+            None => return (),
         }
     };
 
     ch_ref.map_id = map_id;
     chunk.eventually(move |chunk| teleport_character(chunk, ch, map_id, cell_id));
-    true
+}
+
+pub fn send_to_area(chunk: &Chunk, area_id: i16, buf: Vec<u8>) {
+    for s in chunk.sessions.values() {
+        if let GameState::InContext(ref ch) = s.state {
+            if chunk.impl_.maps.get(&ch.map_id).unwrap().area_id() == area_id {
+                let buf = buf.clone();
+                write!(SERVER, s.base.token, buf);
+            }
+        }
+    }
+}
+
+pub fn send_to_all(chunk: &Chunk, buf: Vec<u8>) {
+    for s in chunk.sessions.values() {
+        if let GameState::InContext(..) = s.state {
+            let buf = buf.clone();
+            write!(SERVER, s.base.token, buf);
+        }
+    }
 }

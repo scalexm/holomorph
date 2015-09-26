@@ -1,8 +1,8 @@
 use std::io::{Read, Write};
 use io::Result;
 use protocol::*;
- use protocol::variants::CharacterMinimalPlusLookInformationsVariant; use protocol::variants::PrismInformationVariant; use protocol::types::game::context::roleplay::AllianceInformations; use protocol::types::game::fight::ProtectedEntityWaitingForHelpInfo;
-impl_type!(AllianceInsiderPrismInformation, 431, base| PrismInformation, last_time_slot_modification_date| i32, last_time_slot_modification_author_guild_id| VarInt, last_time_slot_modification_author_id| VarInt, last_time_slot_modification_author_name| String, modules_item_ids| Vec<VarInt>);
+ use protocol::variants::CharacterMinimalPlusLookInformationsVariant; use protocol::types::game::data::items::ObjectItem; use protocol::variants::PrismInformationVariant; use protocol::types::game::context::roleplay::AllianceInformations; use protocol::types::game::fight::ProtectedEntityWaitingForHelpInfo;
+impl_type!(AllianceInsiderPrismInformation, 431, base| PrismInformation, last_time_slot_modification_date| i32, last_time_slot_modification_author_guild_id| VarInt, last_time_slot_modification_author_id| VarInt, last_time_slot_modification_author_name| String, modules_objects| Vec<ObjectItem>);
 impl_type!(AlliancePrismInformation, 427, base| PrismInformation, alliance| AllianceInformations);
 impl_type!(PrismFightersInformation, 443, sub_area_id| VarShort, waiting_for_help_info| ProtectedEntityWaitingForHelpInfo, ally_characters_informations| Vec<CharacterMinimalPlusLookInformationsVariant>, enemy_characters_informations| Vec<CharacterMinimalPlusLookInformationsVariant>);
 impl_type!(PrismGeolocalizedInformation, 434, base| PrismSubareaEmptyInfo, world_x| i16, world_y| i16, map_id| i32, prism| PrismInformationVariant);

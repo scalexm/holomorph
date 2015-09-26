@@ -1,3 +1,21 @@
+macro_rules! get_mut_character {
+    ($ch: ident, $chunk: ident) => {
+        $chunk.maps
+            .get_mut(&$ch.map_id).unwrap()
+            .get_mut_actor($ch.id).unwrap()
+            .as_mut_character()
+    };
+}
+
+macro_rules! get_character {
+    ($ch: ident, $chunk: ident) => {
+        $chunk.maps
+            .get(&$ch.map_id).unwrap()
+            .get_actor($ch.id).unwrap()
+            .as_character()
+    };
+}
+
 pub mod chunk;
 mod handlers;
 
@@ -50,4 +68,7 @@ pub struct Session {
     base: SessionBase,
     account: Option<AccountData>,
     state: GameState,
+
+    last_sales_chat_request: i64,
+    last_seek_chat_request: i64,
 }

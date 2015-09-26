@@ -1,25 +1,9 @@
-macro_rules! get_mut_character {
-    ($ch: ident, $chunk: ident) => {
-        $chunk.maps
-            .get_mut(&$ch.map_id).unwrap()
-            .get_mut_actor($ch.id).unwrap()
-            .as_mut_character()
-    };
-}
-
-macro_rules! get_character {
-    ($ch: ident, $chunk: ident) => {
-        $chunk.maps
-            .get(&$ch.map_id).unwrap()
-            .get_actor($ch.id).unwrap()
-            .as_character()
-    };
-}
-
 mod approach;
 mod character;
 mod friend;
 mod context;
+mod chat;
+mod authorized;
 
 use super::{Session, GameState};
 use super::chunk::{ChunkImpl, Ref};
@@ -51,6 +35,9 @@ impl session::Session<ChunkImpl> for Session {
             base: base,
             account: None,
             state: GameState::None,
+
+            last_sales_chat_request: 0,
+            last_seek_chat_request: 0,
         }
     }
 
@@ -59,16 +46,26 @@ impl session::Session<ChunkImpl> for Session {
 
         match id {
             110 => Session::handle_authentication_ticket,
+
             150 => Session::handle_characters_list_request,
             152 => Session::handle_character_selection,
-            250 => Session::handle_game_context_create_request,
-            225 => Session::handle_map_informations_request,
+
             4001 => Session::handle_friends_get_list,
             5676 => Session::handle_ignored_get_list,
+
+            250 => Session::handle_game_context_create_request,
+            225 => Session::handle_map_informations_request,
+
             950 => Session::handle_game_map_movement_request,
             952 => Session::handle_game_map_movement_confirm,
             953 => Session::handle_game_map_movement_cancel,
             221 => Session::handle_change_map,
+
+            861 => Session::handle_chat_client_multi,
+            862 => Session::handle_chat_client_multi_with_object,
+
+            5662 => Session::handle_admin_quiet_command_message,
+
             _ => Session::unhandled,
         }
     }

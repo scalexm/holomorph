@@ -14,6 +14,7 @@ impl_type!(JobCrafterDirectoryRemoveMessage, 5653, job_id| i8, player_id| VarInt
 impl_type!(JobCrafterDirectorySettingsMessage, 5652, crafters_settings| Vec<JobCrafterDirectorySettings>);
 impl_type!(JobDescriptionMessage, 5655, jobs_description| Vec<JobDescription>);
 impl_type!(JobExperienceMultiUpdateMessage, 5809, experiences_update| Vec<JobExperience>);
+impl_type!(JobExperienceOtherPlayerUpdateMessage, 6599, base| JobExperienceUpdateMessage, player_id| VarInt);
 impl_type!(JobExperienceUpdateMessage, 5654, experiences_update| JobExperience);
 impl_type!(JobLevelUpMessage, 5656, new_level| i8, jobs_description| JobDescription);
 impl_type!(JobMultiCraftAvailableSkillsMessage, 5747, base| JobAllowMultiCraftRequestMessage, player_id| VarInt, skills| Vec<VarShort>);

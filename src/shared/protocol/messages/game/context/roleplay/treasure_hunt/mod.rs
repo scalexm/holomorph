@@ -1,7 +1,7 @@
 use std::io::{Read, Write};
 use io::Result;
 use protocol::*;
- use protocol::variants::TreasureHuntStepVariant; use protocol::types::game::context::roleplay::treasure_hunt::TreasureHuntFlag;
+use protocol::types::game::context::roleplay::treasure_hunt::TreasureHuntFlag;  use protocol::variants::TreasureHuntStepVariant;
 impl_type!(PortalUseRequestMessage, 6492, portal_id| VarInt);
 impl_type!(TreasureHuntAvailableRetryCountUpdateMessage, 6491, quest_type| i8, available_retry_count| i32);
 impl_type!(TreasureHuntDigRequestAnswerFailedMessage, 6509, base| TreasureHuntDigRequestAnswerMessage, wrong_flag_count| i8);

@@ -8,6 +8,11 @@ sub from_camel_case($str is rw) {
     $str ~~ s / 'NPC' /Npc/;
     $str ~~ s:g / (<:Lu>) /_$0/;
     $str.= lc;
+
+    if $str.starts-with("_") {
+        $str = substr($str, 1);
+    }
+    return $str;
 }
 
 sub get_type($type) {

@@ -14,7 +14,7 @@ impl_type!(BasicGuildInformations, 365, base| AbstractSocialGroupInfos, guild_id
 impl_type!(BasicNamedAllianceInformations, 418, base| BasicAllianceInformations, alliance_name| String);
 impl_type!(GameRolePlayActorInformations, 141, base| GameContextActorInformations);
 impl_type!(GameRolePlayCharacterInformations, 36, base| GameRolePlayHumanoidInformations, alignment_infos| ActorAlignmentInformations);
-impl_type!(GameRolePlayGroupMonsterInformations, 160, base| GameRolePlayActorInformations, key_ring_bonus| Flag, has_hardcore_drop| Flag, has_ava_reward_token| Flag, static_infos| GroupMonsterStaticInformationsVariant, age_bonus| i16, loot_share| i8, alignment_side| i8);
+impl_type!(GameRolePlayGroupMonsterInformations, 160, base| GameRolePlayActorInformations, key_ring_bonus| Flag, has_hardcore_drop| Flag, has_ava_reward_token| Flag, static_infos| GroupMonsterStaticInformationsVariant, creation_time| f64, age_bonus_rate| i32, loot_share| i8, alignment_side| i8);
 impl_type!(GameRolePlayGroupMonsterWaveInformations, 464, base| GameRolePlayGroupMonsterInformations, nb_waves| i8, alternatives| Vec<GroupMonsterStaticInformationsVariant>);
 impl_type!(GameRolePlayHumanoidInformations, 159, base| GameRolePlayNamedActorInformations, humanoid_info| HumanInformationsVariant, account_id| i32);
 impl_type!(GameRolePlayMerchantInformations, 129, base| GameRolePlayNamedActorInformations, sell_type| i8, options| Vec<HumanOptionVariant>);

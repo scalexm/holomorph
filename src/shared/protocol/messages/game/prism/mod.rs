@@ -24,4 +24,4 @@ impl_type!(PrismsInfoValidMessage, 6451, fights| Vec<PrismFightersInformation>);
 impl_type!(PrismsListMessage, 6440, prisms| Vec<PrismSubareaEmptyInfoVariant>);
 impl_type!(PrismsListRegisterMessage, 6441, listen| i8);
 impl_type!(PrismsListUpdateMessage, 6438, base| PrismsListMessage);
-impl_type!(PrismUseRequestMessage, 6041);
+impl_type!(PrismUseRequestMessage, 6041, module_to_use| i8);

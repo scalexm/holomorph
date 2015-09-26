@@ -19,7 +19,6 @@ impl_type!(GameActionFightDropCharacterMessage, 5826, base| AbstractGameActionMe
 impl_type!(GameActionFightExchangePositionsMessage, 5527, base| AbstractGameActionMessage, target_id| i32, caster_cell_id| i16, target_cell_id| i16);
 impl_type!(GameActionFightInvisibilityMessage, 5821, base| AbstractGameActionMessage, target_id| i32, state| i8);
 impl_type!(GameActionFightInvisibleDetectedMessage, 6320, base| AbstractGameActionMessage, target_id| i32, cell_id| i16);
-impl_type!(GameActionFightInvisibleObstacleMessage, 5820, base| AbstractGameActionMessage, source_spell_id| VarInt);
 impl_type!(GameActionFightKillMessage, 5571, base| AbstractGameActionMessage, target_id| i32);
 impl_type!(GameActionFightLifeAndShieldPointsLostMessage, 6310, base| GameActionFightLifePointsLostMessage, shield_loss| VarShort);
 impl_type!(GameActionFightLifePointsGainMessage, 6311, base| AbstractGameActionMessage, target_id| i32, delta| VarInt);

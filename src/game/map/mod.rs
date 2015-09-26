@@ -99,6 +99,10 @@ impl Map {
         }
     }
 
+    pub fn area_id(&self) -> i16 {
+        self.area_id
+    }
+
     pub fn get_actor(&self, id: i32) -> Option<&Actor> {
         self.actors.get(&id)
     }
@@ -113,10 +117,7 @@ impl Map {
             informations: actor.as_actor(),
         }.as_packet().unwrap();
 
-        for ch in get_characters!(self) {
-            let buf = buf.clone();
-            write!(SERVER, ch.session(), buf);
-        }
+        self.send(buf);
         let _ = self.actors.insert(id, actor);
     }
 
@@ -127,10 +128,7 @@ impl Map {
                 id: actor.id(),
             }.as_packet().unwrap();
 
-            for ch in get_characters!(self) {
-                let buf = buf.clone();
-                write!(SERVER, ch.session(), buf);
-            }
+            self.send(buf);
         }
         actor
     }
@@ -145,10 +143,7 @@ impl Map {
             actor_id: id,
         }.as_packet().unwrap();
 
-        for ch in get_characters!(self) {
-            let buf = buf.clone();
-            write!(SERVER, ch.session(), buf);
-        }
+        self.send(buf);
     }
 
     pub fn end_move_actor(&self, id: i32) {
@@ -161,10 +156,7 @@ impl Map {
             actor_id: id,
         }.as_packet().unwrap();
 
-        for ch in get_characters!(self) {
-            let buf = buf.clone();
-            write!(SERVER, ch.session(), buf);
-        }
+        self.send(buf);
     }
 
     pub fn teleport(&mut self, id: i32, cell: i16) -> bool {
@@ -175,6 +167,13 @@ impl Map {
                 true
             },
             None => false,
+        }
+    }
+
+    pub fn send(&self, buf: Vec<u8>) {
+        for ch in get_characters!(self) {
+            let buf = buf.clone();
+            write!(SERVER, ch.session(), buf);
         }
     }
 }

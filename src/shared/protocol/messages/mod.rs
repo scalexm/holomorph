@@ -1,3 +1,4 @@
+pub mod wtf;
 pub mod web;
 pub mod updater;
 pub mod server;

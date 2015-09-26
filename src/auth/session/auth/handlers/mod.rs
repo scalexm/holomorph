@@ -85,6 +85,7 @@ impl Session {
 
         GameServerInformations {
             id: VarShort(server.id()),
+            type_: 0,
             status: status,
             completion: 0,
             is_selectable: status == server_status::ONLINE,
@@ -92,6 +93,7 @@ impl Session {
                 .character_counts
                 .get(&server.id())
                 .unwrap_or(&0),
+            characters_slots: 0,
             date: 0.,
         }
     }
