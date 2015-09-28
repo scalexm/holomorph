@@ -5,6 +5,8 @@ use std::collections::{HashSet, HashMap};
 use shared::net::{Token, SessionEvent};
 use shared::chunk;
 use shared::HashBiMap;
+use shared::protocol::*;
+use shared::protocol::messages::game::approach::AlreadyConnectedMessage;
 use eventual::Async;
 use character::CharacterMinimal;
 use self::data::GameServerData;
@@ -98,25 +100,26 @@ pub fn teleport<F>(sender: &Sender, tok: Token, area_id: i16, job: F)
 }
 
 pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32, job: F)
-    where F: FnOnce(&mut game::Session, bool, HashMap<i32, CharacterMinimal>)
+    where F: FnOnce(&mut game::Session, HashMap<i32, CharacterMinimal>)
     + Send + 'static {
 
     chunk::send(sender, move |server| {
-        let already = server.base.session_ids.contains_key(&id);
-        let mut characters = HashMap::new();
-
-        if !already {
-            let _ = server.base.session_ids.insert(id, tok);
-
-            characters = server.characters.iter().filter_map(|ch| {
-                if ch.1.account_id() == id {
-                    return Some((*ch.0, ch.1.clone()));
-                }
-                None
-            }).collect();
+        if server.base.session_ids.contains_key(&id) {
+            let buf = AlreadyConnectedMessage.as_packet().unwrap();
+            write_and_close!(SERVER, tok, buf);
+            return ();
         }
 
-        server.base.session_callback(tok, move |session, _| job(session, already, characters))
+        let _ = server.base.session_ids.insert(id, tok);
+
+        let characters = server.characters.iter().filter_map(|ch| {
+            if ch.1.account_id() == id {
+                return Some((*ch.0, ch.1.clone()));
+            }
+            None
+        }).collect();
+
+        server.base.session_callback(tok, move |session, _| job(session, characters))
     });
 }
 

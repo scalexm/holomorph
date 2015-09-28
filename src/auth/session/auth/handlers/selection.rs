@@ -28,8 +28,6 @@ impl Session {
     pub fn select_server(&self, chunk: &ChunkImpl, server_id: i16)
         -> Result<(), Error> {
 
-        use shared::net::Msg;
-
         let account = self.account.as_ref().unwrap();
 
         let status = match chunk.game_status.get(&server_id) {
@@ -52,6 +50,8 @@ impl Session {
         }
 
         let ticket: String = rand::thread_rng().gen_ascii_chars().take(32).collect();
+        log_info!(self, "server selection: server_id = {}, ticket = {}",
+            server_id, ticket);
         let mut result = Vec::new();
 
         {
@@ -66,8 +66,7 @@ impl Session {
                 let res = match cbc.encrypt(&mut read_buffer, &mut write_buffer, true) {
                     Ok(res) => res,
                     Err(err) => {
-                        // debug only because it means the key is malformed
-                        debug!("select_server cipher error: {:?}", err);
+                        log_err!(self, "ticket encryption failed: {:?}", err);
                         return Err(Error(server_connection_error::NO_REASON, status.0));
                     }
                 };
@@ -100,6 +99,7 @@ impl Session {
         let io_loop = SERVER.with(|s| s.io_loop.clone());
 
         SERVER.with(|s| database::execute(&s.db, move |conn| {
+            use shared::net::Msg;
             match update_ticket(conn, id, ticket) {
                 Ok(()) => {
                     // the client expects this socket shutdown

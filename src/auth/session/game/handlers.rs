@@ -78,13 +78,8 @@ impl Session {
         Ok(())
     }
 
-    fn identification_success(&mut self, server_id: Option<i16>) {
-        if server_id.is_none() {
-            close!(SERVER, self.base.token);
-            return ();
-        }
-
-        self.server_id = server_id;
+    fn identification_success(&mut self, server_id: i16) {
+        self.server_id = Some(server_id);
     }
 
     pub fn handle_state<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>)

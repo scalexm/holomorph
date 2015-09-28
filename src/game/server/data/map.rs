@@ -5,7 +5,7 @@ fn init_grid() -> Vec<(i8, i8)> {
     let mut cells = Vec::new();
     let mut loc1 = 0;
 	let mut loc2 = 0;
-	for loc5 in 0..20 {
+	for _ in 0..20 {
 		for loc4 in 0..14 {
             cells.push((loc1 + loc4, loc2 + loc4));
 		}

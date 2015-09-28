@@ -14,6 +14,7 @@ use super::chunk::{ChunkImpl, Ref};
 use std::io::{self, Cursor};
 use server::SERVER;
 use shared::protocol::enums::server_status;
+use shared::database;
 
 impl session::Session<ChunkImpl> for Session {
     fn new(base: SessionBase) -> Self {
@@ -50,7 +51,15 @@ impl session::Session<ChunkImpl> for Session {
         }
     }
 
-    fn close<'a>(self, _: Ref<'a>) { }
+    fn close<'a>(self, _: Ref<'a>) {
+        if let Some(id) = self.account.as_ref().map(|a| a.id) {
+            SERVER.with(|s| database::execute(&s.db, move |conn| {
+                if let Err(err) = self.base.save_logs(conn, id) {
+                    error!("error while saving logs: {:?}", err);
+                }
+            }));
+        }
+    }
 }
 
 impl Session {

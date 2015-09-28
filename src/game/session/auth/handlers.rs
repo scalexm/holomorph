@@ -51,7 +51,7 @@ impl Session {
         Ok(())
     }
 
-    pub fn handle_disconnect_player<'a>(&mut self, chunk: Ref<'a>, mut data: Cursor<Vec<u8>>)
+    pub fn handle_disconnect_player<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>)
         -> io::Result<()> {
 
         let msg = try!(DisconnectPlayerMessage::deserialize(&mut data));

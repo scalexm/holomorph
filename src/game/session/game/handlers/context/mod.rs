@@ -4,9 +4,11 @@ use shared::protocol::messages::game::context::{GameContextCreateMessage,
     GameContextDestroyMessage, GameMapMovementRequestMessage, GameMapMovementCancelMessage};
 use shared::protocol::*;
 use shared::protocol::messages::game::context::roleplay::*;
-use shared::protocol::messages::game::basic::BasicNoOperationMessage;
+use shared::protocol::messages::game::basic::{TextInformationMessage, BasicNoOperationMessage};
+use shared::protocol::enums::text_information_type;
 use std::io::{self, Cursor};
 use server::SERVER;
+use time;
 use std::mem;
 
 impl Session {
@@ -21,7 +23,7 @@ impl Session {
         let tok = self.base.token;
 
         if !SERVER.with(|s| s.maps.contains_key(&map_id)) {
-            error!("context_create: map not found {}", map_id);
+            log_err!(self, "context_create: map not found {}", map_id);
             close!(SERVER, tok);
             return Ok(());
         }
@@ -48,8 +50,33 @@ impl Session {
             context: 1,
         }.as_packet_with_buf(&mut buf).unwrap();
 
-        write!(SERVER, self.base.token, buf);
+        TextInformationMessage {
+            msg_type: text_information_type::ERROR,
+            msg_id: VarShort(89),
+            parameters: Vec::new(),
+        }.as_packet_with_buf(&mut buf).unwrap();
 
+        let last_connection = self.account.as_ref().unwrap().last_connection;
+        if last_connection != 0 {
+            let tm = time::at(time::Timespec {
+                sec: last_connection,
+                nsec: 0,
+            });
+
+            let mut minutes = tm.tm_min.to_string();
+            if tm.tm_min < 10 {
+                minutes = minutes + "0";
+            }
+            TextInformationMessage {
+                msg_type: text_information_type::MESSAGE,
+                msg_id: VarShort(152),
+                parameters: vec![(1900 + tm.tm_year).to_string(), (1 + tm.tm_mon).to_string(),
+                    tm.tm_mday.to_string(), tm.tm_hour.to_string(), minutes,
+                    self.account.as_ref().unwrap().last_ip.clone()],
+            }.as_packet_with_buf(&mut buf).unwrap();
+        }
+
+        write!(SERVER, self.base.token, buf);
         Ok(())
     }
 

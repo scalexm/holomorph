@@ -4,7 +4,7 @@ use shared::protocol::*;
 use shared::protocol::messages::game::chat::*;
 use shared::protocol::types::game::data::items::ObjectItem;
 use shared::protocol::messages::game::basic::TextInformationMessage;
-use shared::protocol::enums::chat_channels_multi;
+use shared::protocol::enums::{text_information_type, chat_channels_multi};
 use time;
 use std::io::{self, Cursor};
 use server::SERVER;
@@ -67,7 +67,7 @@ impl Session {
 
             if now < *last_request + 60 {
                 let buf = TextInformationMessage {
-                    msg_type: 0,
+                    msg_type: text_information_type::MESSAGE,
                     msg_id: VarShort(115),
                     parameters: vec![(*last_request + 60 - now).to_string()],
                 }.as_packet().unwrap();

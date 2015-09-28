@@ -67,6 +67,8 @@ impl Session {
     }
 
     fn character_selection_success(&mut self, _: &mut ChunkImpl, ch: Character, map_id: i32) {
+        log_info!(self, "selected character id = {}", ch.minimal().id());
+
         let mut buf = CharacterSelectedSuccessMessage {
             infos: ch.minimal().as_character_base(),
             is_collecting_stats: false,

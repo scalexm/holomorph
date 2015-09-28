@@ -71,9 +71,7 @@ impl session::Session<ChunkImpl> for Session {
     }
 
     fn close<'a>(mut self, mut chunk: Ref<'a>) {
-        if let Some(account) = self.account.as_ref() {
-            let id = account.id;
-
+        if let Some(id) = self.account.as_ref().map(|a| a.id) {
             SERVER.with(|s| database::execute(&s.auth_db, move |conn| {
                 if let Err(err) = Session::save_auth(id, conn) {
                     error!("error while saving session to auth db: {:?}", err);
@@ -89,6 +87,10 @@ impl session::Session<ChunkImpl> for Session {
                 .into_character();
 
             SERVER.with(|s| database::execute(&s.db, move |conn| {
+                if let Err(err) = self.base.save_logs(conn, ch.minimal().account_id()) {
+                    error!("error while saving logs: {:?}", err);
+                }
+
                 if let Err(err) = self.save_game(conn, ch, map_id) {
                     error!("error while saving session to game db: {:?}", err);
                 }

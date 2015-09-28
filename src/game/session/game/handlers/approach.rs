@@ -35,7 +35,7 @@ fn authenticate(conn: &mut Connection, ticket: String, server_id: i16, addr: Str
     let trans = try!(conn.transaction());
 
     let stmt = try!(trans.prepare_cached("SELECT id, nickname, secret_answer, level,
-        subscription_end, last_connection_date, last_ip FROM accounts WHERE ticket = $1"));
+        subscription_end FROM accounts WHERE ticket = $1"));
     let rows = try!(stmt.query(&[&ticket]));
 
     if rows.len() == 0 {
@@ -43,12 +43,26 @@ fn authenticate(conn: &mut Connection, ticket: String, server_id: i16, addr: Str
     }
 
     let row = rows.get(0);
-
     let id: i32 = try!(row.get_opt("id"));
 
     let stmt = try!(trans.prepare_cached("UPDATE accounts SET logged = $1,
-        last_server = $1, last_connection_date = $2, last_ip = $3 WHERE id = $4"));
-    try!(stmt.execute(&[&server_id, &time::get_time().sec, &addr, &id]));
+        last_server = $1 WHERE id = $2"));
+    try!(stmt.execute(&[&server_id, &id]));
+
+    let stmt = try!(trans.prepare_cached("SELECT date, ip FROM connections_history
+        WHERE id = $1 ORDER BY date DESC LIMIT 1"));
+    let rows = try!(stmt.query(&[&id]));
+
+    let (last_connection, last_ip) = if rows.len() == 0 {
+        (0, String::new())
+    } else {
+        let row = rows.get(0);
+        (try!(row.get_opt("date")), try!(row.get_opt("ip")))
+    };
+
+    let stmt = try!(trans.prepare_cached("INSERT INTO connections_history(id, date, ip)
+        VALUES($1, $2, $3)"));
+     try!(stmt.execute(&[&id, &time::get_time().sec, &addr]));
 
     try!(trans.commit());
 
@@ -59,25 +73,21 @@ fn authenticate(conn: &mut Connection, ticket: String, server_id: i16, addr: Str
         secret_answer: try!(row.get_opt("secret_answer")),
         level: level as i8,
         subscription_end: try!(row.get_opt("subscription_end")),
-        last_connection: try!(row.get_opt("last_connection_date")),
-        last_ip: try!(row.get_opt("last_ip")),
+        last_connection: last_connection,
+        last_ip: last_ip,
     })
 }
 
 impl Session {
-    fn identification_success(&mut self, data: AccountData, already_logged: bool,
+    fn identification_success(&mut self, data: AccountData,
         characters: HashMap<i32, CharacterMinimal>) {
+
+        log_info!(self, "game connection: ip = {}", self.base.address);
 
         let mut buf = QueueStatusMessage {
             position: 0,
             total: 0,
         }.as_packet().unwrap();
-
-        if already_logged {
-            AlreadyConnectedMessage.as_packet_with_buf(&mut buf).unwrap();
-            write!(SERVER, self.base.token, buf);
-            return ();
-        }
 
         AuthenticationTicketAcceptedMessage.as_packet_with_buf(&mut buf).unwrap();
 
@@ -153,8 +163,8 @@ impl Session {
                 Ok(data) => {
                     let id = data.id;
                     server::identification_success(&server, token, id,
-                        move |session, already, characters| {
-                            session.identification_success(data, already, characters)
+                        move |session, characters| {
+                            session.identification_success(data, characters)
                     });
                 }
             }

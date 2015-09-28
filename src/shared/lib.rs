@@ -10,6 +10,7 @@ extern crate postgres;
 extern crate rustc_serialize;
 extern crate crypto;
 extern crate eventual;
+extern crate time;
 
 pub mod net;
 pub mod io;

@@ -97,6 +97,10 @@ impl Session {
     fn identification_success(&mut self, chunk: &ChunkImpl, data: AccountData,
         already_logged: bool, auto_connect: bool) {
 
+        let already_logged = already_logged || data.already_logged != 0;
+        log_info!(self, "connection: ip = {}, already_logged = {}",
+            self.base.address, already_logged);
+
         self.queue_state = QueueState::None;
         self.account = Some(data);
         let data = self.account.as_ref().unwrap();
@@ -109,7 +113,7 @@ impl Session {
 
         IdentificationSuccessMessage {
             has_rights: Flag(data.level > 0),
-            was_already_connected: Flag(already_logged || data.already_logged != 0),
+            was_already_connected: Flag(already_logged),
             login: data.account.clone(),
             nickname: data.nickname.clone(),
             account_id: data.id,

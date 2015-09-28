@@ -111,19 +111,20 @@ pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32,
 
 pub fn register_game_server<F>(sender: &Sender, tok: Token, id: i16, state: i8,
     ip: String, port: i16, job: F)
-    where F: FnOnce(&mut game::Session, Option<i16>) + Send + 'static {
+    where F: FnOnce(&mut game::Session, i16) + Send + 'static {
 
     chunk::send(sender, move |server| {
-        let mut server_id = None;
-        if !server.game_session_ids.contains_key(&id) {
-            let _ = server.game_session_ids.insert(id, tok);
-            server.update_game_server(id, state, ip, port);
-            server_id = Some(id);
+        if server.game_session_ids.contains_key(&id) {
+            close!(SERVER, tok);
+            return ();
         }
+
+        let _ = server.game_session_ids.insert(id, tok);
+        server.update_game_server(id, state, ip, port);
 
         chunk::send(server.base.secondary_chunk.as_ref().unwrap(), move |chunk| {
             chunk.session_callback(tok, move |session, _| {
-                job(session, server_id)
+                job(session, id)
             });
         });
     });

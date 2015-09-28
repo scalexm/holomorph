@@ -49,3 +49,14 @@ pub mod chat_channels_multi {
     pub const ADS: i8 = 12;
     pub const ARENA: i8 = 13;
 }
+
+pub mod text_information_type {
+    pub const MESSAGE: i8 = 0;
+    pub const ERROR: i8 = 1;
+    pub const PVP: i8 = 2;
+    pub const FIGHT_LOG: i8 = 3;
+    pub const POPUP: i8 = 4;
+    pub const LIVING_OBJECT: i8 = 5;
+    pub const ENTITY_TALK: i8 = 6;
+    pub const FIGHT: i8 = 7;
+}
