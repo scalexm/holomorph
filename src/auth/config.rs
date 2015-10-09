@@ -1,4 +1,4 @@
-use shared::config;
+use shared;
 
 #[derive(RustcDecodable, RustcEncodable)]
 pub struct Config {
@@ -11,8 +11,8 @@ pub struct Config {
     pub database_threads: usize,
 }
 
-impl config::Config for Config {
-    fn default() -> Config {
+impl shared::config::Config for Config {
+    fn default() -> Self {
         Config {
             key_path: "dofus.key".to_string(),
             patch_path: "DofusPatch.swf".to_string(),

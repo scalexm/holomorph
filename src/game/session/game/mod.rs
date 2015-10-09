@@ -19,10 +19,11 @@ macro_rules! get_character {
 pub mod chunk;
 mod handlers;
 
-use std::collections::HashMap;
-use shared::session::SessionBase;
+use std::collections::{HashMap, HashSet};
+use shared;
 use time;
 use character::{Character, CharacterMinimal};
+use shared::protocol::variants::{FriendInformationsVariant, IgnoredInformationsVariant};
 
 pub struct CharacterRef {
     id: i32,
@@ -38,6 +39,8 @@ struct AccountData {
     subscription_end: i64,
     last_connection: i64,
     last_ip: String,
+    friends: HashSet<String>,
+    ignored: HashSet<String>,
 }
 
 impl AccountData {
@@ -65,10 +68,13 @@ impl GameState {
 }
 
 pub struct Session {
-    base: SessionBase,
+    base: shared::session::SessionBase,
     account: Option<AccountData>,
     state: GameState,
 
     last_sales_chat_request: i64,
     last_seek_chat_request: i64,
+
+    friends: HashMap<String, FriendInformationsVariant>,
+    ignored: HashMap<String, IgnoredInformationsVariant>,
 }

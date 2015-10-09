@@ -83,63 +83,63 @@ pub struct List {
 impl List {
     pub fn new() -> List {
         let rows = fill_stats!(Initiative,
-            Prospecting,
-            ActionPoints,
-            MovementPoints,
-            Strength,
-            Vitality,
-            Wisdom,
-            Chance,
-            Agility,
-            Intelligence,
-            Range,
-            SummonableCreaturesBoost,
-            Reflect,
-            CriticalHit,
-            CriticalMiss,
-            HealBonus,
-            AllDamagesBonus,
-            WeaponDamagesBonusPercent,
-            DamagesBonusPercent,
-            TrapBonus,
-            TrapBonusPercent,
-            GlyphBonusPercent,
-            PermanentDamagePercent,
-            TackleBlock,
-            TackleEvade,
-            PAAttack,
-            PMAttack,
-            PushDamageBonus,
-            CriticalDamageBonus,
-            NeutralDamageBonus,
-            EarthDamageBonus,
-            WaterDamageBonus,
-            AirDamageBonus,
-            FireDamageBonus,
-            DodgePALostProbability,
-            DodgePMLostProbability,
-            NeutralElementResistPercent,
-            EarthElementResistPercent,
-            WaterElementResistPercent,
-            AirElementResistPercent,
-            FireElementResistPercent,
-            NeutralElementReduction,
-            EarthElementReduction,
-            WaterElementReduction,
-            AirElementReduction,
-            FireElementReduction,
-            PushDamageReduction,
-            CriticalDamageReduction,
-            PvpNeutralElementResistPercent,
-            PvpEarthElementResistPercent,
-            PvpWaterElementResistPercent,
-            PvpAirElementResistPercent,
-            PvpFireElementResistPercent,
-            PvpNeutralElementReduction,
-            PvpEarthElementReduction,
-            PvpWaterElementReduction,
-            PvpAirElementReduction,
-            PvpFireElementReduction);
+                               Prospecting,
+                               ActionPoints,
+                               MovementPoints,
+                               Strength,
+                               Vitality,
+                               Wisdom,
+                               Chance,
+                               Agility,
+                               Intelligence,
+                               Range,
+                               SummonableCreaturesBoost,
+                               Reflect,
+                               CriticalHit,
+                               CriticalMiss,
+                               HealBonus,
+                               AllDamagesBonus,
+                               WeaponDamagesBonusPercent,
+                               DamagesBonusPercent,
+                               TrapBonus,
+                               TrapBonusPercent,
+                               GlyphBonusPercent,
+                               PermanentDamagePercent,
+                               TackleBlock,
+                               TackleEvade,
+                               PAAttack,
+                               PMAttack,
+                               PushDamageBonus,
+                               CriticalDamageBonus,
+                               NeutralDamageBonus,
+                               EarthDamageBonus,
+                               WaterDamageBonus,
+                               AirDamageBonus,
+                               FireDamageBonus,
+                               DodgePALostProbability,
+                               DodgePMLostProbability,
+                               NeutralElementResistPercent,
+                               EarthElementResistPercent,
+                               WaterElementResistPercent,
+                               AirElementResistPercent,
+                               FireElementResistPercent,
+                               NeutralElementReduction,
+                               EarthElementReduction,
+                               WaterElementReduction,
+                               AirElementReduction,
+                               FireElementReduction,
+                               PushDamageReduction,
+                               CriticalDamageReduction,
+                               PvpNeutralElementResistPercent,
+                               PvpEarthElementResistPercent,
+                               PvpWaterElementResistPercent,
+                               PvpAirElementResistPercent,
+                               PvpFireElementResistPercent,
+                               PvpNeutralElementReduction,
+                               PvpEarthElementReduction,
+                               PvpWaterElementReduction,
+                               PvpAirElementReduction,
+                               PvpFireElementReduction);
 
         List {
             rows: rows,
@@ -152,51 +152,51 @@ impl List {
             Type::Wisdom => {
                 let val = val / 10.;
                 self.rows.get_mut(&Type::DodgePALostProbability)
-                    .unwrap()
-                    .add(field, val);
+                         .unwrap()
+                         .add(field, val);
                 self.rows.get_mut(&Type::DodgePMLostProbability)
-                    .unwrap()
-                    .add(field, val);
+                         .unwrap()
+                         .add(field, val);
                 self.rows.get_mut(&Type::PAAttack)
-                    .unwrap()
-                    .add(field, val);
+                         .unwrap()
+                         .add(field, val);
                 self.rows.get_mut(&Type::PMAttack)
-                    .unwrap()
-                    .add(field, val);
+                         .unwrap()
+                         .add(field, val);
             }
 
             Type::Chance => {
                 self.rows.get_mut(&Type::Initiative)
-                    .unwrap()
-                    .add(field, val);
+                         .unwrap()
+                         .add(field, val);
                 self.rows.get_mut(&Type::Prospecting)
-                    .unwrap()
-                    .add(field, val / 10.);
+                         .unwrap()
+                         .add(field, val / 10.);
             }
 
             Type::Agility => {
                 self.rows.get_mut(&Type::Initiative)
-                    .unwrap()
-                    .add(field, val);
+                         .unwrap()
+                         .add(field, val);
                 let val = val / 10.;
                 self.rows.get_mut(&Type::TackleBlock)
-                    .unwrap()
-                    .add(field, val);
+                         .unwrap()
+                         .add(field, val);
                 self.rows.get_mut(&Type::TackleEvade)
-                    .unwrap()
-                    .add(field, val);
+                         .unwrap()
+                         .add(field, val);
             }
 
             Type::Intelligence => {
                 self.rows.get_mut(&Type::Initiative)
-                    .unwrap()
-                    .add(field, val);
+                         .unwrap()
+                         .add(field, val);
             }
 
             Type::Strength => {
                 self.rows.get_mut(&Type::Initiative)
-                    .unwrap()
-                    .add(field, val);
+                         .unwrap()
+                         .add(field, val);
             }
 
             _ => (),

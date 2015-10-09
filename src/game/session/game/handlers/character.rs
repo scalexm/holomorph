@@ -18,13 +18,13 @@ pub static QUEUE_SIZE: AtomicIsize = ATOMIC_ISIZE_INIT;
 pub static QUEUE_COUNTER: AtomicIsize = ATOMIC_ISIZE_INIT;
 
 enum Error {
-    SqlError(postgres::error::Error),
+    Sql(postgres::error::Error),
     Other,
 }
 
 impl From<postgres::error::Error> for Error {
     fn from(err: postgres::error::Error) -> Error {
-        Error::SqlError(err)
+        Error::Sql(err)
     }
 }
 
@@ -98,7 +98,6 @@ impl Session {
         }.as_packet_with_buf(&mut buf).unwrap();
 
         write!(SERVER, self.base.token, buf);
-
         self.state = GameState::SwitchingContext(map_id, ch);
     }
 
@@ -135,7 +134,7 @@ impl Session {
         SERVER.with(|s| database::execute(&s.db, move |conn| {
             match load_character(conn, token, ch) {
                 Err(err) => {
-                    if let Error::SqlError(err) = err {
+                    if let Error::Sql(err) = err {
                         error!("load_character sql error: {}", err);
                     }
                     let _ = io_loop.send(Msg::Close(token));

@@ -9,15 +9,14 @@ use shared::protocol::types::connection::GameServerInformations;
 use super::{Session, QueueState};
 use std::sync::atomic::Ordering;
 use server::data::GameServerData;
-use shared::session::{self, SessionBase};
 use super::chunk::{ChunkImpl, Ref};
-use std::io::{self, Cursor};
+use std::io::{Result, Cursor};
 use server::SERVER;
 use shared::protocol::enums::server_status;
-use shared::database;
+use shared::{self, database};
 
-impl session::Session<ChunkImpl> for Session {
-    fn new(base: SessionBase) -> Self {
+impl shared::session::Session<ChunkImpl> for Session {
+    fn new(base: shared::session::SessionBase) -> Self {
         let mut buf = Vec::new();
 
         ProtocolRequired {
@@ -41,9 +40,7 @@ impl session::Session<ChunkImpl> for Session {
         }
     }
 
-    fn get_handler<'a>(id: u16)
-        -> (fn(&mut Session, Ref<'a>, Cursor<Vec<u8>>) -> io::Result<()>) {
-
+    fn get_handler<'a>(id: u16) -> (fn(&mut Session, Ref<'a>, Cursor<Vec<u8>>) -> Result<()>) {
         match id {
             4 => Session::handle_identification,
             40 => Session::handle_server_selection,
@@ -67,8 +64,7 @@ impl Session {
         if let QueueState::Some(queue_size, queue_counter) = self.queue_state {
             use self::identification::{QUEUE_COUNTER, QUEUE_SIZE};
 
-            let mut pos = queue_size -
-                (QUEUE_COUNTER.load(Ordering::Relaxed) - queue_counter);
+            let mut pos = queue_size - (QUEUE_COUNTER.load(Ordering::Relaxed) - queue_counter);
 
             if pos < 0 {
                 pos = 0;
@@ -84,7 +80,7 @@ impl Session {
     }
 
     fn get_server_informations(&self, server: &GameServerData, mut status: i8)
-        -> GameServerInformations {
+                               -> GameServerInformations {
 
         let data = self.account.as_ref().unwrap();
 
@@ -98,10 +94,7 @@ impl Session {
             status: status,
             completion: 0,
             is_selectable: status == server_status::ONLINE,
-            characters_count: *data
-                .character_counts
-                .get(&server.id())
-                .unwrap_or(&0),
+            characters_count: *data.character_counts.get(&server.id()).unwrap_or(&0),
             characters_slots: 0,
             date: 0.,
         }

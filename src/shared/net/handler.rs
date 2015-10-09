@@ -7,9 +7,7 @@ impl<C: 'static> mio::Handler for Handler<C> {
     type Timeout = ();
     type Message = Msg;
 
-    fn ready(&mut self, event_loop: &mut EventLoop<C>, tok: Token,
-        events: EventSet) {
-
+    fn ready(&mut self, event_loop: &mut EventLoop<C>, tok: Token, events: EventSet) {
         match tok {
             // one of our listeners
             Token(t) if t < 10 => {
@@ -39,25 +37,29 @@ impl<C: 'static> mio::Handler for Handler<C> {
         if let Msg::WriteAndClose(..) = msg {
             close = true;
         }
+        let close = close;
 
         match msg {
             Msg::Shutdown => {
                 event_loop.shutdown();
+                let _ = self.handler.send(chunk::Msg::Shutdown);
             }
 
             Msg::Write(tok, buf) | Msg::WriteAndClose(tok, buf) => {
                 let _ = self.connections.get_mut(tok).map(|conn| {
                     conn.push(buf, close);
 
-                    event_loop.reregister(conn.socket(), tok,
-                        EventSet::readable() | EventSet::writable(),
-                        PollOpt::level()).unwrap();
+                    event_loop.reregister(conn.socket(),
+                                          tok,
+                                          EventSet::readable() | EventSet::writable(),
+                                          PollOpt::level()).unwrap();
                 });
             }
 
             Msg::Close(tok) => {
-                let _ = self.connections.get_mut(tok).map(|conn|
-                    conn.socket().shutdown(Shutdown::Both));
+                let _ = self.connections
+                            .get_mut(tok)
+                            .map(|conn| conn.socket().shutdown(Shutdown::Both));
             }
         }
     }

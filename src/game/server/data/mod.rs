@@ -2,13 +2,13 @@ mod map;
 
 use std::sync::Arc;
 use config::Config;
-use shared::{net, chunk};
-use shared::database;
+use shared::{net, database};
 use postgres::{Connection, Result};
 use character::CharacterMinimal;
 use self::map::*;
 use std::collections::HashMap;
-use server::{self, Server, SYNC_SERVER};
+use server::{self, Server};
+use std::sync::mpsc;
 
 #[derive(Clone)]
 pub struct GameServerData {
@@ -20,11 +20,12 @@ pub struct GameServerData {
     pub maps: Arc<HashMap<i32, MapData>>,
     pub sub_areas: Arc<HashMap<i16, SubAreaData>>,
     pub areas: Arc<HashMap<i16, AreaData>>,
+    shutdown: mpsc::Sender<()>,
 }
 
 impl GameServerData {
-    pub fn new(server: server::Sender, io_loop: net::Sender,
-        cnf: Config, db: database::Sender, auth_db: database::Sender) -> Self {
+    pub fn new(server: server::Sender, io_loop: net::Sender, cnf: Config, db: database::Sender,
+               auth_db: database::Sender, shutdown: mpsc::Sender<()>) -> Self {
 
         GameServerData {
             server: server,
@@ -35,6 +36,7 @@ impl GameServerData {
             maps: Arc::new(HashMap::new()),
             sub_areas: Arc::new(HashMap::new()),
             areas: Arc::new(HashMap::new()),
+            shutdown: shutdown,
         }
     }
 
@@ -59,9 +61,7 @@ impl GameServerData {
     }
 
     pub fn shutdown(&self) {
-        let _ = self.io_loop.send(net::Msg::Shutdown);
-        let _ = self.server.send(chunk::Msg::Shutdown);
-        *SYNC_SERVER.lock().unwrap() = None;
+        let _ = self.shutdown.send(());
     }
 }
 

@@ -1,7 +1,7 @@
 pub mod chunk;
 mod handlers;
 
-use shared::session::SessionBase;
+use shared;
 use std::collections::HashMap;
 use time;
 
@@ -40,7 +40,7 @@ impl QueueState {
 }
 
 pub struct Session {
-    base: SessionBase,
+    base: shared::session::SessionBase,
     account: Option<AccountData>,
     queue_state: QueueState,
     custom_identification: bool,

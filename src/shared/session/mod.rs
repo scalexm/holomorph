@@ -41,12 +41,10 @@ pub struct SessionBase {
 pub trait Session<U>: Sized {
     fn new(SessionBase) -> Self;
 
-    fn get_handler<'a>(u16) -> (fn(&mut Self, Ref<'a, Self, U>, Cursor<Vec<u8>>)
-        -> io::Result<()>);
+    fn get_handler<'a>(u16) -> fn(&mut Self, Ref<'a, Self, U>, Cursor<Vec<u8>>)
+                                  -> io::Result<()>;
 
-    fn unhandled<'a>(&mut self, _: Ref<'a, Self, U>, _: Cursor<Vec<u8>>)
-        -> io::Result<()> {
-
+    fn unhandled<'a>(&mut self, _: Ref<'a, Self, U>, _: Cursor<Vec<u8>>) -> io::Result<()> {
         Ok(())
     }
 
@@ -76,7 +74,7 @@ impl SessionBase {
 
     pub fn push_log(&self, type_: String, content: String) {
         self.logs.borrow_mut().push_back(SessionLog {
-            date: time::get_time().sec,
+            date: time::precise_time_ns() as i64,
             type_: type_,
             content: content,
         });

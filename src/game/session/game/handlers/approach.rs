@@ -12,20 +12,20 @@ use postgres::{self, Connection};
 use shared::database;
 use server::{self, SERVER};
 use time;
-use std::collections::HashMap;
+use std::collections::{HashSet, HashMap};
 use character::CharacterMinimal;
 
 pub static QUEUE_SIZE: AtomicIsize = ATOMIC_ISIZE_INIT;
 pub static QUEUE_COUNTER: AtomicIsize = ATOMIC_ISIZE_INIT;
 
 enum Error {
-    SqlError(postgres::error::Error),
+    Sql(postgres::error::Error),
     Other,
 }
 
 impl From<postgres::error::Error> for Error {
     fn from(err: postgres::error::Error) -> Error {
-        Error::SqlError(err)
+        Error::Sql(err)
     }
 }
 
@@ -64,6 +64,9 @@ fn authenticate(conn: &mut Connection, ticket: String, server_id: i16, addr: Str
         VALUES($1, $2, $3)"));
      try!(stmt.execute(&[&id, &time::get_time().sec, &addr]));
 
+    /*let stmt = try!(trans.prepare_cached("SELECT friends, warn_on_connection,
+        warn_on_level_gain FROM friends WHERE "));*/
+
     try!(trans.commit());
 
     let level: i16 = try!(row.get_opt("level"));
@@ -75,6 +78,8 @@ fn authenticate(conn: &mut Connection, ticket: String, server_id: i16, addr: Str
         subscription_end: try!(row.get_opt("subscription_end")),
         last_connection: last_connection,
         last_ip: last_ip,
+        friends: HashSet::new(),
+        ignored: HashSet::new(),
     })
 }
 
@@ -130,8 +135,8 @@ impl Session {
         self.state = GameState::CharacterSelection(characters);
     }
 
-    pub fn handle_authentication_ticket<'a>(&mut self, _: Ref<'a>,
-        mut data: Cursor<Vec<u8>>) -> io::Result<()> {
+    pub fn handle_authentication_ticket<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>)
+        -> io::Result<()> {
 
         if !self.state.is_none() {
             return Ok(());
@@ -152,7 +157,7 @@ impl Session {
         SERVER.with(|s| database::execute(&s.auth_db, move |conn| {
             match authenticate(conn, ticket, server_id, addr) {
                 Err(err) => {
-                    if let Error::SqlError(err) = err {
+                    if let Error::Sql(err) = err {
                         error!("authenticate sql error: {}", err);
                     }
 

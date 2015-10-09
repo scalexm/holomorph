@@ -8,7 +8,7 @@ use session::auth::{AccountData, Session, QueueState};
 use session::auth::chunk::{Ref, ChunkImpl};
 use postgres::{self, Connection};
 use server::{self, SERVER};
-use shared::{self, database};
+use shared::{database, crypt};
 use time;
 use std::collections::HashMap;
 use std::sync::atomic::{ATOMIC_ISIZE_INIT, AtomicIsize, Ordering};
@@ -17,24 +17,23 @@ pub static QUEUE_SIZE: AtomicIsize = ATOMIC_ISIZE_INIT;
 pub static QUEUE_COUNTER: AtomicIsize = ATOMIC_ISIZE_INIT;
 
 enum Error {
-    SqlError(postgres::error::Error),
+    Sql(postgres::error::Error),
     Reason(i8),
     Banned(i64),
 }
 
 impl From<postgres::error::Error> for Error {
     fn from(err: postgres::error::Error) -> Error {
-        Error::SqlError(err)
+        Error::Sql(err)
     }
 }
 
-fn authenticate(conn: &mut Connection, account: String, password: String,
-    addr: String) -> Result<AccountData, Error> {
+fn authenticate(conn: &mut Connection, account: String, password: String, addr: String)
+                -> Result<AccountData, Error> {
 
     let trans = try!(conn.transaction());
 
-    let stmt = try!(trans.prepare_cached("SELECT 1 FROM ip_bans WHERE ip
-        = $1"));
+    let stmt = try!(trans.prepare_cached("SELECT 1 FROM ip_bans WHERE ip = $1"));
 
     if try!(stmt.query(&[&addr])).len() != 0 {
         return Err(Error::Reason(identification_failure_reason::WRONG_CREDENTIALS));
@@ -60,15 +59,15 @@ fn authenticate(conn: &mut Connection, account: String, password: String,
 
     let db_password: String = try!(row.get_opt("password"));
     let salt: String = try!(row.get_opt("salt"));
-    if shared::compute_md5(&(shared::compute_md5(&password) + &salt)) != db_password {
+    if crypt::md5(&(crypt::md5(&password) + &salt)) != db_password {
         return Err(Error::Reason(identification_failure_reason::WRONG_CREDENTIALS));
     }
 
     let id: i32 = try!(row.get_opt("id"));
     let mut character_counts = HashMap::new();
 
-    let stmt = try!(trans
-        .prepare_cached("SELECT server_id FROM character_counts WHERE account_id = $1"));
+    let stmt = try!(trans.prepare_cached("SELECT server_id FROM character_counts
+        WHERE account_id = $1"));
     let rows = try!(stmt.query(&[&id]));
     for row in rows {
         let id: i16 = try!(row.get_opt("server_id"));
@@ -95,11 +94,11 @@ fn authenticate(conn: &mut Connection, account: String, password: String,
 
 impl Session {
     fn identification_success(&mut self, chunk: &ChunkImpl, data: AccountData,
-        already_logged: bool, auto_connect: bool) {
+                              already_logged: bool, auto_connect: bool) {
 
         let already_logged = already_logged || data.already_logged != 0;
         log_info!(self, "connection: ip = {}, already_logged = {}",
-            self.base.address, already_logged);
+                  self.base.address, already_logged);
 
         self.queue_state = QueueState::None;
         self.account = Some(data);
@@ -129,10 +128,8 @@ impl Session {
 
         write!(SERVER, self.base.token, buf);
 
-        if auto_connect {
-            if self.select_server(chunk, data.last_server).ok().is_some() {
-                return ();
-            }
+        if auto_connect && self.select_server(chunk, data.last_server).ok().is_some() {
+            return;
         }
 
         let servers = SERVER.with(|s| s.game_servers.values().filter_map(|server| {
@@ -140,10 +137,9 @@ impl Session {
                 return None;
             }
 
-            let status = chunk.game_status
-                .get(&server.id())
-                .map(|status| status.0)
-                .unwrap_or(server_status::OFFLINE);
+            let status = chunk.game_status.get(&server.id())
+                                          .map(|status| status.0)
+                                          .unwrap_or(server_status::OFFLINE);
 
             Some(self.get_server_informations(server, status))
         }).collect());
@@ -158,7 +154,7 @@ impl Session {
     }
 
     pub fn handle_identification<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>)
-        -> io::Result<()> {
+                                     -> io::Result<()> {
 
         use std::io::Read;
         use shared::io::ReadExt;
@@ -192,7 +188,7 @@ impl Session {
         let server = SERVER.with(|s| s.server.clone());
 
         self.queue_state = QueueState::Some(QUEUE_SIZE.fetch_add(1, Ordering::Relaxed) + 1,
-            QUEUE_COUNTER.load(Ordering::Relaxed));
+                                            QUEUE_COUNTER.load(Ordering::Relaxed));
 
         SERVER.with(|s| database::execute(&s.db, move |conn| {
             match authenticate(conn, username, password, addr) {
@@ -207,11 +203,10 @@ impl Session {
                             }.as_packet().unwrap(),
 
                         Error::Reason(reason) =>
-                            IdentificationFailedMessage { reason: reason, }
-                                .as_packet()
-                                .unwrap(),
+                            IdentificationFailedMessage { reason: reason, }.as_packet()
+                                                                           .unwrap(),
 
-                        Error::SqlError(err) => {
+                        Error::Sql(err) => {
                             error!("authenticate sql error: {}", err);
                             IdentificationFailedMessage {
                                 reason: identification_failure_reason::UNKNOWN_AUTH_ERROR,
@@ -227,7 +222,7 @@ impl Session {
                     server::identification_success(&server, token, id, data.already_logged,
                         move |session, chunk, already| {
                             session.identification_success(chunk, data, already, auto_connect)
-                    });
+                        });
                 }
             }
 

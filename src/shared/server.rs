@@ -12,24 +12,23 @@ pub struct ServerBase<T1: Session<U1>, U1, T2: Session<U2>, U2> {
     pub session_chunks: HashMap<Token, usize>,
     pub session_ids: HashBiMap<i32, Token>,
     next_insert: usize,
-    pub queue_timer: Timer,
+    pub timer: Timer,
 }
 
 impl<T1: Session<U1>, U1, T2: Session<U2>, U2> ServerBase<T1, U1, T2, U2> {
-    pub fn new() -> Self {
+    pub fn new() -> Self{
         ServerBase {
             main_chunks: Vec::new(),
             secondary_chunk: None,
             session_chunks: HashMap::new(),
             session_ids: HashBiMap::new(),
             next_insert: 0,
-            queue_timer: Timer::with_capacity(1),
+            timer: Timer::with_capacity(1),
         }
     }
 
     pub fn session_callback<F>(&self, tok: Token, job: F)
-        where F: for<'a> FnOnce(&mut T1, Ref<'a, T1, U1>)
-        + Send + 'static {
+                           where F: for<'a> FnOnce(&mut T1, Ref<'a, T1, U1>) + Send + 'static {
 
         if let Some(chunk) = self.session_chunks.get(&tok) {
             chunk::send(&self.main_chunks[*chunk], move |chunk| {
@@ -42,7 +41,7 @@ impl<T1: Session<U1>, U1, T2: Session<U2>, U2> ServerBase<T1, U1, T2, U2> {
         match evt {
             SessionEvent::Connect(tok, _) => {
                 if self.session_chunks.contains_key(&tok) {
-                    return ();
+                    return;
                 }
 
                 let chunk = self.next_insert % self.main_chunks.len();

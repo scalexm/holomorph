@@ -6,14 +6,14 @@ use shared::protocol::*;
 use shared::protocol::messages::game::context::roleplay::*;
 use shared::protocol::messages::game::basic::{TextInformationMessage, BasicNoOperationMessage};
 use shared::protocol::enums::text_information_type;
-use std::io::{self, Cursor};
+use std::io::{Result, Cursor};
 use server::SERVER;
 use time;
 use std::mem;
 
 impl Session {
     pub fn handle_game_context_create_request<'a>(&mut self, mut chunk: Ref<'a>,
-        _: Cursor<Vec<u8>>) -> io::Result<()> {
+        _: Cursor<Vec<u8>>) -> Result<()> {
 
         let (map_id, ch_id) = match self.state {
             GameState::SwitchingContext(map_id, ref ch) => (map_id, ch.minimal().id()),
@@ -81,7 +81,7 @@ impl Session {
     }
 
     pub fn handle_map_informations_request<'a>(&mut self, chunk: Ref<'a>, _: Cursor<Vec<u8>>)
-        -> io::Result<()> {
+        -> Result<()> {
 
         let ch = match self.state {
             GameState::InContext(ref ch) => ch,
@@ -100,7 +100,7 @@ impl Session {
     }
 
     pub fn handle_game_map_movement_request<'a>(&mut self, chunk: Ref<'a>,
-        mut data: Cursor<Vec<u8>>) -> io::Result<()> {
+        mut data: Cursor<Vec<u8>>) -> Result<()> {
 
         let ch = match self.state {
             GameState::InContext(ref mut ch) => ch,
@@ -120,7 +120,7 @@ impl Session {
     }
 
     pub fn handle_game_map_movement_confirm<'a>(&mut self, mut chunk: Ref<'a>,
-        _: Cursor<Vec<u8>>) -> io::Result<()> {
+        _: Cursor<Vec<u8>>) -> Result<()> {
 
         let ch = match self.state {
             GameState::InContext(ref mut ch) => ch,
@@ -147,7 +147,7 @@ impl Session {
     }
 
     pub fn handle_game_map_movement_cancel<'a>(&mut self, mut chunk: Ref<'a>,
-        mut data: Cursor<Vec<u8>>) -> io::Result<()> {
+        mut data: Cursor<Vec<u8>>) -> Result<()> {
 
         let ch = match self.state {
             GameState::InContext(ref mut ch) => ch,
@@ -171,7 +171,7 @@ impl Session {
     }
 
     pub fn handle_change_map<'a>(&mut self, chunk: Ref<'a>, mut data: Cursor<Vec<u8>>)
-        -> io::Result<()> {
+        -> Result<()> {
 
         let ch = match self.state {
             GameState::InContext(ref mut ch) => ch,

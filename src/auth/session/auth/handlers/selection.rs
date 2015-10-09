@@ -5,28 +5,21 @@ use shared::protocol::enums::{server_status, server_connection_error};
 use session::auth::Session;
 use session::auth::chunk::{Ref, ChunkImpl};
 use postgres::{self, Connection};
-use shared::database;
+use shared::{crypt, database};
 use rand::{self, Rng};
-use crypto::aes;
-use crypto::buffer::{RefReadBuffer, RefWriteBuffer, BufferResult, WriteBuffer, ReadBuffer};
-use crypto::symmetriccipher::Encryptor;
-use crypto::blockmodes::NoPadding;
 use server::SERVER;
 
 pub struct Error(i8, i8);
 
-fn update_ticket(conn: &mut Connection, id: i32, ticket: String)
-    -> Result<(), postgres::error::Error> {
-
+fn update_ticket(conn: &mut Connection, id: i32, ticket: String) -> postgres::Result<()> {
     let stmt = try!(conn.prepare_cached("UPDATE accounts SET ticket = $1 WHERE id = $2"));
     let _ = try!(stmt.execute(&[&ticket, &id]));
-
     Ok(())
 }
 
 impl Session {
     pub fn select_server(&self, chunk: &ChunkImpl, server_id: i16)
-        -> Result<(), Error> {
+                         -> Result<(), Error> {
 
         let account = self.account.as_ref().unwrap();
 
@@ -52,36 +45,17 @@ impl Session {
         let ticket: String = rand::thread_rng().gen_ascii_chars().take(32).collect();
         log_info!(self, "server selection: server_id = {}, ticket = {}",
             server_id, ticket);
-        let mut result = Vec::new();
 
-        {
-            let mut cbc = aes::cbc_encryptor(aes::KeySize::KeySize256, &self.aes_key[0..32],
-                &self.aes_key[0..16], NoPadding);
+        let result = match crypt::aes_256(&self.aes_key[0..32],
+                                          &self.aes_key[0..16],
+                                          ticket.as_bytes()) {
 
-            let mut output = [0; 32];
-            let mut read_buffer = RefReadBuffer::new(&ticket.as_bytes());
-            let mut write_buffer = RefWriteBuffer::new(&mut output);
-
-            loop {
-                let res = match cbc.encrypt(&mut read_buffer, &mut write_buffer, true) {
-                    Ok(res) => res,
-                    Err(err) => {
-                        log_err!(self, "ticket encryption failed: {:?}", err);
-                        return Err(Error(server_connection_error::NO_REASON, status.0));
-                    }
-                };
-
-                result.extend(write_buffer
-                    .take_read_buffer()
-                    .take_remaining()
-                    .iter()
-                    .map(|&i| i));
-
-                if let BufferResult::BufferUnderflow = res {
-                    break;
-                }
+            Ok(result) => result,
+            Err(err) => {
+                log_err!(self, "ticket encryption failed: {:?}", err);
+                return Err(Error(server_connection_error::NO_REASON, status.0));
             }
-        }
+        };
 
         let buf = SelectedServerDataMessage {
             server_id: VarShort(server_id),
@@ -122,7 +96,7 @@ impl Session {
     }
 
     pub fn handle_server_selection<'a>(&mut self, chunk: Ref<'a>, mut data: Cursor<Vec<u8>>)
-        -> io::Result<()> {
+                                       -> io::Result<()> {
 
         if self.account.is_none() {
             return Ok(());

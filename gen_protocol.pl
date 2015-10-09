@@ -1,3 +1,6 @@
+my %ids;
+my $global_uses;
+
 # helloWorld -> hello_world
 sub from_camel_case($str is rw) {
     $str ~~ s / 'GID' /Gid/;
@@ -40,6 +43,21 @@ sub get_vec_type($type) {
     }
 }
 
+sub get_qualified_name($content) {
+    if $content !~~ / 'package com.ankamagames.dofus.network.' (\w+) '.' ([\w || \.]+) \s+ '{' / {
+        return '';
+    }
+
+    my $use = "use protocol::$0";
+    for split '.', $1 {
+        $use ~= "::$_";
+    }
+
+    $use ~~ s / 'treasureHunt' /treasure_hunt/;
+
+    return $use;
+}
+
 # find the corresponding use directive for a dofus class
 sub get_use($content, $type, $dirname) {
     $content ~~ / 'package com.ankamagames.dofus.network.' (\w+)
@@ -75,6 +93,10 @@ sub read_file($path, $use is rw, $output is rw) {
 
     $content ~~ / 'protocolId:uint = ' $<id> = (\d+) /;
     my $id = $<id>;
+    if $path.Str ~~ / 'messages' / {
+        %ids{$id} = $class;
+        $global_uses = $global_uses (|) (get_qualified_name($content) ~ "::$class;");
+    }
 
     # content of serializeAs function
     $content ~~ / 'function serializeAs_' \w+
@@ -227,6 +249,23 @@ multi sub MAIN($input_path is rw, $output_path is rw where !.IO.e) {
 
     read_dir $input_path ~ '/messages', $output_path ~ '/messages';
     read_dir $input_path ~ '/types', $output_path ~ '/types';
+
+    my $output = "use std::io::\{Read, Write, Cursor\};\n"
+        ~ "use io::Result;\n"
+        ~ "use protocol::*;\n";
+    for $global_uses {
+        $output ~= "$_\n";
+    }
+    $output ~= "\npub fn to_string(id: i16, mut buf: Cursor<Vec<u8>>) -> String \{\n"
+        ~ "\tmatch id \{";
+    for %ids.kv -> $id, $name {
+        $output ~= "$id => format!(\"\{:?\}\", {$name}::deserialize(&mut buf)),"
+    }
+    $output ~= "_ => \"unknown packet\".to_string(), ";
+    $output ~= "\}\n";
+    $output ~= "\}";
+
+    spurt $output_path ~ '/debug.rs', $output;
 }
 
 multi MAIN($, $ where .IO.e) is hidden-from-USAGE {

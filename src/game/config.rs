@@ -1,4 +1,4 @@
-use shared::config;
+use shared;
 
 #[derive(RustcDecodable, RustcEncodable)]
 pub struct Config {
@@ -14,7 +14,7 @@ pub struct Config {
     pub database_threads: usize,
 }
 
-impl config::Config for Config {
+impl shared::config::Config for Config {
     fn default() -> Config {
         Config {
             auth_address: "127.0.0.1:5556".to_string(),

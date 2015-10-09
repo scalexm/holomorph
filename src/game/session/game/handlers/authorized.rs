@@ -2,12 +2,12 @@ use session::game::{Session, GameState};
 use session::game::chunk::{self, Ref};
 use shared::protocol::*;
 use shared::protocol::messages::authorized::*;
-use std::io::{self, Cursor};
+use std::io::{Result, Cursor};
 use server::SERVER;
 
 impl Session {
     pub fn handle_admin_quiet_command_message<'a>(&mut self, chunk: Ref<'a>,
-        mut data: Cursor<Vec<u8>>) -> io::Result<()> {
+        mut data: Cursor<Vec<u8>>) -> Result<()> {
 
         let ch = match self.state {
             GameState::InContext(ref mut ch) => ch,

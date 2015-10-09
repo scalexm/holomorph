@@ -6,7 +6,7 @@ use shared::protocol::types::game::data::items::ObjectItem;
 use shared::protocol::messages::game::basic::TextInformationMessage;
 use shared::protocol::enums::{text_information_type, chat_channels_multi};
 use time;
-use std::io::{self, Cursor};
+use std::io::{Result, Cursor};
 use server::SERVER;
 
 macro_rules! build_message {
@@ -83,7 +83,7 @@ impl Session {
     }
 
     pub fn handle_chat_client_multi<'a>(&mut self, chunk: Ref<'a>, mut data: Cursor<Vec<u8>>)
-        -> io::Result<()> {
+        -> Result<()> {
 
         match self.state {
             GameState::InContext(_) => (),
@@ -97,7 +97,7 @@ impl Session {
     }
 
     pub fn handle_chat_client_multi_with_object<'a>(&mut self, chunk: Ref<'a>,
-        mut data: Cursor<Vec<u8>>) -> io::Result<()> {
+        mut data: Cursor<Vec<u8>>) -> Result<()> {
 
         match self.state {
             GameState::InContext(_) => (),

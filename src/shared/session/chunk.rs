@@ -4,10 +4,26 @@ use super::{Session, SessionBase};
 use std::collections::LinkedList;
 use std::boxed::FnBox;
 use std::ops::{Deref, DerefMut};
+use protocol;
+use time;
 
 pub struct Chunk<T: Session<U>, U> {
     pub sessions: HashMap<Token, T>,
-    pub impl_: U,
+    impl_: U,
+}
+
+impl<T: Session<U>, U> Deref for Chunk<T, U> {
+    type Target = U;
+
+    fn deref(&self) -> &U {
+        &self.impl_
+    }
+}
+
+impl<T: Session<U>, U> DerefMut for Chunk<T, U> {
+    fn deref_mut(&mut self) -> &mut U {
+        &mut self.impl_
+    }
 }
 
 type CbContainer<T, U> = Option<LinkedList<Box<FnBox(&mut Chunk<T, U>) + Send + 'static>>>;
@@ -27,9 +43,7 @@ impl<'a, T: Session<U>, U> Ref<'a, T, U> {
 
     /* adds a callback so that a session can deal with a mutable chunk after
     returning from an handler */
-    pub fn eventually<F>(&mut self, job: F)
-        where F: FnOnce(&mut Chunk<T, U>) + Send + 'static {
-
+    pub fn eventually<F>(&mut self, job: F) where F: FnOnce(&mut Chunk<T, U>) + Send + 'static {
         if self.callbacks.is_none() {
             *self.callbacks = Some(LinkedList::new());
         }
@@ -91,16 +105,21 @@ impl<T: Session<U>, U> Chunk<T, U> {
 
             SessionEvent::Packet(tok, id, data) => {
                 if let Some(session) = self.sessions.get_mut(&tok) {
-                    debug!("{:?} received a packet, id {}", tok, id);
+                    let time_point = time::precise_time_ns();
+                    debug!("received {}: {}", id,
+                           protocol::debug::to_string(id as i16, data.clone()));
+                    let hdl = T::get_handler(id);
 
-                    if let Err(err) = T::get_handler(id)(session,
-                        Ref::new(&mut self.impl_, &mut callbacks), data) {
+                    if let Err(err) = hdl(session,
+                                          Ref::new(&mut self.impl_, &mut callbacks),
+                                          data) {
 
                         /* debug only because it means that some message::Deserialize
                         failed, so it is either an issue with the client or an issue
                         with Deserialize */
                         debug!("handle_packet io error: {}, id {}", err, id);
                     }
+                    trace!("executed {} in {} ns", id, time::precise_time_ns() - time_point);
                 }
             }
         }
@@ -111,7 +130,7 @@ impl<T: Session<U>, U> Chunk<T, U> {
 
     // helper for executing a session callback
     pub fn session_callback<F>(&mut self, tok: Token, job: F)
-        where F: for<'a> FnOnce(&mut T, Ref<'a, T, U>) {
+                           where F: for<'a> FnOnce(&mut T, Ref<'a, T, U>) {
 
         let mut callbacks = None;
         if let Some(session) = self.sessions.get_mut(&tok) {
@@ -124,10 +143,10 @@ impl<T: Session<U>, U> Chunk<T, U> {
 // close all Sessions on dropping
 impl<T: Session<U>, U> Drop for Chunk<T, U> {
     fn drop(&mut self) {
-        let tokens: LinkedList<Token> = self.sessions
-            .keys()
-            .map(|token| *token)
-            .collect();
+        let tokens = self.sessions
+                         .keys()
+                         .map(|token| *token)
+                         .collect::<LinkedList<_>>();
 
         for tok in tokens {
             let session = self.sessions.remove(&tok).unwrap();

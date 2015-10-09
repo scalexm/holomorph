@@ -7,21 +7,21 @@ mod authorized;
 
 use super::{Session, GameState};
 use super::chunk::{ChunkImpl, Ref};
-use shared::session::{self, SessionBase};
 use shared::protocol::*;
 use shared::protocol::messages::handshake::*;
 use shared::protocol::messages::game::approach::*;
 use shared::protocol::messages::queues::*;
-use std::io::{self, Cursor};
+use std::io::{Result, Cursor};
 use std::sync::atomic::Ordering;
-use shared::database;
+use shared::{self, database};
 use postgres::{self, Connection};
 use server::SERVER;
 use character::Character;
 use std::mem;
+use std::collections::HashMap;
 
-impl session::Session<ChunkImpl> for Session {
-    fn new(base: SessionBase) -> Self {
+impl shared::session::Session<ChunkImpl> for Session {
+    fn new(base: shared::session::SessionBase) -> Self {
         let mut buf = ProtocolRequired {
             required_version: 1658,
             current_version: 1658,
@@ -38,12 +38,13 @@ impl session::Session<ChunkImpl> for Session {
 
             last_sales_chat_request: 0,
             last_seek_chat_request: 0,
+
+            friends: HashMap::new(),
+            ignored: HashMap::new(),
         }
     }
 
-    fn get_handler<'a>(id: u16)
-        -> (fn(&mut Session, Ref<'a>, Cursor<Vec<u8>>) -> io::Result<()>) {
-
+    fn get_handler<'a>(id: u16) -> (fn(&mut Session, Ref<'a>, Cursor<Vec<u8>>) -> Result<()>) {
         match id {
             110 => Session::handle_authentication_ticket,
 
@@ -104,14 +105,12 @@ impl Session {
         let (QUEUE_SIZE, QUEUE_COUNTER) = match self.state {
             GameState::TicketQueue(..) => {
                 use self::approach::{QUEUE_COUNTER, QUEUE_SIZE};
-                (QUEUE_COUNTER.load(Ordering::Relaxed),
-                    QUEUE_SIZE.load(Ordering::Relaxed))
+                (QUEUE_COUNTER.load(Ordering::Relaxed), QUEUE_SIZE.load(Ordering::Relaxed))
             }
 
             GameState::GameQueue(..) => {
                 use self::character::{QUEUE_COUNTER, QUEUE_SIZE};
-                (QUEUE_COUNTER.load(Ordering::Relaxed),
-                    QUEUE_SIZE.load(Ordering::Relaxed))
+                (QUEUE_COUNTER.load(Ordering::Relaxed), QUEUE_SIZE.load(Ordering::Relaxed))
             }
 
             _ => return (),
@@ -143,9 +142,7 @@ impl Session {
         Ok(())
     }
 
-    fn save_game(&self, conn: &mut Connection, ch: Character, map: i32)
-        -> postgres::Result<()> {
-
+    fn save_game(&self, conn: &mut Connection, ch: Character, map: i32) -> postgres::Result<()> {
         let trans = try!(conn.transaction());
         try!(ch.save(&trans, map));
         trans.commit()

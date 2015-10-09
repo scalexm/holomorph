@@ -1,14 +1,16 @@
 use mio::{TryRead, TryWrite, Token};
 use mio::tcp::{TcpStream, Shutdown};
-use std::io::{self, Read, Cursor};
+use std::io::{Read, Cursor, Result, Error, ErrorKind};
 use io::ReadExt;
 use std::collections::VecDeque;
 
 struct Buffer(Vec<u8>, usize);
 pub struct Packet(pub u16, pub Cursor<Vec<u8>>);
 
-fn make_buffer(len: usize) -> Buffer {
-    Buffer(vec![0; len], 0)
+impl Buffer {
+    fn new(len: usize) -> Self {
+        Buffer(vec![0; len], 0)
+    }
 }
 
 pub struct Connection {
@@ -31,7 +33,7 @@ impl Connection {
         Connection {
             listener_token: listener_token,
             socket: socket,
-            read_buffer: Some(make_buffer(2)),
+            read_buffer: Some(Buffer::new(2)),
             write_buffer: VecDeque::new(),
             state: State::WaitingForHeader,
             close_on_next_write: false,
@@ -46,11 +48,11 @@ impl Connection {
         &self.socket
     }
 
-    pub fn readable(&mut self) -> io::Result<Option<Packet>> {
+    pub fn readable(&mut self) -> Result<Option<Packet>> {
         let Buffer(mut buf, pos) = self.read_buffer.take().unwrap();
 
         let s = match try!(self.socket.try_read(&mut buf[pos..])) {
-            None | Some(0) => return Err(io::Error::new(io::ErrorKind::Other, "EOF")),
+            None | Some(0) => return Err(Error::new(ErrorKind::Other, "EOF")),
             Some(s) => s,
         };
 
@@ -68,13 +70,13 @@ impl Connection {
 
                 if nbytes == 0 {
                     self.state = State::WaitingForHeader;
-                    self.read_buffer = Some(make_buffer(2));
+                    self.read_buffer = Some(Buffer::new(2));
 
                     return Ok(Some(Packet(id, Cursor::new(Vec::new()))));
                 }
 
                 self.state = State::WaitingForLen(id);
-                self.read_buffer = Some(make_buffer(nbytes as usize));
+                self.read_buffer = Some(Buffer::new(nbytes as usize));
             }
 
             State::WaitingForLen(id) => {
@@ -83,13 +85,12 @@ impl Connection {
                     len = (len << 8) + (try!(buf.read_u8()) as u32);
                 }
                 self.state = State::WaitingForData(id);
-                self.read_buffer = Some(make_buffer(len as usize));
+                self.read_buffer = Some(Buffer::new(len as usize));
             }
 
             State::WaitingForData(id) => {
                 self.state = State::WaitingForHeader;
-                self.read_buffer = Some(make_buffer(2));
-
+                self.read_buffer = Some(Buffer::new(2));
                 return Ok(Some(Packet(id, buf)));
             }
         }
@@ -97,14 +98,13 @@ impl Connection {
         Ok(None)
     }
 
-    pub fn writable(&mut self) -> io::Result<bool> {
-
+    pub fn writable(&mut self) -> Result<bool> {
         if self.write_buffer.is_empty() {
             return Ok(true)
         }
 
         while !self.write_buffer.is_empty() {
-            {
+            let _ = {
                 let buf = self.write_buffer.back_mut().unwrap();
                 let s = match try!(self.socket.try_write(&buf.0[buf.1..])) {
                     None => return Ok(false),
@@ -115,7 +115,7 @@ impl Connection {
                     buf.1 += s;
                     return Ok(false);
                 }
-            }
+            };
 
             let _ = self.write_buffer.pop_back().unwrap();
             if self.close_on_next_write {

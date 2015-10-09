@@ -1,6 +1,7 @@
 #![feature(fnbox)]
 #![feature(ip_addr)]
 #![feature(unboxed_closures)]
+#![feature(read_exact)]
 
 #[macro_use]
 extern crate log;
@@ -20,6 +21,7 @@ pub mod database;
 pub mod config;
 pub mod session;
 pub mod server;
+pub mod crypt;
 
 /* helper macros for less verbosity */
 #[macro_export]
@@ -47,15 +49,6 @@ macro_rules! write_and_close {
     }};
 }
 
-use crypto::digest::Digest;
-use crypto::md5::Md5;
-
-pub fn compute_md5(s: &str) -> String {
-    let mut md5 = Md5::new();
-    md5.input_str(&s);
-    md5.result_str()
-}
-
 use std::collections::HashMap;
 use std::collections::hash_map::{Iter, IterMut, Keys, Values, Entry};
 use std::hash::Hash;
@@ -68,7 +61,7 @@ pub struct HashBiMap<K: Hash + Eq + Clone, V: Hash + Eq + Clone> {
 }
 
 impl<K: Hash + Eq + Clone, V: Hash + Eq + Clone> HashBiMap<K, V> {
-    pub fn new() -> HashBiMap<K, V> {
+    pub fn new() -> Self {
         HashBiMap {
             kv: HashMap::new(),
             vk: HashMap::new(),
@@ -108,38 +101,30 @@ impl<K: Hash + Eq + Clone, V: Hash + Eq + Clone> HashBiMap<K, V> {
         self.vk.clear();
     }
 
-    pub fn get<Q: ?Sized>(&self, k: &Q) -> Option<&V>
-        where K: Borrow<Q>, Q: Hash + Eq {
-
+    pub fn get<Q: ?Sized>(&self, k: &Q) -> Option<&V> where K: Borrow<Q>, Q: Hash + Eq {
         self.kv.get(k)
     }
 
-    pub fn inv_get<Q: ?Sized>(&self, v: &Q) -> Option<&K>
-        where V: Borrow<Q>, Q: Hash + Eq {
-
+    pub fn inv_get<Q: ?Sized>(&self, v: &Q) -> Option<&K> where V: Borrow<Q>, Q: Hash + Eq {
         self.vk.get(v)
     }
 
-    pub fn contains_key<Q: ?Sized>(&self, k: &Q) -> bool
-        where K: Borrow<Q>, Q: Hash + Eq {
-
+    pub fn contains_key<Q: ?Sized>(&self, k: &Q) -> bool where K: Borrow<Q>, Q: Hash + Eq {
         self.kv.contains_key(k)
     }
 
-    pub fn contains_value<Q: ?Sized>(&self, v: &Q) -> bool
-        where V: Borrow<Q>, Q: Hash + Eq {
-
+    pub fn contains_value<Q: ?Sized>(&self, v: &Q) -> bool where V: Borrow<Q>, Q: Hash + Eq {
         self.vk.contains_key(v)
     }
 
     pub fn get_mut<Q: ?Sized>(&mut self, k: &Q) -> Option<&mut V>
-        where K: Borrow<Q>, Q: Hash + Eq {
+                              where K: Borrow<Q>, Q: Hash + Eq {
 
         self.kv.get_mut(k)
     }
 
     pub fn inv_get_mut<Q: ?Sized>(&mut self, v: &Q) -> Option<&mut K>
-        where V: Borrow<Q>, Q: Hash + Eq {
+                                  where V: Borrow<Q>, Q: Hash + Eq {
 
         self.vk.get_mut(v)
     }
@@ -151,9 +136,7 @@ impl<K: Hash + Eq + Clone, V: Hash + Eq + Clone> HashBiMap<K, V> {
         old
     }
 
-    pub fn remove<Q: ?Sized>(&mut self, k: &Q) -> Option<V>
-        where K: Borrow<Q>, Q: Hash + Eq {
-
+    pub fn remove<Q: ?Sized>(&mut self, k: &Q) -> Option<V> where K: Borrow<Q>, Q: Hash + Eq {
         let v = self.kv.remove(k);
         if let Some(ref v) = v {
             let _ = self.vk.remove(&v);
@@ -162,7 +145,7 @@ impl<K: Hash + Eq + Clone, V: Hash + Eq + Clone> HashBiMap<K, V> {
     }
 
     pub fn inv_remove<Q: ?Sized>(&mut self, v: &Q) -> Option<K>
-        where V: Borrow<Q>, Q: Hash + Eq {
+                                 where V: Borrow<Q>, Q: Hash + Eq {
 
         let k = self.vk.remove(v);
         if let Some(ref k) = k {

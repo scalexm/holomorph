@@ -19,7 +19,6 @@ pub fn from_file<C: Config + Decodable + Encodable>(path: &str) -> C {
         Err(_) => {
             let config = C::default();
             let mut encode = Vec::new();
-
             write!(&mut encode, "{}", json::as_pretty_json(&config)).unwrap();
             let _ = File::create(path).map(|mut f| f.write_all(&encode[0..]));
 

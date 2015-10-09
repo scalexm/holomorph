@@ -1,5 +1,4 @@
-use shared::chunk;
-use shared::session;
+use shared;
 use super::{Session, CharacterRef, GameState};
 use map::{Actor, Map};
 use std::collections::{HashSet, HashMap};
@@ -9,9 +8,9 @@ use server::{self, SERVER};
 use shared::protocol::*;
 use shared::protocol::messages::game::context::roleplay::CurrentMapMessage;
 
-pub type Chunk = session::chunk::Chunk<Session, ChunkImpl>;
-pub type Ref<'a> = session::chunk::Ref<'a, Session, ChunkImpl>;
-pub type Sender = chunk::Sender<Chunk>;
+pub type Chunk = shared::session::chunk::Chunk<Session, ChunkImpl>;
+pub type Ref<'a> = shared::session::chunk::Ref<'a, Session, ChunkImpl>;
+pub type Sender = shared::chunk::Sender<Chunk>;
 
 pub struct ChunkImpl {
     pub maps: HashMap<i32, Map>,
@@ -55,7 +54,7 @@ pub fn update_queue(chunk: &Chunk) {
 }
 
 pub fn teleport_character(chunk: &mut Chunk, mut ch: Character, map_id: i32, cell_id: i16) {
-    if let Some(mut map) = chunk.impl_.maps.get_mut(&map_id) {
+    if let Some(mut map) = chunk.maps.get_mut(&map_id) {
         ch.set_cell_id(cell_id);
         let tok = ch.session();
         map.add_actor(Actor::Character(ch));
@@ -114,7 +113,7 @@ pub fn teleport<'a>(mut chunk: Ref<'a>, ch_ref: &mut CharacterRef, map_id: i32,
 pub fn send_to_area(chunk: &Chunk, area_id: i16, buf: Vec<u8>) {
     for s in chunk.sessions.values() {
         if let GameState::InContext(ref ch) = s.state {
-            if chunk.impl_.maps.get(&ch.map_id).unwrap().area_id() == area_id {
+            if chunk.maps.get(&ch.map_id).unwrap().area_id() == area_id {
                 let buf = buf.clone();
                 write!(SERVER, s.base.token, buf);
             }

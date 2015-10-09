@@ -1,6 +1,8 @@
 use std::io::{Read, Write};
 use io::{ReadExt, WriteExt, Result};
 
+pub mod debug;
+
 #[derive(Clone, Debug)]
 pub struct VarInt(pub i32);
 
@@ -28,21 +30,13 @@ pub struct VarIntVec<T>(pub Vec<T>);
 #[derive(Clone, Debug)]
 pub struct StaticVec<T>(pub Vec<T>);
 
-fn get_flag(flag: u8, offset: u8) -> bool
-{
-    if offset >= 8 {
-        panic!("offset must be less than 8");
-    }
-
+fn get_flag(flag: u8, offset: u8) -> bool {
+    assert!(offset < 8);
     flag & (1 << offset) != 0
 }
 
-fn set_flag(flag: u8, offset: u8, value: bool) -> u8
-{
-    if offset >= 8 {
-        panic!("offset must be less than 8");
-    }
-
+fn set_flag(flag: u8, offset: u8, value: bool) -> u8 {
+    assert!(offset < 8);
     if value {
         flag | (1 << offset)
     } else {
@@ -58,16 +52,12 @@ pub trait Protocol: Sized {
     fn id() -> i16;
 
     #[inline(always)]
-    fn _deserialize<R: Read>(rdr: &mut R, _: &mut u8, _: &mut u8)
-        -> Result<Self> {
-
+    fn _deserialize<R: Read>(rdr: &mut R, _: &mut u8, _: &mut u8) -> Result<Self> {
         Self::deserialize(rdr)
     }
 
     #[inline(always)]
-    fn _serialize<W: Write>(&self, wtr: &mut W, flag: &mut Option<u8>,
-        _: &mut u8) -> Result<()> {
-
+    fn _serialize<W: Write>(&self, wtr: &mut W, flag: &mut Option<u8>, _: &mut u8) -> Result<()> {
         if let Some(byte) = *flag {
             try!(wtr.write_u8(byte));
             *flag = None;
@@ -287,8 +277,7 @@ impl Protocol for Flag {
         Ok(())
     }
 
-    fn _deserialize<R: Read>(rdr: &mut R, flag: &mut u8, offset: &mut u8)
-        -> Result<Flag> {
+    fn _deserialize<R: Read>(rdr: &mut R, flag: &mut u8, offset: &mut u8) -> Result<Flag> {
         let real_offset = *offset % 8;
         if real_offset == 0 {
             *flag = try!(rdr.read_u8());
@@ -297,8 +286,8 @@ impl Protocol for Flag {
         Ok(Flag(get_flag(*flag, real_offset)))
     }
 
-    fn _serialize<W: Write>(&self, wtr: &mut W, flag: &mut Option<u8>,
-        offset: &mut u8) -> Result<()> {
+    fn _serialize<W: Write>(&self, wtr: &mut W, flag: &mut Option<u8>, offset: &mut u8)
+                            -> Result<()> {
 
             let mut byte = flag.unwrap_or(0);
 

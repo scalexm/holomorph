@@ -1,10 +1,10 @@
 pub mod chunk;
 mod handlers;
 
-use shared::session::SessionBase;
+use shared;
 
 pub struct Session {
-    base: SessionBase,
+    base: shared::session::SessionBase,
     server_id: Option<i16>,
     salt: String,
     ip: String,

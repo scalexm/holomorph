@@ -1,16 +1,15 @@
-use std::io::{self, Cursor};
+use std::io::{Result, Cursor};
 use super::Session;
 use super::chunk::{Ref, ChunkImpl};
 use shared::protocol::*;
 use shared::protocol::holomorph::*;
-use shared;
-use shared::session::{self, SessionBase};
+use shared::{self, crypt};
 use server::{self, SERVER};
 use rand::{self, Rng};
 
-impl session::Session<ChunkImpl> for Session {
-    fn new(base: SessionBase) -> Self {
-        let salt: String = rand::thread_rng().gen_ascii_chars().take(32).collect();
+impl shared::session::Session<ChunkImpl> for Session {
+    fn new(base: shared::session::SessionBase) -> Self {
+        let salt = rand::thread_rng().gen_ascii_chars().take(32).collect::<String>();
 
         let buf = HelloMessage {
             salt: salt.clone(),
@@ -27,9 +26,7 @@ impl session::Session<ChunkImpl> for Session {
         }
     }
 
-    fn get_handler<'a>(id: u16)
-        -> (fn(&mut Session, Ref<'a>, Cursor<Vec<u8>>) -> io::Result<()>) {
-
+    fn get_handler<'a>(id: u16) -> (fn(&mut Session, Ref<'a>, Cursor<Vec<u8>>) -> Result<()>) {
         match id {
             2 => Session::handle_identification,
             3 => Session::handle_state,
@@ -42,7 +39,7 @@ impl session::Session<ChunkImpl> for Session {
 
 impl Session {
     pub fn handle_identification<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>)
-        -> io::Result<()> {
+                                     -> Result<()> {
 
         if self.server_id.is_some() {
             return Ok(());
@@ -50,9 +47,11 @@ impl Session {
 
         let msg = try!(IdentificationMessage::deserialize(&mut data));
 
-        let md5_key = match SERVER.with(|s| s.game_servers
-            .get(&msg.id)
-            .map(|gs| shared::compute_md5(&gs.key()))) {
+        let md5_key = match SERVER.with(|s| {
+            s.game_servers
+             .get(&msg.id)
+             .map(|gs| crypt::md5(&gs.key()))
+         }) {
 
             Some(key) => key,
             None => {
@@ -61,7 +60,7 @@ impl Session {
             }
         };
 
-        if shared::compute_md5(&(md5_key + &self.salt)) != msg.key {
+        if crypt::md5(&(md5_key + &self.salt)) != msg.key {
             close!(SERVER, self.base.token);
             return Ok(());
         }
@@ -71,8 +70,7 @@ impl Session {
 
         SERVER.with(move |s| {
             server::register_game_server(&s.server, self.base.token, msg.id,
-                msg.state, msg.ip, msg.port,
-                |session, id| session.identification_success(id));
+                msg.state, msg.ip, msg.port, |session, id| session.identification_success(id));
         });
 
         Ok(())
@@ -82,9 +80,7 @@ impl Session {
         self.server_id = Some(server_id);
     }
 
-    pub fn handle_state<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>)
-        -> io::Result<()> {
-
+    pub fn handle_state<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>) -> Result<()> {
         let server_id = *match self.server_id.as_ref() {
             Some(server_id) => server_id,
             None => return Ok(())

@@ -12,12 +12,12 @@ pub fn connect(uri: &str) -> Connection {
     }
 }
 
-type Thunk = Box<FnBox(&mut Connection) + Send + 'static>;
+pub type Thunk = Box<FnBox(&mut Connection) + Send + 'static>;
 pub type Sender = mpsc::Sender<Thunk>;
 
 // starts a thread pool
 pub fn spawn_threads(threads: usize, uri: &str, joins: &mut LinkedList<JoinHandle<()>>)
-    -> Sender {
+                     -> Sender {
 
     assert!(threads >= 1);
 
@@ -38,7 +38,7 @@ pub fn spawn_threads(threads: usize, uri: &str, joins: &mut LinkedList<JoinHandl
 
                 match msg {
                     Ok(job) => job.call_box((&mut conn,)),
-                    Err(..) => return(),
+                    Err(..) => return,
                 }
             }
         }));
@@ -48,12 +48,7 @@ pub fn spawn_threads(threads: usize, uri: &str, joins: &mut LinkedList<JoinHandl
 }
 
 // helper function to convert an FnOnce into an FnBox and send it to the pool
-pub fn execute<F>(sender: &Sender, job: F)
-    where F : FnOnce(&mut Connection) + Send + 'static {
-
+pub fn execute<F>(sender: &Sender, job: F) where F : FnOnce(&mut Connection) + Send + 'static {
     let boxed_job: Thunk = Box::new(move |conn: &mut Connection| job(conn));
-    match sender.send(boxed_job) {
-        Ok(..) => (),
-        Err(err) => info!("err {:?}", err),
-    }
+    let _ = sender.send(boxed_job);
 }

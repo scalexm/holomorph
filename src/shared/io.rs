@@ -1,24 +1,7 @@
 use byteorder::{WriteBytesExt, ReadBytesExt, BigEndian, Error};
-use std::io;
+use std::io::{self, Read, Write};
 
 pub use byteorder::Result;
-
-pub fn read_full<R: io::Read + ?Sized>(rdr: &mut R, buf: &mut [u8]) -> Result<()> {
-    let mut nread = 0usize;
-    while nread < buf.len() {
-        match rdr.read(&mut buf[nread..]) {
-            Ok(0) => return Err(Error::UnexpectedEOF),
-            Ok(n) => nread += n,
-            Err(ref e) if e.kind() == io::ErrorKind::Interrupted => {},
-            Err(e) => return Err(From::from(e)),
-        }
-    }
-    Ok(())
-}
-
-pub fn write_all<W: io::Write + ?Sized>(wtr: &mut W, buf: &[u8]) -> Result<()> {
-    wtr.write_all(buf).map_err(From::from)
-}
 
 macro_rules! read_var {
     ($rdr: expr, $t: ty, $size: expr) => {{
@@ -34,8 +17,8 @@ macro_rules! read_var {
           offset += 7;
         }
 
-        Err(::byteorder::Error::Io(io::Error::new(io::ErrorKind::InvalidInput,
-            "ill formed var integer")))
+        Err(Error::Io(io::Error::new(io::ErrorKind::InvalidInput,
+                                     "ill formed var integer")))
     }};
 }
 
@@ -122,17 +105,17 @@ pub trait ReadExt: ReadBytesExt {
     fn read_string(&mut self) -> Result<String> {
         let len = try!(ReadExt::read_u16(self));
         let mut buf = vec![0; len as usize];
-        try!(read_full(self, &mut buf[0..]));
+        try!(self.read_exact(&mut buf[0..]));
 
         match String::from_utf8(buf) {
             Ok(s) => Ok(s),
-            Err(_) => Err(::byteorder::Error::Io(io::Error::new(io::ErrorKind::InvalidInput,
-                "bytes to utf8 conversion error"))),
+            Err(_) => Err(Error::Io(io::Error::new(io::ErrorKind::InvalidInput,
+                                                   "bytes to utf8 conversion error"))),
         }
     }
 }
 
-impl<R: io::Read + ?Sized> ReadExt for R {}
+impl<R: Read + ?Sized> ReadExt for R {}
 
 pub trait WriteExt: WriteBytesExt {
     #[inline]
@@ -228,7 +211,7 @@ pub trait WriteExt: WriteBytesExt {
     fn write_string(&mut self, data: &str) -> Result<()> {
         let len = data.len();
         try!(WriteExt::write_u16(self, len as u16));
-        write_all(self, data.as_bytes())
+        self.write_all(data.as_bytes()).map_err(From::from)
     }
 
     fn write_packet(&mut self, id: u16, data: &Vec<u8>) -> Result<()> {
@@ -241,6 +224,7 @@ pub trait WriteExt: WriteBytesExt {
         };
 
         try!(WriteExt::write_u16(self, id << 2 | nbytes));
+
         match nbytes {
             0 => (),
             1 => try!(WriteExt::write_u8(self, len as u8)),
@@ -251,8 +235,9 @@ pub trait WriteExt: WriteBytesExt {
             }
             _ => unreachable!(),
         }
-        write_all(self, &data[0..])
+
+        self.write_all(&data[0..]).map_err(From::from)
     }
 }
 
-impl<W: io::Write + ?Sized> WriteExt for W {}
+impl<W: Write + ?Sized> WriteExt for W {}

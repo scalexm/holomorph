@@ -3,14 +3,12 @@ pub mod data;
 use session::{auth, game};
 use std::collections::{HashSet, HashMap};
 use shared::net::{Token, SessionEvent};
-use shared::chunk;
-use shared::HashBiMap;
+use shared::{self, chunk, HashBiMap};
 use shared::protocol::*;
 use shared::protocol::messages::game::approach::AlreadyConnectedMessage;
 use eventual::Async;
 use character::CharacterMinimal;
 use self::data::GameServerData;
-use shared::server::ServerBase;
 use std::sync::Mutex;
 
 pub type Sender = chunk::Sender<Server>;
@@ -19,8 +17,8 @@ lazy_static! { pub static ref SYNC_SERVER: Mutex<Option<GameServerData>> = Mutex
 thread_local!(pub static SERVER: GameServerData = SYNC_SERVER.lock().unwrap().clone().unwrap());
 
 pub struct Server {
-    base: ServerBase<game::Session, game::chunk::ChunkImpl,
-        auth::Session, auth::chunk::ChunkImpl>,
+    base: shared::server::ServerBase<game::Session, game::chunk::ChunkImpl,
+                                     auth::Session, auth::chunk::ChunkImpl>,
 
     // an in-game session can be identified by its character id
     session_characters: HashBiMap<i32, Token>,
@@ -35,7 +33,7 @@ pub struct Server {
 impl Server {
     pub fn new() -> Self {
         Server {
-            base: ServerBase::new(),
+            base: shared::server::ServerBase::new(),
             session_characters: HashBiMap::new(),
             session_nicknames: HashBiMap::new(),
             characters: HashMap::new(),
@@ -60,7 +58,7 @@ impl Server {
 pub fn start_queue_timer(sender: &Sender) {
     let tx = sender.clone();
     chunk::send(sender, move |server| {
-        server.base.queue_timer.interval_ms(2000).each(move |()| {
+        server.base.timer.interval_ms(2000).each(move |()| {
             chunk::send(&tx, move |server| {
                 for chunk in &server.base.main_chunks {
                     chunk::send(chunk, |chunk| {
@@ -89,7 +87,7 @@ pub fn set_auth_chunk(sender: &Sender, chunk: auth::chunk::Sender) {
 }
 
 pub fn teleport<F>(sender: &Sender, tok: Token, area_id: i16, job: F)
-    where F: FnOnce(&mut game::chunk::Chunk) + Send + 'static {
+                   where F: FnOnce(&mut game::chunk::Chunk) + Send + 'static {
 
     chunk::send(sender, move |server| {
         let chunk = server.chunk_areas.get(&area_id).unwrap();
@@ -100,14 +98,15 @@ pub fn teleport<F>(sender: &Sender, tok: Token, area_id: i16, job: F)
 }
 
 pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32, job: F)
-    where F: FnOnce(&mut game::Session, HashMap<i32, CharacterMinimal>)
-    + Send + 'static {
+                                 where F: FnOnce(&mut game::Session,
+                                                 HashMap<i32, CharacterMinimal>)
+                                 + Send + 'static {
 
     chunk::send(sender, move |server| {
         if server.base.session_ids.contains_key(&id) {
             let buf = AlreadyConnectedMessage.as_packet().unwrap();
             write_and_close!(SERVER, tok, buf);
-            return ();
+            return;
         }
 
         let _ = server.base.session_ids.insert(id, tok);
@@ -124,8 +123,10 @@ pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32, job: F)
 }
 
 pub fn character_selection_success<F>(sender: &Sender, tok: Token, ch_id: i32,
-    nickname: String, job: F)
-    where F: FnOnce(&mut game::Session, &mut game::chunk::ChunkImpl) + Send + 'static {
+                                      nickname: String, job: F)
+                                      where F: FnOnce(&mut game::Session,
+                                                      &mut game::chunk::ChunkImpl)
+                                      + Send + 'static {
 
     chunk::send(sender, move |server| {
         let _ = server.session_characters.insert(ch_id, tok);
