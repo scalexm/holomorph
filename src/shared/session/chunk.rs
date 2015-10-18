@@ -106,18 +106,18 @@ impl<T: Session<U>, U> Chunk<T, U> {
             SessionEvent::Packet(tok, id, data) => {
                 if let Some(session) = self.sessions.get_mut(&tok) {
                     let time_point = time::precise_time_ns();
-                    debug!("received {}: {}", id,
-                           protocol::debug::to_string(id as i16, data.clone()));
                     let hdl = T::get_handler(id);
+                    debug!("received {}: {}",
+                           id,
+                           protocol::debug::to_string(id as i16, data.clone()));
 
                     if let Err(err) = hdl(session,
                                           Ref::new(&mut self.impl_, &mut callbacks),
                                           data) {
-
                         /* debug only because it means that some message::Deserialize
                         failed, so it is either an issue with the client or an issue
                         with Deserialize */
-                        debug!("handle_packet io error: {}, id {}", err, id);
+                        debug!("handle_packet io error: {}", err);
                     }
                     trace!("executed {} in {} ns", id, time::precise_time_ns() - time_point);
                 }
@@ -131,7 +131,6 @@ impl<T: Session<U>, U> Chunk<T, U> {
     // helper for executing a session callback
     pub fn session_callback<F>(&mut self, tok: Token, job: F)
                            where F: for<'a> FnOnce(&mut T, Ref<'a, T, U>) {
-
         let mut callbacks = None;
         if let Some(session) = self.sessions.get_mut(&tok) {
             job(session, Ref::new(&mut self.impl_, &mut callbacks));

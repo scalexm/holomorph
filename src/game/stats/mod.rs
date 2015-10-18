@@ -2,7 +2,7 @@ pub mod row;
 
 use std::collections::HashMap;
 use self::row::{Row, Field};
-use shared::protocol::types::game::character::characteristic::CharacterBaseCharacteristic;
+use protocol::types::game::character::characteristic::CharacterBaseCharacteristic;
 
 #[derive(Hash, Eq, PartialEq, Copy, Clone)]
 pub enum Type {

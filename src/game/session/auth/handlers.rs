@@ -1,7 +1,7 @@
 use super::Session;
 use super::chunk::{ChunkImpl, Ref};
-use shared::protocol::*;
-use shared::protocol::holomorph::*;
+use protocol::*;
+use protocol::holomorph::*;
 use shared::{self, crypt};
 use std::io::{Result, Cursor};
 use server::{self, SERVER};
@@ -28,9 +28,7 @@ impl shared::session::Session<ChunkImpl> for Session {
 }
 
 impl Session {
-    fn handle_hello<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>)
-        -> Result<()> {
-
+    fn handle_hello<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>) -> Result<()> {
         let msg = try!(HelloMessage::deserialize(&mut data));
         let md5_key = SERVER.with(|s| crypt::md5(&s.cnf.server_key));
 
@@ -47,7 +45,7 @@ impl Session {
     }
 
     pub fn handle_disconnect_player<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>)
-        -> Result<()> {
+                                        -> Result<()> {
 
         let msg = try!(DisconnectPlayerMessage::deserialize(&mut data));
         SERVER.with(|s| server::disconnect_player(&s.server, msg.id));

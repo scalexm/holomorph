@@ -10,10 +10,12 @@ env_logger = "*"
 time = "*"
 rustc-serialize = "*"
 postgres = "*"
-byteorder = "*"
-mio = "*"
-rust-crypto = "*"
 lazy_static = "*"
+shared = { path = "src/shared" }
+protocol = { path = "src/protocol" }
+
+[profile.release]
+debug = true
 
 [dependencies.eventual]
 git = "https://github.com/carllerche/eventual"
@@ -29,7 +31,3 @@ path = "src/game/main.rs"
 [[test]]
 name = "test"
 path = "test/test.rs"
-
-[lib]
-name = "shared"
-path = "src/shared/lib.rs"

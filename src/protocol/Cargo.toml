@@ -1,0 +1,14 @@
+[package]
+name = "protocol"
+version = "0.1.0"
+authors = ["scalexm <martin.alex32@hotmail.fr>"]
+
+[dependencies]
+byteorder = "*"
+
+[profile.release]
+debug = true
+
+[lib]
+name = "protocol"
+path = "lib.rs"

@@ -1,0 +1,15 @@
+pub mod status;
+pub mod restriction;
+pub mod choice;
+pub mod characteristic;
+pub mod alignment;
+use std::io::{Read, Write};
+use io::Result;
+use protocol::*;
+ use types::game::look::EntityLook; use types::game::context::roleplay::BasicAllianceInformations; use types::game::context::roleplay::BasicGuildInformations;
+impl_type!(AbstractCharacterInformation, 400, id| VarInt);
+impl_type!(CharacterMinimalAllianceInformations, 444, base| CharacterMinimalGuildInformations, alliance| BasicAllianceInformations);
+impl_type!(CharacterMinimalGuildInformations, 445, base| CharacterMinimalPlusLookInformations, guild| BasicGuildInformations);
+impl_type!(CharacterMinimalInformations, 110, base| AbstractCharacterInformation, level| i8, name| String);
+impl_type!(CharacterMinimalPlusLookAndGradeInformations, 193, base| CharacterMinimalPlusLookInformations, grade| VarInt);
+impl_type!(CharacterMinimalPlusLookInformations, 163, base| CharacterMinimalInformations, entity_look| EntityLook);

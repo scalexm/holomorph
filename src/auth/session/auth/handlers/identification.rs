@@ -1,9 +1,9 @@
 use std::io::{self, Cursor};
-use shared::protocol::*;
-use shared::protocol::messages::connection::*;
-use shared::protocol::messages::security::*;
-use shared::protocol::messages::queues::*;
-use shared::protocol::enums::{server_status, identification_failure_reason};
+use protocol::{Protocol, VarIntVec, VarShort, Flag};
+use protocol::messages::connection::*;
+use protocol::messages::security::*;
+use protocol::messages::queues::*;
+use protocol::enums::{server_status, identification_failure_reason};
 use session::auth::{AccountData, Session, QueueState};
 use session::auth::chunk::{Ref, ChunkImpl};
 use postgres::{self, Connection};
@@ -30,7 +30,6 @@ impl From<postgres::error::Error> for Error {
 
 fn authenticate(conn: &mut Connection, account: String, password: String, addr: String)
                 -> Result<AccountData, Error> {
-
     let trans = try!(conn.transaction());
 
     let stmt = try!(trans.prepare_cached("SELECT 1 FROM ip_bans WHERE ip = $1"));
@@ -95,7 +94,6 @@ fn authenticate(conn: &mut Connection, account: String, password: String, addr: 
 impl Session {
     fn identification_success(&mut self, chunk: &ChunkImpl, data: AccountData,
                               already_logged: bool, auto_connect: bool) {
-
         let already_logged = already_logged || data.already_logged != 0;
         log_info!(self, "connection: ip = {}, already_logged = {}",
                   self.base.address, already_logged);
@@ -155,9 +153,8 @@ impl Session {
 
     pub fn handle_identification<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>)
                                      -> io::Result<()> {
-
         use std::io::Read;
-        use shared::io::ReadExt;
+        use protocol::io::ReadExt;
         use shared::net::Msg;
 
         if self.account.is_some() || !self.queue_state.is_none() {

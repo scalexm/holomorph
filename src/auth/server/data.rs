@@ -1,7 +1,6 @@
 use shared::{net, database};
 use config::Config;
 use std::sync::Arc;
-use std::sync::mpsc;
 use std::collections::HashMap;
 use postgres::{Connection, Result};
 use postgres::rows::Row;
@@ -48,12 +47,11 @@ pub struct AuthServerData {
     pub patch: Arc<Vec<u8>>,
     pub cnf: Arc<Config>,
     pub game_servers: Arc<HashMap<i16, GameServerData>>,
-    shutdown: mpsc::Sender<()>,
 }
 
 impl AuthServerData {
     pub fn new(server: server::Sender, io_loop: net::Sender, db: database::Sender, key: Vec<u8>,
-               patch: Vec<u8>, cnf: Config, shutdown: mpsc::Sender<()>) -> Self {
+               patch: Vec<u8>, cnf: Config) -> Self {
 
             AuthServerData {
                 server: server,
@@ -63,7 +61,6 @@ impl AuthServerData {
                 patch: Arc::new(patch),
                 cnf: Arc::new(cnf),
                 game_servers: Arc::new(HashMap::new()),
-                shutdown: shutdown,
             }
     }
 
@@ -74,9 +71,5 @@ impl AuthServerData {
         info!("loaded {} game servers", self.game_servers.len());
 
         Ok(())
-    }
-
-    pub fn shutdown(&self) {
-        let _ = self.shutdown.send(());
     }
 }

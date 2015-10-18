@@ -1,18 +1,18 @@
 pub mod selection;
 pub mod identification;
 
-use shared::protocol::*;
-use shared::protocol::messages::connection::*;
-use shared::protocol::messages::handshake::*;
-use shared::protocol::messages::queues::*;
-use shared::protocol::types::connection::GameServerInformations;
+use protocol::{Protocol, VarShort, VarIntVec};
+use protocol::messages::connection::*;
+use protocol::messages::handshake::*;
+use protocol::messages::queues::*;
+use protocol::types::connection::GameServerInformations;
 use super::{Session, QueueState};
 use std::sync::atomic::Ordering;
 use server::data::GameServerData;
 use super::chunk::{ChunkImpl, Ref};
 use std::io::{Result, Cursor};
 use server::SERVER;
-use shared::protocol::enums::server_status;
+use protocol::enums::server_status;
 use shared::{self, database};
 
 impl shared::session::Session<ChunkImpl> for Session {

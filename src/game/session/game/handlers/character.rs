@@ -1,18 +1,18 @@
 use session::game::{Session, GameState};
 use session::game::chunk::{Ref, ChunkImpl};
 use std::io::{self, Cursor};
-use shared::protocol::*;
-use shared::protocol::messages::game::character::choice::*;
-use shared::protocol::messages::game::inventory::items::*;
-use shared::protocol::messages::game::character::stats::*;
-use shared::protocol::messages::game::context::notification::*;
+use protocol::{Protocol, VarInt};
+use protocol::messages::game::character::choice::*;
+use protocol::messages::game::inventory::items::*;
+use protocol::messages::game::character::stats::*;
+use protocol::messages::game::context::notification::*;
 use shared::net::{Token, Msg};
 use postgres::{self, Connection};
 use character::{CharacterMinimal, Character};
 use std::sync::atomic::{ATOMIC_ISIZE_INIT, AtomicIsize, Ordering};
 use shared::database;
 use server::{self, SERVER};
-use shared::protocol::messages::queues::*;
+use protocol::messages::queues::*;
 
 pub static QUEUE_SIZE: AtomicIsize = ATOMIC_ISIZE_INIT;
 pub static QUEUE_COUNTER: AtomicIsize = ATOMIC_ISIZE_INIT;
@@ -29,7 +29,7 @@ impl From<postgres::error::Error> for Error {
 }
 
 fn load_character(conn: &mut Connection, tok: Token, base: CharacterMinimal)
-    -> Result<(Character, i32), Error> {
+                  -> Result<(Character, i32), Error> {
 
     let stmt = try!(conn.prepare_cached("SELECT * FROM characters WHERE id = $1"));
     let rows = try!(stmt.query(&[&base.id()]));
@@ -45,7 +45,7 @@ fn load_character(conn: &mut Connection, tok: Token, base: CharacterMinimal)
 
 impl Session {
     pub fn handle_characters_list_request<'a>(&mut self, _: Ref<'a>, _: Cursor<Vec<u8>>)
-        -> io::Result<()> {
+                                              -> io::Result<()> {
 
         let characters = match self.state {
             GameState::CharacterSelection(ref characters) => characters,
@@ -54,10 +54,9 @@ impl Session {
 
         let buf = CharactersListMessage {
             base: BasicCharactersListMessage {
-                characters: characters
-                    .iter()
-                    .map(|ch| ch.1.as_character_base().into())
-                    .collect(),
+                characters: characters.iter()
+                                      .map(|ch| ch.1.as_character_base().into())
+                                      .collect(),
             },
             has_startup_actions: false,
         }.as_packet().unwrap();
@@ -102,7 +101,7 @@ impl Session {
     }
 
     pub fn handle_character_selection<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>)
-        -> io::Result<()> {
+                                          -> io::Result<()> {
 
         let ch = {
             let characters = match self.state {
@@ -128,8 +127,8 @@ impl Session {
         });
         let nickname = self.account.as_ref().unwrap().nickname.clone();
 
-        self.state = GameState::GameQueue(QUEUE_SIZE.fetch_add(1, Ordering::Relaxed)
-            + 1, QUEUE_COUNTER.load(Ordering::Relaxed));
+        self.state = GameState::GameQueue(QUEUE_SIZE.fetch_add(1, Ordering::Relaxed) + 1,
+                                          QUEUE_COUNTER.load(Ordering::Relaxed));
 
         SERVER.with(|s| database::execute(&s.db, move |conn| {
             match load_character(conn, token, ch) {

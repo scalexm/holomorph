@@ -6,11 +6,11 @@ extern crate log;
 extern crate lazy_static;
 extern crate env_logger;
 extern crate postgres;
-extern crate crypto;
 extern crate time;
 extern crate eventual;
 extern crate rustc_serialize;
 extern crate rand;
+extern crate protocol;
 
 mod session;
 mod config;
@@ -40,8 +40,6 @@ fn load(path: &str) -> Vec<u8> {
 struct ProgramState {
     io_loop: EventLoop<server::Server>,
     network_handler: net::Handler<server::Server>,
-    shutdown_tx: mpsc::Sender<()>,
-    shutdown_rx: mpsc::Receiver<()>,
     join_handles: LinkedList<JoinHandle<()>>,
 }
 
@@ -57,7 +55,6 @@ fn start(args: &str) -> ProgramState {
 
     let mut io_loop = EventLoop::new().unwrap();
 
-    let (shutdown_tx, shutdown_rx) = mpsc::channel();
     let server_data = {
         let mut conn = database::connect(&cnf.database_uri);
         let server = chunk::run(server::Server::new(), &mut join_handles);
@@ -67,8 +64,7 @@ fn start(args: &str) -> ProgramState {
                                                   db,
                                                   key,
                                                   patch,
-                                                  cnf,
-                                                  shutdown_tx.clone());
+                                                  cnf);
 
         if let Err(err) = server_data.load(&mut conn) {
             panic!("loading failed: {}", err);
@@ -101,8 +97,6 @@ fn start(args: &str) -> ProgramState {
     ProgramState {
         io_loop: io_loop,
         network_handler: network_handler,
-        shutdown_tx: shutdown_tx,
-        shutdown_rx: shutdown_rx,
         join_handles: join_handles,
     }
 }
@@ -115,7 +109,7 @@ fn main() {
                           .unwrap_or("auth_config.json".to_string());
     let mut state = start(&args);
 
-    let shutdown_tx = state.shutdown_tx;
+    let (shutdown_tx, shutdown_rx) = mpsc::channel();
     thread::spawn(move || {
         io::stdin().read_line(&mut String::new())
             .ok()
@@ -124,7 +118,6 @@ fn main() {
     });
 
     let io_tx = state.io_loop.channel();
-    let shutdown_rx = state.shutdown_rx;
     thread::spawn(move || {
         let _ = shutdown_rx.recv();
         let _ = io_tx.send(net::Msg::Shutdown);

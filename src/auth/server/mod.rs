@@ -5,11 +5,11 @@ use session::{auth, game};
 use shared::net::{Token, SessionEvent};
 use shared::HashBiMap;
 use eventual::Async;
-use shared::protocol::Protocol;
-use shared::protocol::holomorph::DisconnectPlayerMessage;
+use protocol::Protocol;
+use protocol::holomorph::DisconnectPlayerMessage;
 use std::sync::Mutex;
 use self::data::AuthServerData;
-use shared::protocol::enums::server_status;
+use protocol::enums::server_status;
 
 pub type Sender = chunk::Sender<Server>;
 

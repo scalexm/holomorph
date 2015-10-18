@@ -1,8 +1,8 @@
 use std::io::{Result, Cursor};
 use super::Session;
 use super::chunk::{Ref, ChunkImpl};
-use shared::protocol::*;
-use shared::protocol::holomorph::*;
+use protocol::Protocol;
+use protocol::holomorph::*;
 use shared::{self, crypt};
 use server::{self, SERVER};
 use rand::{self, Rng};

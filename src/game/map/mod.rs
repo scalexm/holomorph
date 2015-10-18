@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use character::Character;
-use shared::protocol::*;
-use shared::protocol::variants::GameRolePlayActorInformationsVariant;
-use shared::protocol::messages::game::context::roleplay::{GameRolePlayShowActorMessage,
+use protocol::*;
+use protocol::variants::GameRolePlayActorInformationsVariant;
+use protocol::messages::game::context::roleplay::{GameRolePlayShowActorMessage,
     MapComplementaryInformationsDataMessage};
-use shared::protocol::messages::game::context::{GameContextRemoveElementMessage,
+use protocol::messages::game::context::{GameContextRemoveElementMessage,
     GameMapMovementMessage};
 use server::SERVER;
 
@@ -72,7 +72,8 @@ pub struct Map {
 
 macro_rules! get_characters {
     ($map: expr) => {
-        $map.actors.values()
+        $map.actors
+            .values()
             .filter_map(|a| if a.is_character() { Some(a.as_character()) } else { None })
     };
 }

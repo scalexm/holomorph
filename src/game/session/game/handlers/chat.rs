@@ -1,10 +1,10 @@
 use session::game::{Session, GameState};
 use session::game::chunk::{self, Ref};
-use shared::protocol::*;
-use shared::protocol::messages::game::chat::*;
-use shared::protocol::types::game::data::items::ObjectItem;
-use shared::protocol::messages::game::basic::TextInformationMessage;
-use shared::protocol::enums::{text_information_type, chat_channels_multi};
+use protocol::*;
+use protocol::messages::game::chat::*;
+use protocol::types::game::data::items::ObjectItem;
+use protocol::messages::game::basic::TextInformationMessage;
+use protocol::enums::{text_information_type, chat_channels_multi};
 use time;
 use std::io::{Result, Cursor};
 use server::SERVER;
@@ -25,7 +25,7 @@ macro_rules! build_message {
 
 impl Session {
     fn send_chat_message<'a>(&mut self, mut chunk: Ref<'a>, msg: ChatClientMultiMessage,
-        items: Vec<ObjectItem>) {
+                             items: Vec<ObjectItem>) {
 
         let ch = match self.state {
             GameState::InContext(ref ch) => ch,
@@ -83,7 +83,7 @@ impl Session {
     }
 
     pub fn handle_chat_client_multi<'a>(&mut self, chunk: Ref<'a>, mut data: Cursor<Vec<u8>>)
-        -> Result<()> {
+                                        -> Result<()> {
 
         match self.state {
             GameState::InContext(_) => (),

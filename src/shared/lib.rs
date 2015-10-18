@@ -1,21 +1,18 @@
 #![feature(fnbox)]
 #![feature(ip_addr)]
 #![feature(unboxed_closures)]
-#![feature(read_exact)]
 
 #[macro_use]
 extern crate log;
 extern crate mio;
-extern crate byteorder;
 extern crate postgres;
 extern crate rustc_serialize;
 extern crate crypto;
 extern crate eventual;
 extern crate time;
+extern crate protocol;
 
 pub mod net;
-pub mod io;
-pub mod protocol;
 pub mod chunk;
 pub mod database;
 pub mod config;
@@ -119,13 +116,11 @@ impl<K: Hash + Eq + Clone, V: Hash + Eq + Clone> HashBiMap<K, V> {
 
     pub fn get_mut<Q: ?Sized>(&mut self, k: &Q) -> Option<&mut V>
                               where K: Borrow<Q>, Q: Hash + Eq {
-
         self.kv.get_mut(k)
     }
 
     pub fn inv_get_mut<Q: ?Sized>(&mut self, v: &Q) -> Option<&mut K>
                                   where V: Borrow<Q>, Q: Hash + Eq {
-
         self.vk.get_mut(v)
     }
 
@@ -146,7 +141,6 @@ impl<K: Hash + Eq + Clone, V: Hash + Eq + Clone> HashBiMap<K, V> {
 
     pub fn inv_remove<Q: ?Sized>(&mut self, v: &Q) -> Option<K>
                                  where V: Borrow<Q>, Q: Hash + Eq {
-
         let k = self.vk.remove(v);
         if let Some(ref k) = k {
             let _ = self.kv.remove(k);

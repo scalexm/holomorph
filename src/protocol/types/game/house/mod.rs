@@ -1,0 +1,10 @@
+use std::io::{Read, Write};
+use io::Result;
+use protocol::*;
+use types::game::context::roleplay::GuildInformations; 
+impl_type!(AccountHouseInformations, 390, house_id| VarInt, model_id| VarShort, world_x| i16, world_y| i16, map_id| i32, sub_area_id| VarShort);
+impl_type!(HouseInformations, 111, is_on_sale| Flag, is_sale_locked| Flag, house_id| VarInt, doors_on_map| Vec<i32>, owner_name| String, model_id| VarShort);
+impl_type!(HouseInformationsExtended, 112, base| HouseInformations, guild_info| GuildInformations);
+impl_type!(HouseInformationsForGuild, 170, house_id| VarInt, model_id| VarInt, owner_name| String, world_x| i16, world_y| i16, map_id| i32, sub_area_id| VarShort, skill_list_ids| Vec<i32>, guildshare_params| VarInt);
+impl_type!(HouseInformationsForSell, 221, model_id| VarInt, owner_name| String, owner_connected| bool, world_x| i16, world_y| i16, sub_area_id| VarShort, nb_room| i8, nb_chest| i8, skill_list_ids| Vec<i32>, is_locked| bool, price| VarInt);
+impl_type!(HouseInformationsInside, 218, house_id| VarInt, model_id| VarShort, owner_id| i32, owner_name| String, world_x| i16, world_y| i16, price| i32, is_locked| bool);

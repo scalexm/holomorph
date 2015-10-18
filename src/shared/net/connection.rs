@@ -1,7 +1,7 @@
 use mio::{TryRead, TryWrite, Token};
 use mio::tcp::{TcpStream, Shutdown};
 use std::io::{Read, Cursor, Result, Error, ErrorKind};
-use io::ReadExt;
+use protocol::io::ReadExt;
 use std::collections::VecDeque;
 
 struct Buffer(Vec<u8>, usize);

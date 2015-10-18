@@ -1,0 +1,15 @@
+use std::io::{Read, Write};
+use io::Result;
+use protocol::*;
+ use types::game::context::roleplay::quest::GameRolePlayNpcQuestFlag; use types::game::context::roleplay::BasicGuildInformations; use types::game::context::roleplay::BasicNamedAllianceInformations;
+impl_type!(AlliancePrismDialogQuestionMessage, 6448);
+impl_type!(AllianceTaxCollectorDialogQuestionExtendedMessage, 6445, base| TaxCollectorDialogQuestionExtendedMessage, alliance| BasicNamedAllianceInformations);
+impl_type!(EntityTalkMessage, 6110, entity_id| i32, text_id| VarShort, parameters| Vec<String>);
+impl_type!(MapNpcsQuestStatusUpdateMessage, 5642, map_id| i32, npcs_ids_with_quest| Vec<i32>, quest_flags| Vec<GameRolePlayNpcQuestFlag>, npcs_ids_without_quest| Vec<i32>);
+impl_type!(NpcDialogCreationMessage, 5618, map_id| i32, npc_id| i32);
+impl_type!(NpcDialogQuestionMessage, 5617, message_id| VarShort, dialog_params| Vec<String>, visible_replies| Vec<VarShort>);
+impl_type!(NpcDialogReplyMessage, 5616, reply_id| VarShort);
+impl_type!(NpcGenericActionFailureMessage, 5900);
+impl_type!(NpcGenericActionRequestMessage, 5898, npc_id| i32, npc_action_id| i8, npc_map_id| i32);
+impl_type!(TaxCollectorDialogQuestionBasicMessage, 5619, guild_info| BasicGuildInformations);
+impl_type!(TaxCollectorDialogQuestionExtendedMessage, 5615, base| TaxCollectorDialogQuestionBasicMessage, max_pods| VarShort, prospecting| VarShort, wisdom| VarShort, tax_collectors_count| i8, tax_collector_attack| i32, kamas| VarInt, experience| VarLong, pods| VarInt, items_value| VarInt);

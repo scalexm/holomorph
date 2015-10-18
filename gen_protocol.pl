@@ -48,7 +48,7 @@ sub get_qualified_name($content) {
         return '';
     }
 
-    my $use = "use protocol::$0";
+    my $use = "use $0";
     for split '.', $1 {
         $use ~= "::$_";
     }
@@ -73,7 +73,7 @@ sub get_use($content, $type, $dirname) {
         return '';
     }
 
-    my $use = "use protocol::$0";
+    my $use = "use $0";
     for split '.', $1 {
         $use ~= "::$_";
     }
@@ -160,7 +160,7 @@ sub read_file($path, $use is rw, $output is rw) {
                 $name = $0;
                 $content ~~ / "public var $name:" (\w+) /;
                 $type = "{$0}Variant";
-                $use = $use (|) "use protocol::variants::{$0}Variant;";
+                $use = $use (|) "use variants::{$0}Variant;";
             }
 
             # vector of dofus class
@@ -175,7 +175,7 @@ sub read_file($path, $use is rw, $output is rw) {
             when / '(this.' (\w+) '[_' \w+ '_] as ' (\w+) ').s' / {
                 $name = $0;
                 $type = "{$next_vec_type}Vec<{$1}Variant>";
-                $use = $use (|) "use protocol::variants::{$1}Variant;";
+                $use = $use (|) "use variants::{$1}Variant;";
             }
 
             default { }
@@ -250,8 +250,7 @@ multi sub MAIN($input_path is rw, $output_path is rw where !.IO.e) {
     read_dir $input_path ~ '/messages', $output_path ~ '/messages';
     read_dir $input_path ~ '/types', $output_path ~ '/types';
 
-    my $output = "use std::io::\{Read, Write, Cursor\};\n"
-        ~ "use io::Result;\n"
+    my $output = "use std::io::Cursor;\n"
         ~ "use protocol::*;\n";
     for $global_uses {
         $output ~= "$_\n";

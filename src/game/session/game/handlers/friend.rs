@@ -1,8 +1,8 @@
 use session::game::Session;
 use session::game::chunk::Ref;
 use std::io::{Result, Cursor};
-use shared::protocol::*;
-use shared::protocol::messages::game::friend::*;
+use protocol::*;
+use protocol::messages::game::friend::*;
 use server::SERVER;
 
 impl Session {

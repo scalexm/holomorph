@@ -45,9 +45,7 @@ pub struct MapData {
 }
 
 impl MapData {
-    pub fn from_sql<'a>(subareas: &HashMap<i16, SubAreaData>, row: Row<'a>)
-        -> (i32, Self) {
-
+    pub fn from_sql<'a>(subareas: &HashMap<i16, SubAreaData>, row: Row<'a>) -> (i32, Self) {
         let id = row.get("id");
         let sub_area_id = row.get("sub_area_id");
 
@@ -176,7 +174,9 @@ impl SubAreaData {
         (id, SubAreaData {
             id: id,
             area_id: area_id,
-            monsters: if monsters.is_empty() { Vec::new() } else {
+            monsters: if monsters.is_empty() {
+                Vec::new()
+            } else {
                 monsters.split(",").map(|s| s.parse().ok().expect(&error)).collect()
             },
         })

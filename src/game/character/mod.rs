@@ -1,12 +1,12 @@
-use shared::protocol::types::game::look::EntityLook;
-use shared::protocol::*;
-use shared::protocol::types::game::character::*;
-use shared::protocol::types::game::character::choice::*;
-use shared::protocol::types::game::character::characteristic::*;
-use shared::protocol::types::game::character::alignment::*;
-use shared::protocol::types::game::character::restriction::*;
-use shared::protocol::types::game::context::roleplay::*;
-use shared::protocol::types::game::context::*;
+use protocol::types::game::look::EntityLook;
+use protocol::*;
+use protocol::types::game::character::*;
+use protocol::types::game::character::choice::*;
+use protocol::types::game::character::characteristic::*;
+use protocol::types::game::character::alignment::*;
+use protocol::types::game::character::restriction::*;
+use protocol::types::game::context::roleplay::*;
+use protocol::types::game::context::*;
 use std::io::Cursor;
 use postgres::rows::Row;
 use postgres::{self, Transaction};
@@ -133,7 +133,7 @@ impl ::std::fmt::Display for CellError {
 
 impl Character {
     pub fn from_sql<'a>(session: Token, base: CharacterMinimal, row: Row<'a>)
-        -> postgres::Result<Character> {
+                        -> postgres::Result<Character> {
 
         let mut stats = stats::List::new();
 
@@ -151,17 +151,17 @@ impl Character {
         stats.add(Type::Agility, Field::Base, try!(row.get_opt("base_agility")));
 
         stats.add(Type::Vitality, Field::Additionnal,
-            try!(row.get_opt("additionnal_vitality")));
+                  try!(row.get_opt("additionnal_vitality")));
         stats.add(Type::Wisdom, Field::Additionnal,
-            try!(row.get_opt("additionnal_wisdom")));
+                  try!(row.get_opt("additionnal_wisdom")));
         stats.add(Type::Strength, Field::Additionnal,
-            try!(row.get_opt("additionnal_strength")));
+                  try!(row.get_opt("additionnal_strength")));
         stats.add(Type::Intelligence, Field::Additionnal,
-            try!(row.get_opt("additionnal_intelligence")));
+                  try!(row.get_opt("additionnal_intelligence")));
         stats.add(Type::Chance, Field::Additionnal,
-            try!(row.get_opt("additionnal_chance")));
+                  try!(row.get_opt("additionnal_chance")));
         stats.add(Type::Agility, Field::Additionnal,
-            try!(row.get_opt("additionnal_agility")));
+                  try!(row.get_opt("additionnal_agility")));
 
         let cell_id: i16 = try!(row.get_opt("cell_id"));
         if cell_id < 0 || cell_id > 560 {
@@ -194,27 +194,27 @@ impl Character {
             additionnal_points = $19, spells_points = $20, energy_points = $21
             WHERE id = $22"));
         let _ = try!(stmt.execute(&[&self.stats.get(Type::Vitality, Field::Base),
-            &self.stats.get(Type::Wisdom, Field::Base),
-            &self.stats.get(Type::Strength, Field::Base),
-            &self.stats.get(Type::Intelligence, Field::Base),
-            &self.stats.get(Type::Chance, Field::Base),
-            &self.stats.get(Type::Agility, Field::Base),
-            &self.stats.get(Type::Vitality, Field::Additionnal),
-            &self.stats.get(Type::Wisdom, Field::Additionnal),
-            &self.stats.get(Type::Strength, Field::Additionnal),
-            &self.stats.get(Type::Intelligence, Field::Additionnal),
-            &self.stats.get(Type::Chance, Field::Additionnal),
-            &self.stats.get(Type::Agility, Field::Additionnal),
-            &self.cell_id,
-            &map,
-            &(self.direction as i16),
-            &self.xp,
-            &self.kamas,
-            &self.stats_points,
-            &self.additionnal_points,
-            &self.spells_points,
-            &self.energy_points,
-            &self.base.id]));
+                                    &self.stats.get(Type::Wisdom, Field::Base),
+                                    &self.stats.get(Type::Strength, Field::Base),
+                                    &self.stats.get(Type::Intelligence, Field::Base),
+                                    &self.stats.get(Type::Chance, Field::Base),
+                                    &self.stats.get(Type::Agility, Field::Base),
+                                    &self.stats.get(Type::Vitality, Field::Additionnal),
+                                    &self.stats.get(Type::Wisdom, Field::Additionnal),
+                                    &self.stats.get(Type::Strength, Field::Additionnal),
+                                    &self.stats.get(Type::Intelligence, Field::Additionnal),
+                                    &self.stats.get(Type::Chance, Field::Additionnal),
+                                    &self.stats.get(Type::Agility, Field::Additionnal),
+                                    &self.cell_id,
+                                    &map,
+                                    &(self.direction as i16),
+                                    &self.xp,
+                                    &self.kamas,
+                                    &self.stats_points,
+                                    &self.additionnal_points,
+                                    &self.spells_points,
+                                    &self.energy_points,
+                                    &self.base.id]));
 
         self.base.save(trans)
     }

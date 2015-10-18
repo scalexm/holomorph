@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use shared::protocol::*;
-use shared::protocol::types::game::character::characteristic::CharacterBaseCharacteristic;
+use protocol::*;
+use protocol::types::game::character::characteristic::CharacterBaseCharacteristic;
 
 #[derive(Hash, Eq, PartialEq, Copy, Clone)]
 pub enum Field {

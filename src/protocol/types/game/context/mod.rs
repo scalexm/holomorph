@@ -1,0 +1,18 @@
+pub mod roleplay;
+pub mod fight;
+use std::io::{Read, Write};
+use io::Result;
+use protocol::*;
+use types::game::context::roleplay::GuildInformations;  use types::game::look::EntityLook; use types::game::context::roleplay::GameRolePlayActorInformations; use variants::EntityDispositionInformationsVariant; use types::game::context::roleplay::AllianceInformations; use variants::TaxCollectorStaticInformationsVariant;
+impl_type!(ActorOrientation, 353, id| i32, direction| i8);
+impl_type!(EntityDispositionInformations, 60, cell_id| i16, direction| i8);
+impl_type!(EntityMovementInformations, 63, id| i32, steps| Vec<u8>);
+impl_type!(FightEntityDispositionInformations, 217, base| EntityDispositionInformations, carrying_character_id| i32);
+impl_type!(GameContextActorInformations, 150, contextual_id| i32, look| EntityLook, disposition| EntityDispositionInformationsVariant);
+impl_type!(GameRolePlayTaxCollectorInformations, 148, base| GameRolePlayActorInformations, identification| TaxCollectorStaticInformationsVariant, guild_level| i8, tax_collector_attack| i32);
+impl_type!(IdentifiedEntityDispositionInformations, 107, base| EntityDispositionInformations, id| i32);
+impl_type!(MapCoordinates, 174, world_x| i16, world_y| i16);
+impl_type!(MapCoordinatesAndId, 392, base| MapCoordinates, map_id| i32);
+impl_type!(MapCoordinatesExtended, 176, base| MapCoordinatesAndId, sub_area_id| VarShort);
+impl_type!(TaxCollectorStaticExtendedInformations, 440, base| TaxCollectorStaticInformations, alliance_identity| AllianceInformations);
+impl_type!(TaxCollectorStaticInformations, 147, first_name_id| VarShort, last_name_id| VarShort, guild_identity| GuildInformations);

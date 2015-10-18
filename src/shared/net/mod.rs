@@ -46,7 +46,6 @@ pub struct Handler<C> {
 impl<C: 'static> Handler<C> {
     fn listen(&mut self, event_loop: &mut EventLoop<C>, address: SocketAddr,
               cb: fn(&mut C, SessionEvent)) -> io::Result<()> {
-
             let socket = try!(TcpListener::bind(&address));
 
             let tok = self.listeners.insert(Listener {
@@ -63,7 +62,6 @@ impl<C: 'static> Handler<C> {
 
     fn connect(&mut self, event_loop: &mut EventLoop<C>, address: SocketAddr,
                cb: fn(&mut C, SessionEvent)) -> io::Result<()> {
-
             let socket = try!(TcpStream::connect(&address));
             let tok = self.listeners.insert(Listener {
                 socket: None,
@@ -76,7 +74,6 @@ impl<C: 'static> Handler<C> {
 
     pub fn add_callback(&mut self, event_loop: &mut EventLoop<C>, address: &str,
                         cb: fn(&mut C, SessionEvent), cb_type: CallbackType) {
-
         let address = match address.parse() {
             Ok(addr) => addr,
             Err(_) => panic!("failed to parse address"),
@@ -100,7 +97,6 @@ impl<C: 'static> Handler<C> {
 
     fn new_connection(&mut self, event_loop: &mut EventLoop<C>, tok: Token, socket: TcpStream,
                       address: SocketAddr) -> io::Result<()> {
-
         let ip = format!("{}", address.ip());
         let client_tok = self.connections
                              .insert(Connection::new(socket, tok))
@@ -120,7 +116,6 @@ impl<C: 'static> Handler<C> {
 
     fn handle_server_event(&mut self, event_loop: &mut EventLoop<C>, tok: Token,
                            events: EventSet) -> io::Result<()> {
-
         assert!(events.is_readable());
 
         match try!(self.listeners[tok].socket.as_ref().unwrap().accept()) {
@@ -137,8 +132,7 @@ impl<C: 'static> Handler<C> {
     }
 
     fn handle_client_event(&mut self, event_loop: &mut EventLoop<C>, tok: Token,
-        events: EventSet) -> io::Result<()> {
-
+                           events: EventSet) -> io::Result<()> {
         if events.is_readable() {
             if let Some(packet) = try!(self.connections[tok].readable()) {
                 let cb = self.listeners[self.connections[tok].listener()].callback;

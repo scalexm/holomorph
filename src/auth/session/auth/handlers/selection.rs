@@ -1,7 +1,7 @@
 use std::io::{self, Cursor};
-use shared::protocol::*;
-use shared::protocol::messages::connection::*;
-use shared::protocol::enums::{server_status, server_connection_error};
+use protocol::{Protocol, VarIntVec, VarShort};
+use protocol::messages::connection::*;
+use protocol::enums::{server_status, server_connection_error};
 use session::auth::Session;
 use session::auth::chunk::{Ref, ChunkImpl};
 use postgres::{self, Connection};
@@ -20,7 +20,6 @@ fn update_ticket(conn: &mut Connection, id: i32, ticket: String) -> postgres::Re
 impl Session {
     pub fn select_server(&self, chunk: &ChunkImpl, server_id: i16)
                          -> Result<(), Error> {
-
         let account = self.account.as_ref().unwrap();
 
         let status = match chunk.game_status.get(&server_id) {

@@ -7,10 +7,10 @@ mod authorized;
 
 use super::{Session, GameState};
 use super::chunk::{ChunkImpl, Ref};
-use shared::protocol::*;
-use shared::protocol::messages::handshake::*;
-use shared::protocol::messages::game::approach::*;
-use shared::protocol::messages::queues::*;
+use protocol::*;
+use protocol::messages::handshake::*;
+use protocol::messages::game::approach::*;
+use protocol::messages::queues::*;
 use std::io::{Result, Cursor};
 use std::sync::atomic::Ordering;
 use shared::{self, database};
@@ -83,9 +83,10 @@ impl shared::session::Session<ChunkImpl> for Session {
         let state = mem::replace(&mut self.state, GameState::None);
         if let GameState::InContext(ch) = state {
             let map_id = ch.map_id;
-            let ch = chunk.maps.get_mut(&ch.map_id).unwrap()
-                .remove_actor(ch.id).unwrap()
-                .into_character();
+            let ch = chunk.maps
+                          .get_mut(&ch.map_id).unwrap()
+                          .remove_actor(ch.id).unwrap()
+                          .into_character();
 
             SERVER.with(|s| database::execute(&s.db, move |conn| {
                 if let Err(err) = self.base.save_logs(conn, ch.minimal().account_id()) {

@@ -18,7 +18,6 @@ pub type Sender = mpsc::Sender<Thunk>;
 // starts a thread pool
 pub fn spawn_threads(threads: usize, uri: &str, joins: &mut LinkedList<JoinHandle<()>>)
                      -> Sender {
-
     assert!(threads >= 1);
 
     let (tx, rx) = mpsc::channel::<Thunk>();

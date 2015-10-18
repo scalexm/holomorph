@@ -1,0 +1,11 @@
+use std::io::{Read, Write};
+use io::Result;
+use protocol::*;
+use variants::SkillActionDescriptionVariant;  use variants::PlayerStatusVariant;
+impl_type!(DecraftedItemStackInfo, 481, object_uid| VarInt, bonus_min| f32, bonus_max| f32, runes_id| Vec<VarShort>, runes_qty| Vec<VarInt>);
+impl_type!(JobCrafterDirectoryEntryJobInfo, 195, job_id| i8, job_level| i8, free| bool, min_level| i8);
+impl_type!(JobCrafterDirectoryEntryPlayerInfo, 194, player_id| VarInt, player_name| String, alignment_side| i8, breed| i8, sex| bool, is_in_workshop| bool, world_x| i16, world_y| i16, map_id| i32, sub_area_id| VarShort, status| PlayerStatusVariant);
+impl_type!(JobCrafterDirectoryListEntry, 196, player_info| JobCrafterDirectoryEntryPlayerInfo, job_info| JobCrafterDirectoryEntryJobInfo);
+impl_type!(JobCrafterDirectorySettings, 97, job_id| i8, min_level| i8, free| bool);
+impl_type!(JobDescription, 101, job_id| i8, skills| Vec<SkillActionDescriptionVariant>);
+impl_type!(JobExperience, 98, job_id| i8, job_level| i8, job_x_p| VarLong, job_xp_level_floor| VarLong, job_xp_next_level_floor| VarLong);

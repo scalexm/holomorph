@@ -1,18 +1,18 @@
 macro_rules! get_mut_character {
     ($ch: ident, $chunk: ident) => {
         $chunk.maps
-            .get_mut(&$ch.map_id).unwrap()
-            .get_mut_actor($ch.id).unwrap()
-            .as_mut_character()
+              .get_mut(&$ch.map_id).unwrap()
+              .get_mut_actor($ch.id).unwrap()
+              .as_mut_character()
     };
 }
 
 macro_rules! get_character {
     ($ch: ident, $chunk: ident) => {
         $chunk.maps
-            .get(&$ch.map_id).unwrap()
-            .get_actor($ch.id).unwrap()
-            .as_character()
+              .get(&$ch.map_id).unwrap()
+              .get_actor($ch.id).unwrap()
+              .as_character()
     };
 }
 
@@ -23,7 +23,7 @@ use std::collections::{HashMap, HashSet};
 use shared;
 use time;
 use character::{Character, CharacterMinimal};
-use shared::protocol::variants::{FriendInformationsVariant, IgnoredInformationsVariant};
+use protocol::variants::{FriendInformationsVariant, IgnoredInformationsVariant};
 
 pub struct CharacterRef {
     id: i32,
@@ -41,6 +41,8 @@ struct AccountData {
     last_ip: String,
     friends: HashSet<String>,
     ignored: HashSet<String>,
+    warn_on_connection: bool,
+    warn_on_level_gain: bool,
 }
 
 impl AccountData {

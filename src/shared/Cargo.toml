@@ -1,0 +1,24 @@
+[package]
+name = "shared"
+version = "0.1.0"
+authors = ["scalexm <martin.alex32@hotmail.fr>"]
+
+[dependencies]
+time = "*"
+rustc-serialize = "*"
+postgres = "*"
+mio = "*"
+rust-crypto = "*"
+rand = "*"
+log = "*"
+protocol = { path = "../protocol" }
+
+[dependencies.eventual]
+git = "https://github.com/carllerche/eventual"
+
+[profile.release]
+debug = true
+
+[lib]
+name = "shared"
+path = "lib.rs"

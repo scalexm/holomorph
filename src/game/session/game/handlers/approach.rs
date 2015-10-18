@@ -1,10 +1,10 @@
 use session::game::{Session, AccountData, GameState};
 use session::game::chunk::Ref;
-use shared::protocol::*;
-use shared::protocol::messages::game::approach::*;
-use shared::protocol::messages::queues::*;
-use shared::protocol::messages::game::basic::*;
-use shared::protocol::messages::secure::*;
+use protocol::{Protocol, Flag};
+use protocol::messages::game::approach::*;
+use protocol::messages::queues::*;
+use protocol::messages::game::basic::*;
+use protocol::messages::secure::*;
 use std::io::{self, Cursor};
 use shared::net::Msg;
 use std::sync::atomic::{ATOMIC_ISIZE_INIT, AtomicIsize, Ordering};
@@ -12,7 +12,7 @@ use postgres::{self, Connection};
 use shared::database;
 use server::{self, SERVER};
 use time;
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap};
 use character::CharacterMinimal;
 
 pub static QUEUE_SIZE: AtomicIsize = ATOMIC_ISIZE_INIT;
@@ -30,7 +30,7 @@ impl From<postgres::error::Error> for Error {
 }
 
 fn authenticate(conn: &mut Connection, ticket: String, server_id: i16, addr: String)
-    -> Result<AccountData, Error> {
+                -> Result<AccountData, Error> {
 
     let trans = try!(conn.transaction());
 
@@ -64,8 +64,27 @@ fn authenticate(conn: &mut Connection, ticket: String, server_id: i16, addr: Str
         VALUES($1, $2, $3)"));
      try!(stmt.execute(&[&id, &time::get_time().sec, &addr]));
 
-    /*let stmt = try!(trans.prepare_cached("SELECT friends, warn_on_connection,
-        warn_on_level_gain FROM friends WHERE "));*/
+    let stmt = try!(trans.prepare_cached("SELECT friends, ignored, warn_on_connection,
+        warn_on_level_gain FROM friends WHERE account_id = $1"));
+    try!(stmt.execute(&[&id]));
+
+    let (friends, ignored, woc, wol) = if rows.len() == 0 {
+        return Err(Error::Other);
+    } else {
+        let row = rows.get(0);
+        let split = |field: String| {
+            field.split(",").filter_map(|s| {
+                if s.len() == 0 { Some(s.to_string()) } else { None }
+            }).collect()
+        };
+        let friends = split(try!(row.get_opt("friends")));
+        let ignored = split(try!(row.get_opt("ignored")));
+
+        (friends,
+         ignored,
+         try!(row.get_opt("warn_on_connection")),
+         try!(row.get_opt("warn_on_level_gain")))
+    };
 
     try!(trans.commit());
 
@@ -78,15 +97,16 @@ fn authenticate(conn: &mut Connection, ticket: String, server_id: i16, addr: Str
         subscription_end: try!(row.get_opt("subscription_end")),
         last_connection: last_connection,
         last_ip: last_ip,
-        friends: HashSet::new(),
-        ignored: HashSet::new(),
+        friends: friends,
+        ignored: ignored,
+        warn_on_connection: woc,
+        warn_on_level_gain: wol,
     })
 }
 
 impl Session {
     fn identification_success(&mut self, data: AccountData,
-        characters: HashMap<i32, CharacterMinimal>) {
-
+                             characters: HashMap<i32, CharacterMinimal>) {
         log_info!(self, "game connection: ip = {}", self.base.address);
 
         let mut buf = QueueStatusMessage {
@@ -136,8 +156,7 @@ impl Session {
     }
 
     pub fn handle_authentication_ticket<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>)
-        -> io::Result<()> {
-
+                                            -> io::Result<()> {
         if !self.state.is_none() {
             return Ok(());
         }
@@ -170,7 +189,7 @@ impl Session {
                     server::identification_success(&server, token, id,
                         move |session, characters| {
                             session.identification_success(data, characters)
-                    });
+                        });
                 }
             }
 

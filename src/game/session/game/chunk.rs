@@ -5,8 +5,8 @@ use std::collections::{HashSet, HashMap};
 use server::data::GameServerData;
 use character::Character;
 use server::{self, SERVER};
-use shared::protocol::*;
-use shared::protocol::messages::game::context::roleplay::CurrentMapMessage;
+use protocol::*;
+use protocol::messages::game::context::roleplay::CurrentMapMessage;
 
 pub type Chunk = shared::session::chunk::Chunk<Session, ChunkImpl>;
 pub type Ref<'a> = shared::session::chunk::Ref<'a, Session, ChunkImpl>;
@@ -22,14 +22,18 @@ impl ChunkImpl {
         let mut maps = HashMap::new();
         for &a_id in &areas {
             for s_id in server.sub_areas
-                .values()
-                .filter_map(|s| if s.area_id() == a_id { Some(s.id()) }
-                    else { None }) {
+                              .values()
+                              .filter_map(|s| {
+                                  if s.area_id() == a_id { Some(s.id()) }
+                                  else { None }
+                              }) {
 
                 for m_id in server.maps
-                    .values()
-                    .filter_map(|m| if m.sub_area_id() == s_id { Some(m.id()) }
-                        else { None }) {
+                                  .values()
+                                  .filter_map(|m| {
+                                      if m.sub_area_id() == s_id { Some(m.id()) }
+                                      else { None }
+                                  }) {
 
                     let _ = maps.insert(m_id, Map::new(m_id, a_id));
                 }
@@ -85,9 +89,7 @@ pub fn teleport_character(chunk: &mut Chunk, mut ch: Character, map_id: i32, cel
     })
 }
 
-pub fn teleport<'a>(mut chunk: Ref<'a>, ch_ref: &mut CharacterRef, map_id: i32,
-    cell_id: i16) {
-
+pub fn teleport<'a>(mut chunk: Ref<'a>, ch_ref: &mut CharacterRef, map_id: i32, cell_id: i16) {
     let ch = {
         let map = chunk.maps.get_mut(&ch_ref.map_id).unwrap();
 
