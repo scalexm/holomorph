@@ -1,4 +1,4 @@
-use shared::io::{ReadExt, WriteExt};
+use protocol::io::{ReadExt, WriteExt};
 use std::io::Cursor;
 
 #[test]
