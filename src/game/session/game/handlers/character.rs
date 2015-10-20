@@ -6,12 +6,14 @@ use protocol::messages::game::character::choice::*;
 use protocol::messages::game::inventory::items::*;
 use protocol::messages::game::character::stats::*;
 use protocol::messages::game::context::notification::*;
+use protocol::variants::{FriendInformationsVariant, IgnoredInformationsVariant};
 use shared::net::{Token, Msg};
 use postgres::{self, Connection};
 use character::{CharacterMinimal, Character};
 use std::sync::atomic::{ATOMIC_ISIZE_INIT, AtomicIsize, Ordering};
 use shared::database;
 use server::{self, SERVER};
+use std::collections::HashMap;
 use protocol::messages::queues::*;
 
 pub static QUEUE_SIZE: AtomicIsize = ATOMIC_ISIZE_INIT;
@@ -30,7 +32,6 @@ impl From<postgres::error::Error> for Error {
 
 fn load_character(conn: &mut Connection, tok: Token, base: CharacterMinimal)
                   -> Result<(Character, i32), Error> {
-
     let stmt = try!(conn.prepare_cached("SELECT * FROM characters WHERE id = $1"));
     let rows = try!(stmt.query(&[&base.id()]));
 
@@ -46,7 +47,6 @@ fn load_character(conn: &mut Connection, tok: Token, base: CharacterMinimal)
 impl Session {
     pub fn handle_characters_list_request<'a>(&mut self, _: Ref<'a>, _: Cursor<Vec<u8>>)
                                               -> io::Result<()> {
-
         let characters = match self.state {
             GameState::CharacterSelection(ref characters) => characters,
             _ => return Ok(()),
@@ -65,7 +65,9 @@ impl Session {
         Ok(())
     }
 
-    fn character_selection_success(&mut self, _: &mut ChunkImpl, ch: Character, map_id: i32) {
+    fn character_selection_success(&mut self, _: &mut ChunkImpl, ch: Character, map_id: i32,
+                                   friends: HashMap<i32, FriendInformationsVariant>,
+                                   ignored: HashMap<i32, IgnoredInformationsVariant>) {
         log_info!(self, "selected character id = {}", ch.minimal().id());
 
         let mut buf = CharacterSelectedSuccessMessage {
@@ -98,11 +100,12 @@ impl Session {
 
         write!(SERVER, self.base.token, buf);
         self.state = GameState::SwitchingContext(map_id, ch);
+        self.friends = friends;
+        self.ignored = ignored;
     }
 
     pub fn handle_character_selection<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>)
                                           -> io::Result<()> {
-
         let ch = {
             let characters = match self.state {
                 GameState::CharacterSelection(ref mut characters) => characters,
@@ -121,11 +124,15 @@ impl Session {
             }
         };
 
+        let account = self.account.as_ref().unwrap();
+
         let token = self.base.token;
         let (server, io_loop) = SERVER.with(|s| {
             (s.server.clone(), s.io_loop.clone())
         });
-        let nickname = self.account.as_ref().unwrap().nickname.clone();
+        let account_id = account.id;
+        let nickname = account.nickname.clone();
+        let social = account.social.clone();
 
         self.state = GameState::GameQueue(QUEUE_SIZE.fetch_add(1, Ordering::Relaxed) + 1,
                                           QUEUE_COUNTER.load(Ordering::Relaxed));
@@ -141,9 +148,16 @@ impl Session {
 
                 Ok((ch, map_id)) => {
                     let ch_id = ch.minimal().id();
-                    server::character_selection_success(&server, token, ch_id, nickname,
-                        move |session, chunk|
-                            session.character_selection_success(chunk, ch, map_id));
+                    server::character_selection_success(&server,
+                                                        token,
+                                                        account_id,
+                                                        ch_id,
+                                                        nickname,
+                                                        social,
+                        move |session, chunk, friends, ignored| {
+                            session.character_selection_success(chunk, ch, map_id,
+                                                                friends, ignored)
+                        });
                 }
             }
 

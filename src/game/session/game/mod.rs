@@ -23,12 +23,22 @@ use std::collections::{HashMap, HashSet};
 use shared;
 use time;
 use character::{Character, CharacterMinimal};
-use protocol::variants::{FriendInformationsVariant, IgnoredInformationsVariant};
+use protocol::variants::{FriendInformationsVariant, IgnoredInformationsVariant,
+    PlayerStatusVariant};
 
 pub struct CharacterRef {
     id: i32,
     map_id: i32,
     movements: Option<Vec<i16>>,
+}
+
+#[derive(Clone)]
+pub struct SocialInformations {
+    pub friends: HashSet<i32>,
+    pub ignored: HashSet<i32>,
+    warn_on_connection: bool,
+    warn_on_level_gain: bool,
+    pub status: PlayerStatusVariant,
 }
 
 struct AccountData {
@@ -39,10 +49,7 @@ struct AccountData {
     subscription_end: i64,
     last_connection: i64,
     last_ip: String,
-    friends: HashSet<String>,
-    ignored: HashSet<String>,
-    warn_on_connection: bool,
-    warn_on_level_gain: bool,
+    social: SocialInformations,
 }
 
 impl AccountData {
@@ -77,6 +84,6 @@ pub struct Session {
     last_sales_chat_request: i64,
     last_seek_chat_request: i64,
 
-    friends: HashMap<String, FriendInformationsVariant>,
-    ignored: HashMap<String, IgnoredInformationsVariant>,
+    friends: HashMap<i32, FriendInformationsVariant>,
+    ignored: HashMap<i32, IgnoredInformationsVariant>,
 }

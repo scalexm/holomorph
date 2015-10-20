@@ -5,6 +5,8 @@ use protocol::messages::game::context::{GameContextCreateMessage,
 use protocol::*;
 use protocol::messages::game::context::roleplay::*;
 use protocol::messages::game::basic::{TextInformationMessage, BasicNoOperationMessage};
+use protocol::messages::game::friend::*;
+use protocol::variants::FriendInformationsVariant;
 use protocol::enums::text_information_type;
 use std::io::{Result, Cursor};
 use server::SERVER;
@@ -14,7 +16,6 @@ use std::mem;
 impl Session {
     pub fn handle_game_context_create_request<'a>(&mut self, mut chunk: Ref<'a>,
                                                   _: Cursor<Vec<u8>>) -> Result<()> {
-
         let (map_id, ch_id) = match self.state {
             GameState::SwitchingContext(map_id, ref ch) => (map_id, ch.minimal().id()),
             _ => return Ok(()),
@@ -50,6 +51,16 @@ impl Session {
             context: 1,
         }.as_packet_with_buf(&mut buf).unwrap();
 
+        let account = self.account.as_ref().unwrap();
+
+        FriendWarnOnConnectionStateMessage {
+            enable: account.social.warn_on_connection,
+        }.as_packet_with_buf(&mut buf).unwrap();
+
+        FriendWarnOnLevelGainStateMessage {
+            enable: account.social.warn_on_level_gain,
+        }.as_packet_with_buf(&mut buf).unwrap();
+
         TextInformationMessage {
             msg_type: text_information_type::ERROR,
             msg_id: VarShort(89),
@@ -67,6 +78,7 @@ impl Session {
             if tm.tm_min < 10 {
                 minutes = minutes + "0";
             }
+
             TextInformationMessage {
                 msg_type: text_information_type::MESSAGE,
                 msg_id: VarShort(152),
@@ -76,13 +88,33 @@ impl Session {
             }.as_packet_with_buf(&mut buf).unwrap();
         }
 
+        TextInformationMessage {
+            msg_type: text_information_type::MESSAGE,
+            msg_id: VarShort(153),
+            parameters: vec![self.base.address.clone()],
+        }.as_packet_with_buf(&mut buf).unwrap();
+
+        let friends_count = self.friends.values().filter(|f| {
+            match **f {
+                FriendInformationsVariant::FriendOnlineInformations(_) => true,
+                _ => false,
+            }
+        }).count();
+
+        if friends_count > 0 {
+            TextInformationMessage {
+                msg_type: text_information_type::MESSAGE,
+                msg_id: VarShort(197),
+                parameters: vec![friends_count.to_string()],
+            }.as_packet_with_buf(&mut buf).unwrap();
+        }
+
         write!(SERVER, self.base.token, buf);
         Ok(())
     }
 
     pub fn handle_map_informations_request<'a>(&mut self, chunk: Ref<'a>, _: Cursor<Vec<u8>>)
                                                -> Result<()> {
-
         let ch = match self.state {
             GameState::InContext(ref ch) => ch,
             _ => return Ok(()),
@@ -101,7 +133,6 @@ impl Session {
 
     pub fn handle_game_map_movement_request<'a>(&mut self, chunk: Ref<'a>,
                                                 mut data: Cursor<Vec<u8>>) -> Result<()> {
-
         let ch = match self.state {
             GameState::InContext(ref mut ch) => ch,
             _ => return Ok(()),
@@ -121,7 +152,6 @@ impl Session {
 
     pub fn handle_game_map_movement_confirm<'a>(&mut self, mut chunk: Ref<'a>,
                                                 _: Cursor<Vec<u8>>) -> Result<()> {
-
         let ch = match self.state {
             GameState::InContext(ref mut ch) => ch,
             _ => return Ok(()),
@@ -148,7 +178,6 @@ impl Session {
 
     pub fn handle_game_map_movement_cancel<'a>(&mut self, mut chunk: Ref<'a>,
                                                mut data: Cursor<Vec<u8>>) -> Result<()> {
-
         let ch = match self.state {
             GameState::InContext(ref mut ch) => ch,
             _ => return Ok(()),
@@ -172,7 +201,6 @@ impl Session {
 
     pub fn handle_change_map<'a>(&mut self, chunk: Ref<'a>, mut data: Cursor<Vec<u8>>)
                                  -> Result<()> {
-
         let ch = match self.state {
             GameState::InContext(ref mut ch) => ch,
             _ => return Ok(()),

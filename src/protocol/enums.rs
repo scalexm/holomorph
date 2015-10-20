@@ -60,3 +60,13 @@ pub mod text_information_type {
     pub const ENTITY_TALK: i8 = 6;
     pub const FIGHT: i8 = 7;
 }
+
+pub mod player_status {
+    pub const OFFLINE:i8 = 0;
+    pub const UNKNOWN:i8 = 1;
+    pub const AVAILABLE:i8 = 10;
+    pub const IDLE:i8 = 20;
+    pub const AFK:i8 = 21;
+    pub const PRIVATE:i8 = 30;
+    pub const SOLO:i8 = 40;
+}

@@ -1,12 +1,14 @@
 use shared;
 use super::{Session, CharacterRef, GameState};
 use map::{Actor, Map};
+use character::CharacterMinimal;
 use std::collections::{HashSet, HashMap};
 use server::data::GameServerData;
 use character::Character;
 use server::{self, SERVER};
 use protocol::*;
 use protocol::messages::game::context::roleplay::CurrentMapMessage;
+use protocol::variants::{FriendInformationsVariant, IgnoredInformationsVariant};
 
 pub type Chunk = shared::session::chunk::Chunk<Session, ChunkImpl>;
 pub type Ref<'a> = shared::session::chunk::Ref<'a, Session, ChunkImpl>;
@@ -54,6 +56,20 @@ pub fn new(areas: HashSet<i16>, server: &GameServerData) -> Chunk {
 pub fn update_queue(chunk: &Chunk) {
     for session in chunk.sessions.values() {
         session.update_queue();
+    }
+}
+
+#[derive(Copy, Clone)]
+pub enum SocialState {
+    Online,
+    Offline,
+    Update,
+    UpdateWithLevel(i16),
+}
+
+pub fn update_social(chunk: &mut Chunk, ch: CharacterMinimal, state: SocialState) {
+    for session in &mut chunk.sessions {
+        session.1.update_social(&ch, state);
     }
 }
 

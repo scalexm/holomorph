@@ -38,6 +38,15 @@ impl_variant!(PlayerStatusVariant,
     PlayerStatus| PlayerStatus,
     PlayerStatusExtended| PlayerStatusExtended);
 
+impl PlayerStatusVariant {
+    pub fn status_id(&self) -> i8 {
+        match *self {
+            PlayerStatusVariant::PlayerStatus(ref s) => s.status_id,
+            PlayerStatusVariant::PlayerStatusExtended(ref s) => s.base.status_id,
+        }
+    }
+}
+
 impl_variant!(CharacterBaseInformationsVariant,
     CharacterBaseInformations| CharacterBaseInformations,
     CharacterHardcoreOrEpicInformations| CharacterHardcoreOrEpicInformations);

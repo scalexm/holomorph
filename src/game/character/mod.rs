@@ -1,3 +1,5 @@
+mod social;
+
 use protocol::types::game::look::EntityLook;
 use protocol::*;
 use protocol::types::game::character::*;
@@ -13,6 +15,7 @@ use postgres::{self, Transaction};
 use stats::{self, Type};
 use stats::row::Field;
 use shared::net::Token;
+use session::game::SocialInformations;
 
 #[derive(Clone)]
 pub struct CharacterMinimal {
@@ -24,6 +27,8 @@ pub struct CharacterMinimal {
     breed: i8,
     sex: bool,
     look: EntityLook,
+    mood_smiley: i16,
+    social: Option<SocialInformations>,
 }
 
 impl CharacterMinimal {
@@ -49,6 +54,8 @@ impl CharacterMinimal {
             breed: breed as i8,
             sex: row.get("sex"),
             look: look,
+            mood_smiley: row.get("mood_smiley"),
+            social: None,
         })
     }
 
@@ -57,27 +64,36 @@ impl CharacterMinimal {
         self.look.serialize(&mut look).unwrap();
 
         let stmt = try!(trans.prepare_cached("UPDATE character_minimals SET level = $1,
-            name = $2, breed = $3, sex = $4, look = $5 WHERE id = $6"));
+            name = $2, breed = $3, sex = $4, look = $5, mood_smiley = $6 WHERE id = $7"));
         let _ = try!(stmt.execute(&[&self.level,
             &self.name,
             &(self.breed as i16),
             &self.sex,
             &look,
+            &self.mood_smiley,
             &self.id]));
 
         Ok(())
+    }
+
+    pub fn set_mood_smiley(&mut self, mood: i16) {
+        self.mood_smiley = mood;
     }
 
     pub fn id(&self) -> i32 {
         self.id
     }
 
+    pub fn account_id(&self) -> i32 {
+        self.account_id
+    }
+
     pub fn name(&self) -> &str {
         &self.name
     }
 
-    pub fn account_id(&self) -> i32 {
-        self.account_id
+    pub fn account_nickname(&self) -> &str {
+        &self.account_nickname
     }
 
     pub fn as_character_base(&self) -> CharacterBaseInformations {
@@ -134,7 +150,6 @@ impl ::std::fmt::Display for CellError {
 impl Character {
     pub fn from_sql<'a>(session: Token, base: CharacterMinimal, row: Row<'a>)
                         -> postgres::Result<Character> {
-
         let mut stats = stats::List::new();
 
         stats.add(Type::Initiative, Field::Base, 1000);

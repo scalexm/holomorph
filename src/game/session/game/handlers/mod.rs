@@ -5,12 +5,15 @@ mod context;
 mod chat;
 mod authorized;
 
-use super::{Session, GameState};
-use super::chunk::{ChunkImpl, Ref};
+use super::{Session, GameState, AccountData};
+use super::chunk::{ChunkImpl, Ref, SocialState};
+use character::CharacterMinimal;
 use protocol::*;
 use protocol::messages::handshake::*;
 use protocol::messages::game::approach::*;
 use protocol::messages::queues::*;
+use protocol::messages::game::basic::TextInformationMessage;
+use protocol::enums::text_information_type;
 use std::io::{Result, Cursor};
 use std::sync::atomic::Ordering;
 use shared::{self, database};
@@ -53,6 +56,8 @@ impl shared::session::Session<ChunkImpl> for Session {
 
             4001 => Session::handle_friends_get_list,
             5676 => Session::handle_ignored_get_list,
+            5602 => Session::handle_friend_set_warn_on_connection,
+            6077 => Session::handle_friend_set_warn_on_level_gain,
 
             250 => Session::handle_game_context_create_request,
             225 => Session::handle_map_informations_request,
@@ -72,9 +77,10 @@ impl shared::session::Session<ChunkImpl> for Session {
     }
 
     fn close<'a>(mut self, mut chunk: Ref<'a>) {
-        if let Some(id) = self.account.as_ref().map(|a| a.id) {
+        let account = mem::replace(&mut self.account, None);
+        if let Some(account) = account {
             SERVER.with(|s| database::execute(&s.auth_db, move |conn| {
-                if let Err(err) = Session::save_auth(id, conn) {
+                if let Err(err) = Session::save_auth(account, conn) {
                     error!("error while saving session to auth db: {:?}", err);
                 }
             }));
@@ -136,10 +142,63 @@ impl Session {
         write!(SERVER, self.base.token, buf);
     }
 
-    fn save_auth(id: i32, conn: &mut Connection) -> postgres::Result<()> {
+    pub fn update_social(&mut self, ch: &CharacterMinimal, state: SocialState) {
+        let account = match self.account.as_ref() {
+            Some(account) => account,
+            None => return,
+        };
+
+        let account_id = ch.account_id();
+
+        if account.social.friends.contains(&account_id) {
+            let infos = ch.as_friend_infos(account.id, state);
+            let _ = self.friends.insert(account_id, infos);
+
+            match state {
+                SocialState::Online if account.social.warn_on_connection
+                                       && ch.is_friend_with(account.id) => {
+                    let buf = TextInformationMessage {
+                        msg_type: text_information_type::MESSAGE,
+                        msg_id: VarShort(143),
+                        parameters: vec![ch.name().to_string(), ch.account_nickname().to_string(),
+                                         account_id.to_string()],
+                    }.as_packet().unwrap();
+                    write!(SERVER, self.base.token, buf);
+                },
+
+                SocialState::UpdateWithLevel(lvl) if account.social.warn_on_level_gain => {
+                    // TODO
+                },
+
+                _ => (),
+            }
+        }
+
+        if account.social.ignored.contains(&account_id) {
+            let infos = ch.as_ignored_infos(state);
+            let _ = self.ignored.insert(account_id, infos);
+        }
+    }
+
+    fn save_auth(account: AccountData, conn: &mut Connection) -> postgres::Result<()> {
         let stmt = try!(conn.prepare_cached("UPDATE accounts SET logged = 0
             WHERE id = $1"));
-        let _ = try!(stmt.execute(&[&id]));
+        let _ = try!(stmt.execute(&[&account.id]));
+
+        let stmt = try!(conn.prepare_cached("UPDATE friends SET friends = $1,
+            ignored = $2, warn_on_connection = $3, warn_on_level_gain = $4
+            WHERE account_id = $5"));
+        let friends = account.social.friends.iter()
+                                            .map(|&id| id.to_string())
+                                            .collect::<Vec<_>>();
+        let friends = friends.join(",");
+        let ignored = account.social.ignored.iter()
+                                             .map(|&id| id.to_string())
+                                             .collect::<Vec<_>>();
+        let ignored = ignored.join(",");
+        let _ = try!(stmt.execute(&[&friends, &ignored, &account.social.warn_on_connection,
+                                    &account.social.warn_on_level_gain, &account.id]));
+
         Ok(())
     }
 

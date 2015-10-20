@@ -68,8 +68,24 @@ impl GameServerData {
 impl Server {
     pub fn load(&mut self, conn: &mut Connection) -> Result<()> {
         let stmt = try!(conn.prepare("SELECT * FROM character_minimals"));
-        self.characters = try!(stmt.query(&[])).iter().map(|row|
-            CharacterMinimal::from_sql(row)).collect();
+        self.characters = try!(stmt.query(&[])).iter()
+                                               .map(|row| CharacterMinimal::from_sql(row))
+                                               .collect();
+        self.character_nicknames = self.characters
+                                       .iter()
+                                       .map(|(id, ch)| {
+                                           (ch.account_nickname().to_string().to_lowercase(),
+                                            *id)
+                                       })
+                                       .collect();
+        self.character_names = self.characters
+                                   .iter()
+                                   .map(|(id, ch)| (ch.name().to_string().to_lowercase(), *id))
+                                   .collect();
+        self.character_accounts = self.characters
+                                      .iter()
+                                      .map(|(id, ch)| (ch.account_id(), *id))
+                                      .collect();
         info!("loaded {} characters", self.characters.len());
 
         Ok(())

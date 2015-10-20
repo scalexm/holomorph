@@ -1,10 +1,13 @@
-use session::game::{Session, AccountData, GameState};
+use session::game::{Session, AccountData, GameState, SocialInformations};
 use session::game::chunk::Ref;
 use protocol::{Protocol, Flag};
 use protocol::messages::game::approach::*;
 use protocol::messages::queues::*;
 use protocol::messages::game::basic::*;
 use protocol::messages::secure::*;
+use protocol::types::game::character::status::*;
+use protocol::variants::PlayerStatusVariant;
+use protocol::enums::player_status;
 use std::io::{self, Cursor};
 use shared::net::Msg;
 use std::sync::atomic::{ATOMIC_ISIZE_INIT, AtomicIsize, Ordering};
@@ -31,7 +34,6 @@ impl From<postgres::error::Error> for Error {
 
 fn authenticate(conn: &mut Connection, ticket: String, server_id: i16, addr: String)
                 -> Result<AccountData, Error> {
-
     let trans = try!(conn.transaction());
 
     let stmt = try!(trans.prepare_cached("SELECT id, nickname, secret_answer, level,
@@ -66,17 +68,14 @@ fn authenticate(conn: &mut Connection, ticket: String, server_id: i16, addr: Str
 
     let stmt = try!(trans.prepare_cached("SELECT friends, ignored, warn_on_connection,
         warn_on_level_gain FROM friends WHERE account_id = $1"));
-    try!(stmt.execute(&[&id]));
+    let rows = try!(stmt.query(&[&id]));
 
     let (friends, ignored, woc, wol) = if rows.len() == 0 {
+        error!("account id {} has no friends", id);
         return Err(Error::Other);
     } else {
         let row = rows.get(0);
-        let split = |field: String| {
-            field.split(",").filter_map(|s| {
-                if s.len() == 0 { Some(s.to_string()) } else { None }
-            }).collect()
-        };
+        let split = |field: String| field.split(",").filter_map(|s| s.parse().ok()).collect();
         let friends = split(try!(row.get_opt("friends")));
         let ignored = split(try!(row.get_opt("ignored")));
 
@@ -97,10 +96,15 @@ fn authenticate(conn: &mut Connection, ticket: String, server_id: i16, addr: Str
         subscription_end: try!(row.get_opt("subscription_end")),
         last_connection: last_connection,
         last_ip: last_ip,
-        friends: friends,
-        ignored: ignored,
-        warn_on_connection: woc,
-        warn_on_level_gain: wol,
+        social: SocialInformations {
+            friends: friends,
+            ignored: ignored,
+            warn_on_connection: woc,
+            warn_on_level_gain: wol,
+            status: PlayerStatusVariant::PlayerStatus(PlayerStatus {
+                status_id: player_status::AVAILABLE,
+            }),
+        }
     })
 }
 
@@ -141,7 +145,7 @@ impl Session {
             account_id: data.id,
             breeds_visible: -1,
             breeds_available: -1,
-            status: 0,
+            status: player_status::IDLE,
         }.as_packet_with_buf(&mut buf).unwrap();
 
         TrustStatusMessage { // AnkamaShield
