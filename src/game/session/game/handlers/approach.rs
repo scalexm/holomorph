@@ -104,7 +104,7 @@ fn authenticate(conn: &mut Connection, ticket: String, server_id: i16, addr: Str
             status: PlayerStatusVariant::PlayerStatus(PlayerStatus {
                 status_id: player_status::AVAILABLE,
             }),
-        }
+        },
     })
 }
 

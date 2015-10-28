@@ -4,8 +4,9 @@ mod friend;
 mod context;
 mod chat;
 mod authorized;
+mod player_status;
 
-use super::{Session, GameState, AccountData};
+use super::{Session, GameState, AccountData, SocialInformations};
 use super::chunk::{ChunkImpl, Ref, SocialState};
 use character::CharacterMinimal;
 use protocol::*;
@@ -58,6 +59,10 @@ impl shared::session::Session<ChunkImpl> for Session {
             5676 => Session::handle_ignored_get_list,
             5602 => Session::handle_friend_set_warn_on_connection,
             6077 => Session::handle_friend_set_warn_on_level_gain,
+            4004 => Session::handle_friend_add_request,
+            5673 => Session::handle_ignored_add_request,
+            5603 => Session::handle_friend_delete_request,
+            5680 => Session::handle_ignored_delete_request,
 
             250 => Session::handle_game_context_create_request,
             225 => Session::handle_map_informations_request,
@@ -71,6 +76,8 @@ impl shared::session::Session<ChunkImpl> for Session {
             862 => Session::handle_chat_client_multi_with_object,
 
             5662 => Session::handle_admin_quiet_command_message,
+
+            6387 => Session::handle_player_status_update_request,
 
             _ => Session::unhandled,
         }
@@ -142,7 +149,8 @@ impl Session {
         write!(SERVER, self.base.token, buf);
     }
 
-    pub fn update_social(&mut self, ch: &CharacterMinimal, state: SocialState) {
+    pub fn update_social(&mut self, ch: &CharacterMinimal, social: Option<&SocialInformations>,
+                         state: SocialState) {
         let account = match self.account.as_ref() {
             Some(account) => account,
             None => return,
@@ -150,13 +158,11 @@ impl Session {
 
         let account_id = ch.account_id();
 
-        if account.social.friends.contains(&account_id) {
-            let infos = ch.as_friend_infos(account.id, state);
-            let _ = self.friends.insert(account_id, infos);
+        if account.social.is_friend_with(account_id) {
+            let _ = self.friends.insert(account_id, ch.as_friend_infos(account.id, social));
 
             match state {
-                SocialState::Online if account.social.warn_on_connection
-                                       && ch.is_friend_with(account.id) => {
+                SocialState::Online if account.social.warn_on_connection => {
                     let buf = TextInformationMessage {
                         msg_type: text_information_type::MESSAGE,
                         msg_id: VarShort(143),
@@ -174,9 +180,8 @@ impl Session {
             }
         }
 
-        if account.social.ignored.contains(&account_id) {
-            let infos = ch.as_ignored_infos(state);
-            let _ = self.ignored.insert(account_id, infos);
+        if account.social.ignores(account_id) {
+            let _ = self.ignored.insert(account_id, ch.as_ignored_infos(social));
         }
     }
 

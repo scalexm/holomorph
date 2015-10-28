@@ -41,6 +41,16 @@ pub struct SocialInformations {
     pub status: PlayerStatusVariant,
 }
 
+impl SocialInformations {
+    pub fn is_friend_with(&self, account_id: i32) -> bool {
+        self.friends.contains(&account_id)
+    }
+
+    pub fn ignores(&self, account_id: i32) -> bool {
+        self.ignored.contains(&account_id)
+    }
+}
+
 struct AccountData {
     id: i32,
     nickname: String,

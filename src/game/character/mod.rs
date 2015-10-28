@@ -15,7 +15,6 @@ use postgres::{self, Transaction};
 use stats::{self, Type};
 use stats::row::Field;
 use shared::net::Token;
-use session::game::SocialInformations;
 
 #[derive(Clone)]
 pub struct CharacterMinimal {
@@ -28,7 +27,6 @@ pub struct CharacterMinimal {
     sex: bool,
     look: EntityLook,
     mood_smiley: i16,
-    social: Option<SocialInformations>,
 }
 
 impl CharacterMinimal {
@@ -55,7 +53,6 @@ impl CharacterMinimal {
             sex: row.get("sex"),
             look: look,
             mood_smiley: row.get("mood_smiley"),
-            social: None,
         })
     }
 

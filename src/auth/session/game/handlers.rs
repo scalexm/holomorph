@@ -40,7 +40,6 @@ impl shared::session::Session<ChunkImpl> for Session {
 impl Session {
     pub fn handle_identification<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>)
                                      -> Result<()> {
-
         if self.server_id.is_some() {
             return Ok(());
         }
@@ -52,7 +51,6 @@ impl Session {
              .get(&msg.id)
              .map(|gs| crypt::md5(&gs.key()))
          }) {
-
             Some(key) => key,
             None => {
                 close!(SERVER, self.base.token);
@@ -70,7 +68,8 @@ impl Session {
 
         SERVER.with(move |s| {
             server::register_game_server(&s.server, self.base.token, msg.id,
-                msg.state, msg.ip, msg.port, |session, id| session.identification_success(id));
+                                         msg.state, msg.ip, msg.port,
+                                         |session, id| session.identification_success(id));
         });
 
         Ok(())

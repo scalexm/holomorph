@@ -90,7 +90,6 @@ pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32,
                                                      &auth::chunk::ChunkImpl,
                                                      bool)
                                  + Send + 'static {
-
     chunk::send(sender, move |server| {
         let already = server.base.session_ids.insert(id, tok);
         if let Some(session) = already {
@@ -112,7 +111,6 @@ pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32,
 pub fn register_game_server<F>(sender: &Sender, tok: Token, id: i16, state: i8,
                                ip: String, port: i16, job: F)
                                where F: FnOnce(&mut game::Session, i16) + Send + 'static {
-
     chunk::send(sender, move |server| {
         if server.game_session_ids.contains_key(&id) {
             close!(SERVER, tok);

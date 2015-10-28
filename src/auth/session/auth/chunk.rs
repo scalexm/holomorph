@@ -26,7 +26,6 @@ pub fn update_queue(chunk: &Chunk) {
 
 pub fn update_game_server(chunk: &mut Chunk, server_id: i16, status: i8, ip: String,
                           port: i16) {
-
     let _ = chunk.game_status.insert(server_id, ServerStatus(status, ip, port));
     for session in chunk.sessions.values() {
         session.update_server_status(server_id, status);

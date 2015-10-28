@@ -79,20 +79,29 @@ impl Session {
                 minutes = minutes + "0";
             }
 
+            let mut parameters = vec![(1900 + tm.tm_year).to_string(), (1 + tm.tm_mon).to_string(),
+                tm.tm_mday.to_string(), tm.tm_hour.to_string(), minutes];
+            let last_ip = &self.account.as_ref().unwrap().last_ip;
+            let diff = *last_ip != self.base.address;
+            if diff {
+                parameters.push(last_ip.clone());
+            }
+
+
             TextInformationMessage {
                 msg_type: text_information_type::MESSAGE,
-                msg_id: VarShort(152),
-                parameters: vec![(1900 + tm.tm_year).to_string(), (1 + tm.tm_mon).to_string(),
-                    tm.tm_mday.to_string(), tm.tm_hour.to_string(), minutes,
-                    self.account.as_ref().unwrap().last_ip.clone()],
+                msg_id: VarShort(if diff { 152 } else { 193 }),
+                parameters: parameters,
             }.as_packet_with_buf(&mut buf).unwrap();
-        }
 
-        TextInformationMessage {
-            msg_type: text_information_type::MESSAGE,
-            msg_id: VarShort(153),
-            parameters: vec![self.base.address.clone()],
-        }.as_packet_with_buf(&mut buf).unwrap();
+            if diff {
+                TextInformationMessage {
+                    msg_type: text_information_type::MESSAGE,
+                    msg_id: VarShort(153),
+                    parameters: vec![self.base.address.clone()],
+                }.as_packet_with_buf(&mut buf).unwrap();
+            }
+        }
 
         let friends_count = self.friends.values().filter(|f| {
             match **f {

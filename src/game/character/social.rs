@@ -6,22 +6,10 @@ use protocol::types::game::social::*;
 use protocol::types::game::context::roleplay::BasicGuildInformations;
 use protocol::variants::{FriendInformationsVariant, IgnoredInformationsVariant};
 use protocol::enums::player_status;
-use session::game::chunk::SocialState;
 
 impl CharacterMinimal {
-    pub fn set_social(&mut self, infos: SocialInformations) {
-        self.social = Some(infos);
-    }
-
-    pub fn is_friend_with(&self, account_id: i32) -> bool {
-        self.social.as_ref().unwrap().friends.contains(&account_id)
-    }
-
-    pub fn ignores(&self, account_id: i32) -> bool {
-        self.social.as_ref().unwrap().ignored.contains(&account_id)
-    }
-
-    pub fn as_ignored_infos(&self, state: SocialState) -> IgnoredInformationsVariant {
+    pub fn as_ignored_infos(&self, social: Option<&SocialInformations>)
+                            -> IgnoredInformationsVariant {
         let infos = IgnoredInformations {
             base: AbstractContactInformations {
                 account_id: self.account_id,
@@ -29,25 +17,24 @@ impl CharacterMinimal {
             }
         };
 
-        match state {
-            SocialState::Offline => IgnoredInformationsVariant::IgnoredInformations(infos),
-            _ => {
-                IgnoredInformationsVariant::IgnoredOnlineInformations(IgnoredOnlineInformations {
-                    base: infos,
-                    player_id: VarInt(self.id),
-                    player_name: self.name.clone(),
-                    breed: self.breed,
-                    sex: self.sex,
-                })
-            }
+        if social.is_none() {
+            IgnoredInformationsVariant::IgnoredInformations(infos)
+        } else {
+            IgnoredInformationsVariant::IgnoredOnlineInformations(IgnoredOnlineInformations {
+                base: infos,
+                player_id: VarInt(self.id),
+                player_name: self.name.clone(),
+                breed: self.breed,
+                sex: self.sex,
+            })
         }
     }
 
-    pub fn as_friend_infos(&self, account_id: i32, state: SocialState)
+    pub fn as_friend_infos(&self, account_id: i32, social: Option<&SocialInformations>)
                            -> FriendInformationsVariant {
-        let is_friend_with = match state {
-            SocialState::Offline => false,
-            _ => self.is_friend_with(account_id),
+        let is_friend_with = match social {
+            None => false,
+            Some(social) => social.is_friend_with(account_id),
         };
 
         let infos = FriendInformations {
@@ -55,17 +42,17 @@ impl CharacterMinimal {
                 account_id: self.account_id,
                 account_name: self.account_nickname.clone(),
             },
-            player_state: match state {
-                SocialState::Offline => player_status::OFFLINE,
-                _ => self.social.as_ref().unwrap().status.status_id(),
+            player_state: match social {
+                None => player_status::OFFLINE,
+                Some(social) => social.status.status_id(),
             },
             last_connection: VarShort(0),
             achievement_points: if is_friend_with { 0 } else { -1 },
         };
 
-        match state {
-            SocialState::Offline => FriendInformationsVariant::FriendInformations(infos),
-            _ => {
+        match social {
+            None => FriendInformationsVariant::FriendInformations(infos),
+            Some(social) => {
                 FriendInformationsVariant::FriendOnlineInformations(FriendOnlineInformations {
                     base: infos,
                     player_id: VarInt(self.id),
@@ -80,7 +67,7 @@ impl CharacterMinimal {
                         guild_name: String::new(),
                     },
                     mood_smiley_id: VarShort(self.mood_smiley),
-                    status: self.social.as_ref().unwrap().status.clone(),
+                    status: social.status.clone(),
                 })
             },
         }

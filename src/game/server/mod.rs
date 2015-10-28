@@ -1,5 +1,5 @@
 pub mod data;
-mod social;
+pub mod social;
 
 use session::{auth, game};
 use session::game::SocialInformations;
@@ -26,9 +26,9 @@ pub struct Server {
 
     // an in-game session can be identified by its character id
     session_characters: HashBiMap<i32, Token>,
-
-    // and also by its nickname
-    session_nicknames: HashBiMap<String, Token>,
+    // and also by its account id
+    session_accounts: HashBiMap<i32, Token>,
+    session_socials: HashMap<i32, SocialInformations>,
 
     characters: HashMap<i32, CharacterMinimal>,
     character_nicknames: HashMap<String, i32>,
@@ -41,12 +41,16 @@ impl Server {
     pub fn new() -> Self {
         Server {
             base: shared::server::ServerBase::new(),
+
             session_characters: HashBiMap::new(),
-            session_nicknames: HashBiMap::new(),
+            session_accounts: HashBiMap::new(),
+            session_socials: HashMap::new(),
+
             characters: HashMap::new(),
             character_nicknames: HashMap::new(),
             character_names: HashMap::new(),
             character_accounts: HashMap::new(),
+
             chunk_areas: HashMap::new(),
         }
     }
@@ -58,9 +62,10 @@ impl Server {
     pub fn game_event(&mut self, evt: SessionEvent) {
         if let SessionEvent::Disconnect(tok) = evt {
             let id = self.session_characters.inv_remove(&tok);
-            let _ = self.session_nicknames.inv_remove(&tok);
+            let account_id = self.session_accounts.inv_remove(&tok);
             if let Some(id) = id {
-                self.update_social(self.characters.get(&id).unwrap(), SocialState::Offline);
+                let _ = self.session_socials.remove(&account_id.unwrap());
+                self.update_social(self.characters.get(&id).unwrap(), SocialState::Update);
             }
         }
 
@@ -122,9 +127,9 @@ pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32, job: F)
 
         let _ = server.base.session_ids.insert(id, tok);
 
-        let characters = server.characters.iter().filter_map(|ch| {
-            if ch.1.account_id() == id {
-                return Some((*ch.0, ch.1.clone()));
+        let characters = server.characters.iter().filter_map(|(ch_id, ch)| {
+            if ch.account_id() == id {
+                return Some((*ch_id, ch.clone()));
             }
             None
         }).collect();
@@ -134,7 +139,7 @@ pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32, job: F)
 }
 
 pub fn character_selection_success<F>(sender: &Sender, tok: Token, account_id: i32, ch_id: i32,
-                                      nickname: String, social: SocialInformations, job: F)
+                                      social: SocialInformations, job: F)
                                       where F: FnOnce(&mut game::Session,
                                                       &mut game::chunk::ChunkImpl,
                                                       HashMap<i32, FriendInformationsVariant>,
@@ -142,39 +147,17 @@ pub fn character_selection_success<F>(sender: &Sender, tok: Token, account_id: i
                                       + Send + 'static {
     chunk::send(sender, move |server| {
         let _ = server.session_characters.insert(ch_id, tok);
-        let _ = server.session_nicknames.insert(nickname, tok);
+        let _ = server.session_accounts.insert(account_id, tok);
 
-        let mut friends = HashMap::new();
-        let mut ignored = HashMap::new();
+        let friends = social.friends.iter().cloned().filter_map(|f| {
+            server.get_friend_infos(f, account_id).map(|infos| (f, infos))
+        }).collect();
 
-        for &f in &social.friends {
-            if let Some(ch_id) = server.character_accounts.get(&f) {
-                let ch = server.characters.get(ch_id).unwrap();
-                let state = if server.session_characters.contains_key(ch_id) {
-                    SocialState::Online
-                } else {
-                    SocialState::Offline
-                };
-                let _ = friends.insert(f, ch.as_friend_infos(account_id, state));
-            }
-        }
+        let ignored = social.ignored.iter().cloned().filter_map(|i| {
+            server.get_ignored_infos(i).map(|infos| (i, infos))
+        }).collect();
 
-        for &i in &social.ignored {
-            if let Some(ch_id) = server.character_accounts.get(&i) {
-                let ch = server.characters.get(ch_id).unwrap();
-                let state = if server.session_characters.contains_key(ch_id) {
-                    SocialState::Online
-                } else {
-                    SocialState::Offline
-                };
-                let _ = ignored.insert(i, ch.as_ignored_infos(state));
-            }
-        }
-
-        let _ = {
-            let ch = server.characters.get_mut(&ch_id).unwrap();
-            ch.set_social(social);
-        };
+        let _ = server.session_socials.insert(account_id, social);
         server.update_social(server.characters.get(&ch_id).unwrap(), SocialState::Online);
 
         server.base.session_callback(tok, move |session, mut chunk| {

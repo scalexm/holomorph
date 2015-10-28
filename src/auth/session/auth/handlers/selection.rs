@@ -48,7 +48,6 @@ impl Session {
         let result = match crypt::aes_256(&self.aes_key[0..32],
                                           &self.aes_key[0..16],
                                           ticket.as_bytes()) {
-
             Ok(result) => result,
             Err(err) => {
                 log_err!(self, "ticket encryption failed: {:?}", err);
@@ -96,7 +95,6 @@ impl Session {
 
     pub fn handle_server_selection<'a>(&mut self, chunk: Ref<'a>, mut data: Cursor<Vec<u8>>)
                                        -> io::Result<()> {
-
         if self.account.is_none() {
             return Ok(());
         }

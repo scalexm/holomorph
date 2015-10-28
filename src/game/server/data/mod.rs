@@ -6,7 +6,7 @@ use shared::{net, database};
 use postgres::{Connection, Result};
 use character::CharacterMinimal;
 use self::map::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, LinkedList};
 use server::{self, Server};
 use std::sync::mpsc;
 
@@ -71,21 +71,15 @@ impl Server {
         self.characters = try!(stmt.query(&[])).iter()
                                                .map(|row| CharacterMinimal::from_sql(row))
                                                .collect();
-        self.character_nicknames = self.characters
-                                       .iter()
-                                       .map(|(id, ch)| {
-                                           (ch.account_nickname().to_string().to_lowercase(),
-                                            *id)
-                                       })
-                                       .collect();
-        self.character_names = self.characters
-                                   .iter()
-                                   .map(|(id, ch)| (ch.name().to_string().to_lowercase(), *id))
-                                   .collect();
-        self.character_accounts = self.characters
-                                      .iter()
-                                      .map(|(id, ch)| (ch.account_id(), *id))
-                                      .collect();
+        let (nicknames, names_plus_accounts): (_, LinkedList<(_, _)>) =
+            self.characters.iter().map(|(id, ch)| {
+                ((ch.account_nickname().to_lowercase(), *id),
+                ((ch.name().to_lowercase(), *id), (ch.account_id(), *id)))
+            }).unzip();
+        self.character_nicknames = nicknames;
+        let (names, accounts) = names_plus_accounts.into_iter().unzip();
+        self.character_names = names;
+        self.character_accounts = accounts;
         info!("loaded {} characters", self.characters.len());
 
         Ok(())

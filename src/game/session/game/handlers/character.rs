@@ -131,7 +131,6 @@ impl Session {
             (s.server.clone(), s.io_loop.clone())
         });
         let account_id = account.id;
-        let nickname = account.nickname.clone();
         let social = account.social.clone();
 
         self.state = GameState::GameQueue(QUEUE_SIZE.fetch_add(1, Ordering::Relaxed) + 1,
@@ -152,7 +151,6 @@ impl Session {
                                                         token,
                                                         account_id,
                                                         ch_id,
-                                                        nickname,
                                                         social,
                         move |session, chunk, friends, ignored| {
                             session.character_selection_success(chunk, ch, map_id,

@@ -112,8 +112,8 @@ fn main() {
     let (shutdown_tx, shutdown_rx) = mpsc::channel();
     thread::spawn(move || {
         io::stdin().read_line(&mut String::new())
-            .ok()
-            .expect("failed to read line");
+                   .ok()
+                   .expect("failed to read line");
         let _ = shutdown_tx.send(());
     });
 

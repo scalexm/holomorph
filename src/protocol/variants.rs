@@ -241,9 +241,35 @@ impl_variant!(FriendInformationsVariant,
     FriendInformations| FriendInformations,
     FriendOnlineInformations| FriendOnlineInformations);
 
+impl FriendInformationsVariant {
+    pub fn name(&self) -> &str {
+        match *self {
+            FriendInformationsVariant::FriendInformations(ref infos) => &infos.base.account_name,
+            FriendInformationsVariant::FriendOnlineInformations(ref infos) => {
+                &infos.base.base.account_name
+            },
+        }
+    }
+}
+
+impl_type!(SessionIgnoredInformations, 9999, name| String);
+
 impl_variant!(IgnoredInformationsVariant,
     IgnoredInformations| IgnoredInformations,
-    IgnoredOnlineInformations| IgnoredOnlineInformations);
+    IgnoredOnlineInformations| IgnoredOnlineInformations,
+    SessionIgnoredInformations| SessionIgnoredInformations);
+
+impl IgnoredInformationsVariant {
+    pub fn name(&self) -> &str {
+        match *self {
+            IgnoredInformationsVariant::IgnoredInformations(ref infos) => &infos.base.account_name,
+            IgnoredInformationsVariant::IgnoredOnlineInformations(ref infos) => {
+                &infos.base.base.account_name
+            },
+            IgnoredInformationsVariant::SessionIgnoredInformations(ref infos) => &infos.name,
+        }
+    }
+}
 
 impl_variant!(FriendSpouseInformationsVariant,
     FriendSpouseInformations| FriendSpouseInformations,

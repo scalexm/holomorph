@@ -1,5 +1,5 @@
 use shared;
-use super::{Session, CharacterRef, GameState};
+use super::{Session, CharacterRef, GameState, SocialInformations};
 use map::{Actor, Map};
 use character::CharacterMinimal;
 use std::collections::{HashSet, HashMap};
@@ -8,7 +8,6 @@ use character::Character;
 use server::{self, SERVER};
 use protocol::*;
 use protocol::messages::game::context::roleplay::CurrentMapMessage;
-use protocol::variants::{FriendInformationsVariant, IgnoredInformationsVariant};
 
 pub type Chunk = shared::session::chunk::Chunk<Session, ChunkImpl>;
 pub type Ref<'a> = shared::session::chunk::Ref<'a, Session, ChunkImpl>;
@@ -62,14 +61,14 @@ pub fn update_queue(chunk: &Chunk) {
 #[derive(Copy, Clone)]
 pub enum SocialState {
     Online,
-    Offline,
     Update,
     UpdateWithLevel(i16),
 }
 
-pub fn update_social(chunk: &mut Chunk, ch: CharacterMinimal, state: SocialState) {
+pub fn update_social(chunk: &mut Chunk, ch: CharacterMinimal, social: Option<SocialInformations>,
+                     state: SocialState) {
     for session in &mut chunk.sessions {
-        session.1.update_social(&ch, state);
+        session.1.update_social(&ch, social.as_ref(), state);
     }
 }
 
@@ -139,11 +138,11 @@ pub fn send_to_area(chunk: &Chunk, area_id: i16, buf: Vec<u8>) {
     }
 }
 
-pub fn send_to_all(chunk: &Chunk, buf: Vec<u8>) {
+/*pub fn send_to_all(chunk: &Chunk, buf: Vec<u8>) {
     for s in chunk.sessions.values() {
         if let GameState::InContext(..) = s.state {
             let buf = buf.clone();
             write!(SERVER, s.base.token, buf);
         }
     }
-}
+}*/

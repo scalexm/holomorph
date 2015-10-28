@@ -81,7 +81,6 @@ impl Session {
 
     fn get_server_informations(&self, server: &GameServerData, mut status: i8)
                                -> GameServerInformations {
-
         let data = self.account.as_ref().unwrap();
 
         if data.is_subscriber() && status == server_status::FULL {

@@ -33,8 +33,6 @@ pub struct MapData {
     bottom: i32,
     cells: Vec<u8>,
 
-    client_left: i32,
-    client_right: i32,
     client_top: i32,
     client_bottom: i32,
 
@@ -71,8 +69,6 @@ impl MapData {
             bottom: row.get("bottom"),
             cells: cells,
 
-            client_left: row.get("client_left"),
-            client_right: row.get("client_right"),
             client_top: row.get("client_top"),
             client_bottom: row.get("client_bottom"),
 
@@ -118,14 +114,6 @@ impl MapData {
 
     pub fn bottom(&self) -> i32 {
         self.bottom
-    }
-
-    pub fn client_left(&self) -> i32 {
-        self.client_left
-    }
-
-    pub fn client_right(&self) -> i32 {
-        self.client_right
     }
 
     pub fn client_top(&self) -> i32 {
