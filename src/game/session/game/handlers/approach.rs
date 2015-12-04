@@ -158,14 +158,15 @@ impl Session {
         self.account = Some(data);
         self.state = GameState::CharacterSelection(characters);
     }
+}
 
-    pub fn handle_authentication_ticket<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>)
-                                            -> io::Result<()> {
+#[register_handlers]
+impl Session {
+    pub fn handle_authentication_ticket<'a>(&mut self, _: Ref<'a>,
+                                            msg: AuthenticationTicketMessage) -> io::Result<()> {
         if !self.state.is_none() {
             return Ok(());
         }
-
-        let msg = try!(AuthenticationTicketMessage::deserialize(&mut data));
 
         let ticket = msg.ticket;
         let (server_id, io_loop, server) = SERVER.with(|s| {

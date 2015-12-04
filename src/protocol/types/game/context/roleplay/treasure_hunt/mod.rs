@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 
 impl_type!(PortalInformation, 466, portal_id| VarShort, area_id| i16);

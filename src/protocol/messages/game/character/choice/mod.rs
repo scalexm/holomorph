@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 use messages::game::character::replay::CharacterReplayRequestMessage;  use types::game::character::choice::CharacterBaseInformations; use types::game::character::choice::RemodelingInformation; use variants::CharacterBaseInformationsVariant; use types::game::character::choice::CharacterToRelookInformation; use types::game::character::choice::CharacterToRemodelInformations; use types::game::character::choice::CharacterToRecolorInformation;
 impl_type!(BasicCharactersListMessage, 6475, characters| Vec<CharacterBaseInformationsVariant>);

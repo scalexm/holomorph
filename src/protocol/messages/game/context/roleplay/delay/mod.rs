@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 
 impl_type!(GameRolePlayDelayedActionFinishedMessage, 6150, delayed_character_id| i32, delay_type_id| i8);

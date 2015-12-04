@@ -1,3 +1,6 @@
+#![feature(plugin)]
+#![plugin(codegen)]
+
 #[macro_use]
 extern crate shared;
 #[macro_use]

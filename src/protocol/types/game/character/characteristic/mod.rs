@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::game::character::alignment::ActorExtendedAlignmentInformations;
 impl_type!(CharacterBaseCharacteristic, 4, base| VarShort, additionnal| VarShort, objects_and_mount_bonus| VarShort, align_gift_bonus| VarShort, context_modif| VarShort);

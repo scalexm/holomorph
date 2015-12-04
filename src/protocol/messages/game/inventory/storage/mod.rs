@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use messages::game::inventory::items::InventoryContentMessage; use types::game::data::items::ObjectItem;
 impl_type!(StorageInventoryContentMessage, 5646, base| InventoryContentMessage);

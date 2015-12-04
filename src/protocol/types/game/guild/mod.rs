@@ -1,6 +1,6 @@
 pub mod tax;
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::game::character::CharacterMinimalInformations; use variants::PlayerStatusVariant;
 impl_type!(GuildEmblem, 87, symbol_shape| VarShort, symbol_color| i32, background_shape| i8, background_color| i32);

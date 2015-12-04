@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 
 impl_type!(TeleportDestinationsListMessage, 5960, teleporter_type| i8, map_ids| Vec<i32>, sub_area_ids| Vec<VarShort>, costs| Vec<VarShort>, dest_teleporter_type| Vec<u8>);

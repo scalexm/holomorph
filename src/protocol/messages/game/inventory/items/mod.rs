@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 use types::game::inventory::preset::IdolsPreset;  use types::game::inventory::preset::Preset; use types::game::data::items::GoldItem; use types::game::data::items::ObjectItemQuantity; use variants::ObjectEffectVariant; use messages::game::inventory::exchanges::ExchangeObjectMessage; use types::game::data::items::ObjectItem;
 impl_type!(ExchangeKamaModifiedMessage, 5521, base| ExchangeObjectMessage, quantity| VarInt);

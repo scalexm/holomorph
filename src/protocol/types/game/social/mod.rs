@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 use types::game::context::roleplay::GuildInformations;  use types::game::context::roleplay::AllianceInformations; use types::game::context::roleplay::BasicNamedAllianceInformations;
 impl_type!(AbstractSocialGroupInfos, 416);

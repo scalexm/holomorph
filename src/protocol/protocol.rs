@@ -1,5 +1,5 @@
-use std::io::{Read, Write};
-use io::{ReadExt, WriteExt, Result};
+use std::io::{Read, Write, Result};
+use io::{ReadExt, WriteExt};
 
 #[derive(Clone, Debug)]
 pub struct VarInt(pub i32);

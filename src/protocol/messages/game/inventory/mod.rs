@@ -4,7 +4,7 @@ pub mod preset;
 pub mod items;
 pub mod exchanges;
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 
 impl_type!(KamasUpdateMessage, 5537, kamas_total| VarInt);

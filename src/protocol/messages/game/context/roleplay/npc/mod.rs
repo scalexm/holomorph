@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::game::context::roleplay::quest::GameRolePlayNpcQuestFlag; use types::game::context::roleplay::BasicGuildInformations; use types::game::context::roleplay::BasicNamedAllianceInformations;
 impl_type!(AlliancePrismDialogQuestionMessage, 6448);

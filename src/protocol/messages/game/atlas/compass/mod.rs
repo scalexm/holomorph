@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use variants::MapCoordinatesVariant;
 impl_type!(CompassResetMessage, 5584, type_| i8);

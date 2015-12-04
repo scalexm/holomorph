@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use variants::FriendInformationsVariant; use variants::IgnoredInformationsVariant; use variants::FriendSpouseInformationsVariant;
 impl_type!(FriendAddedMessage, 5599, friend_added| FriendInformationsVariant);

@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 
 impl_type!(CharacterCreationRequestMessage, 160, name| String, breed| i8, sex| bool, colors| StaticVec<i32>, cosmetic_id| VarShort);

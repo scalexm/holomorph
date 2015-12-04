@@ -42,7 +42,7 @@ impl<'a, T: Session<U>, U> Ref<'a, T, U> {
     }
 
     /* adds a callback so that a session can deal with a mutable chunk after
-    returning from an handler */
+    returning from a handler */
     pub fn eventually<F>(&mut self, job: F) where F: FnOnce(&mut Chunk<T, U>) + Send + 'static {
         if self.callbacks.is_none() {
             *self.callbacks = Some(LinkedList::new());
@@ -106,14 +106,17 @@ impl<T: Session<U>, U> Chunk<T, U> {
             SessionEvent::Packet(tok, id, data) => {
                 if let Some(session) = self.sessions.get_mut(&tok) {
                     let time_point = time::precise_time_ns();
-                    let hdl = T::get_handler(id);
-                    debug!("received {}: {}",
-                           id,
-                           protocol::debug::to_string(id as i16, data.clone()));
+                    debug!(
+                        "received {}: {}",
+                        id,
+                        protocol::debug::to_string(id as i16, data.clone())
+                    );
 
-                    if let Err(err) = hdl(session,
-                                          Ref::new(&mut self.impl_, &mut callbacks),
-                                          data) {
+                    if let Err(err) = session.handle(
+                        Ref::new(&mut self.impl_, &mut callbacks),
+                        id as i16,
+                        data
+                    ) {
                         /* debug only because it means that some message::Deserialize
                         failed, so it is either an issue with the client or an issue
                         with Deserialize */
@@ -130,7 +133,7 @@ impl<T: Session<U>, U> Chunk<T, U> {
 
     // helper for executing a session callback
     pub fn session_callback<F>(&mut self, tok: Token, job: F)
-                           where F: for<'a> FnOnce(&mut T, Ref<'a, T, U>) {
+                               where F: for<'a> FnOnce(&mut T, Ref<'a, T, U>) {
         let mut callbacks = None;
         if let Some(session) = self.sessions.get_mut(&tok) {
             job(session, Ref::new(&mut self.impl_, &mut callbacks));
@@ -139,7 +142,7 @@ impl<T: Session<U>, U> Chunk<T, U> {
     }
 }
 
-// close all Sessions on dropping
+// close all Sessions upon dropping
 impl<T: Session<U>, U> Drop for Chunk<T, U> {
     fn drop(&mut self) {
         let tokens = self.sessions

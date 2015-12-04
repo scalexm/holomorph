@@ -20,11 +20,12 @@ impl<C: 'static> mio::Handler for Handler<C> {
             _ => {
                 if let Err(_) = self.handle_client_event(event_loop, tok, events) {
                     // if an error occurs, we disconnect the session (typically: EOF)
-                    let _ = event_loop.deregister(self.connections[tok].socket());
+                    event_loop.deregister(self.connections[tok].socket()).unwrap();
 
                     let cb = self.listeners[self.connections[tok].listener()].callback;
-                    chunk::send(&self.handler, move |handler|
-                        cb(handler, SessionEvent::Disconnect(tok)));
+                    chunk::send(&self.handler, move |handler| {
+                        cb(handler, SessionEvent::Disconnect(tok))
+                    });
 
                     let _ = self.connections.remove(tok).unwrap();
                 }
@@ -37,7 +38,6 @@ impl<C: 'static> mio::Handler for Handler<C> {
         if let Msg::WriteAndClose(..) = msg {
             close = true;
         }
-        let close = close;
 
         match msg {
             Msg::Shutdown => {
@@ -49,10 +49,12 @@ impl<C: 'static> mio::Handler for Handler<C> {
                 let _ = self.connections.get_mut(tok).map(|conn| {
                     conn.push(buf, close);
 
-                    event_loop.reregister(conn.socket(),
-                                          tok,
-                                          EventSet::readable() | EventSet::writable(),
-                                          PollOpt::level()).unwrap();
+                    event_loop.reregister(
+                        conn.socket(),
+                        tok,
+                        EventSet::readable() | EventSet::writable(),
+                        PollOpt::level()
+                    ).unwrap();
                 });
             }
 

@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::game::character::AbstractCharacterInformation; use types::game::character::CharacterMinimalPlusLookInformations;
 impl_type!(AbstractCharacterToRefurbishInformation, 475, base| AbstractCharacterInformation, colors| Vec<i32>, cosmetic_id| VarInt);

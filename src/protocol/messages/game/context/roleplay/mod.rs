@@ -17,7 +17,7 @@ pub mod document;
 pub mod delay;
 pub mod death;
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 use types::game::house::HouseInformationsInside; use variants::GameFightFighterLightInformationsVariant;  use types::game::interactive::MapObstacle; use types::game::context::fight::FightCommonInformations; use variants::InteractiveElementVariant; use variants::GameRolePlayActorInformationsVariant; use variants::HouseInformationsVariant; use types::game::context::roleplay::party::NamedPartyTeam; use types::game::context::fight::FightExternalInformations; use types::game::interactive::StatedElement;
 impl_type!(ChangeMapMessage, 221, map_id| i32);

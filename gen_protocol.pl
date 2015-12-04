@@ -219,7 +219,7 @@ multi sub read_dir($path, $base_path, $output_path) {
         }
 
         $output = "use std::io::\{Read, Write\};\n"
-            ~ "use io::Result;\n"
+            ~ "use std::io::Result;\n"
             ~ "use protocol::*;\n"
             ~ $output;
     }

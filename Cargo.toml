@@ -13,12 +13,15 @@ postgres = "*"
 lazy_static = "*"
 shared = { path = "src/shared" }
 protocol = { path = "src/protocol" }
-
-[profile.release]
-debug = true
+diesel = "*"
+quasi_macros = "*"
+quasi = "*"
 
 [dependencies.eventual]
 git = "https://github.com/carllerche/eventual"
+
+[profile.release]
+debug = true
 
 [[bin]]
 name = "auth"
@@ -27,6 +30,11 @@ path = "src/auth/main.rs"
 [[bin]]
 name = "game"
 path = "src/game/main.rs"
+
+[lib]
+name = "codegen"
+path = "src/codegen.rs"
+plugin = true
 
 [[test]]
 name = "test"

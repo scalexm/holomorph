@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 
 impl_type!(ChallengeInfoMessage, 6022, challenge_id| VarShort, target_id| i32, xp_bonus| VarInt, drop_bonus| VarInt);

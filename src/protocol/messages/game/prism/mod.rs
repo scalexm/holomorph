@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::game::prism::PrismFightersInformation; use variants::CharacterMinimalPlusLookInformationsVariant; use variants::PrismSubareaEmptyInfoVariant;
 impl_type!(PrismAttackRequestMessage, 6042);

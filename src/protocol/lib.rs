@@ -23,8 +23,7 @@ macro_rules! impl_variant {
                             Ok($name::$field_name(try!(<$field_type as Protocol>
                                 ::deserialize(rdr)))),
                     )*
-                    _ => Err(::byteorder::Error
-                        ::Io(Error::new(ErrorKind::Other, "bad protocol id"))),
+                    _ => Err(Error::new(ErrorKind::Other, "bad protocol id")),
                 }
             }
 

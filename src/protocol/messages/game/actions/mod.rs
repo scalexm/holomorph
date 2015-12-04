@@ -1,7 +1,7 @@
 pub mod sequence;
 pub mod fight;
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 
 impl_type!(AbstractGameActionMessage, 1000, action_id| VarShort, source_id| i32);

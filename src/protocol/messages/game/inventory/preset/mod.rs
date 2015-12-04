@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 use types::game::inventory::preset::IdolsPreset;  use types::game::inventory::preset::Preset; use types::game::inventory::preset::PresetItem;
 impl_type!(IdolsPresetDeleteMessage, 6602, preset_id| i8);

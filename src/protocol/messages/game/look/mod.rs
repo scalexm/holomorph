@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::game::look::EntityLook;
 impl_type!(AccessoryPreviewErrorMessage, 6521, error| i8);

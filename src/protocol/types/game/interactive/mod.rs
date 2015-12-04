@@ -1,6 +1,6 @@
 pub mod skill;
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use variants::InteractiveElementSkillVariant;
 impl_type!(InteractiveElement, 80, element_id| i32, element_type_id| i32, enabled_skills| Vec<InteractiveElementSkillVariant>, disabled_skills| Vec<InteractiveElementSkillVariant>);

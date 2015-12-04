@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use variants::ServerSessionConstantVariant;
 impl_type!(AccountCapabilitiesMessage, 6216, tutorial_available| Flag, can_create_new_character| Flag, account_id| i32, breeds_visible| i16, breeds_available| i16, status| i8);

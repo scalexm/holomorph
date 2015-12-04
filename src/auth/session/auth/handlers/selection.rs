@@ -1,4 +1,4 @@
-use std::io::{self, Cursor};
+use std::io;
 use protocol::{Protocol, VarIntVec, VarShort};
 use protocol::messages::connection::*;
 use protocol::enums::{server_status, server_connection_error};
@@ -92,14 +92,16 @@ impl Session {
 
         Ok(())
     }
+}
 
-    pub fn handle_server_selection<'a>(&mut self, chunk: Ref<'a>, mut data: Cursor<Vec<u8>>)
+#[register_handlers]
+impl Session {
+    pub fn handle_server_selection<'a>(&mut self, chunk: Ref<'a>, msg: ServerSelectionMessage)
                                        -> io::Result<()> {
         if self.account.is_none() {
             return Ok(());
         }
 
-        let msg = try!(ServerSelectionMessage::deserialize(&mut data));
         let server_id = msg.server_id.0 as i16;
 
         if let Err(err) = self.select_server(&*chunk, server_id) {

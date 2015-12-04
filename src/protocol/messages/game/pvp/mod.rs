@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 
 impl_type!(AlignmentRankUpdateMessage, 6058, alignment_rank| i8, verbose| bool);

@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::game::achievement::AchievementRewardable; use types::game::achievement::Achievement;
 impl_type!(AchievementDetailedListMessage, 6358, started_achievements| Vec<Achievement>, finished_achievements| Vec<Achievement>);

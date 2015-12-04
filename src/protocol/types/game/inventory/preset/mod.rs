@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 
 impl_type!(IdolsPreset, 491, preset_id| i8, symbol_id| i8, idol_id| Vec<VarShort>);

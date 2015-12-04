@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 use types::game::context::roleplay::GuildInformations; 
 impl_type!(AccountHouseInformations, 390, house_id| VarInt, model_id| VarShort, world_x| i16, world_y| i16, map_id| i32, sub_area_id| VarShort);

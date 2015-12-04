@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use variants::ShortcutVariant;
 impl_type!(ShortcutBarAddErrorMessage, 6227, error| i8);

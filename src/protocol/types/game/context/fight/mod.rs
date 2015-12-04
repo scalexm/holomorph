@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 use types::game::character::alignment::ActorAlignmentInformations; use variants::GameFightMinimalStatsVariant;  use variants::FightTeamMemberInformationsVariant; use types::game::context::roleplay::BasicAllianceInformations; use types::game::context::GameContextActorInformations; use variants::FightTeamInformationsVariant; use variants::FightResultAdditionalDataVariant; use types::game::context::roleplay::BasicGuildInformations; use types::game::character::status::PlayerStatus;
 impl_type!(AbstractFightTeamInformations, 116, team_id| i8, leader_id| i32, team_side| i8, team_type_id| i8, nb_waves| i8);

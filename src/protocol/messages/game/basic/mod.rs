@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use variants::AbstractSocialGroupInfosVariant;
 impl_type!(BasicAckMessage, 6362, seq| VarInt, last_packet_id| VarShort);

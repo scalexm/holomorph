@@ -1,6 +1,6 @@
 pub mod arena;
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::game::context::fight::FightCommonInformations;
 impl_type!(GameRolePlayAggressionMessage, 6073, attacker_id| VarInt, defender_id| VarInt);

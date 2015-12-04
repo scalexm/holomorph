@@ -2,12 +2,13 @@ use session::game::{Session, GameState};
 use session::game::chunk::{self, Ref};
 use protocol::*;
 use protocol::messages::game::chat::*;
+use protocol::messages::game::chat::smiley::*;
 use protocol::types::game::data::items::ObjectItem;
 use protocol::messages::game::basic::TextInformationMessage;
 use protocol::enums::{text_information_type, chat_channels_multi};
 use time;
 use std::io::{Result, Cursor};
-use server::SERVER;
+use server::{social, SERVER};
 
 macro_rules! build_message {
     ($msg: ident, $items: ident) => {
@@ -26,7 +27,6 @@ macro_rules! build_message {
 impl Session {
     fn send_chat_message<'a>(&mut self, mut chunk: Ref<'a>, msg: ChatClientMultiMessage,
                              items: Vec<ObjectItem>) {
-
         let ch = match self.state {
             GameState::InContext(ref ch) => ch,
             _ => unreachable!(),
@@ -81,32 +81,66 @@ impl Session {
             chunk.eventually(move |chunk| chunk::send_to_area(chunk, area_id, buf));
         }
     }
+}
 
-    pub fn handle_chat_client_multi<'a>(&mut self, chunk: Ref<'a>, mut data: Cursor<Vec<u8>>)
+#[register_handlers]
+impl Session {
+    pub fn handle_chat_client_multi<'a>(&mut self, chunk: Ref<'a>, msg: ChatClientMultiMessage)
                                         -> Result<()> {
-
         match self.state {
             GameState::InContext(_) => (),
             _ => return Ok(()),
         };
-
-        let msg = try!(ChatClientMultiMessage::deserialize(&mut data));
 
         self.send_chat_message(chunk, msg, Vec::new());
         Ok(())
     }
 
     pub fn handle_chat_client_multi_with_object<'a>(&mut self, chunk: Ref<'a>,
-        mut data: Cursor<Vec<u8>>) -> Result<()> {
-
+                                                    msg: ChatClientMultiWithObjectMessage)
+                                                    -> Result<()> {
         match self.state {
             GameState::InContext(_) => (),
             _ => return Ok(()),
         };
 
-        let msg = try!(ChatClientMultiWithObjectMessage::deserialize(&mut data));
-
         self.send_chat_message(chunk, msg.base, msg.objects);
+        Ok(())
+    }
+
+    pub fn handle_chat_smiley_request<'a>(&mut self, chunk: Ref<'a>,
+                                      msg: ChatSmileyRequestMessage) -> Result<()> {
+        let ch = match self.state {
+            GameState::InContext(ref ch) => ch,
+            _ => return Ok(()),
+        };
+
+        let buf = ChatSmileyMessage {
+            entity_id: ch.id,
+            smiley_id: msg.smiley_id,
+            account_id: self.account.as_ref().unwrap().id,
+        }.as_packet().unwrap();
+        chunk.maps.get(&ch.map_id).unwrap().send(buf);
+
+        Ok(())
+    }
+
+    pub fn handle_mood_smiley_request<'a>(&mut self, mut chunk: Ref<'a>,
+                                          msg: MoodSmileyRequestMessage) -> Result<()> {
+        let ch = match self.state {
+            GameState::InContext(ref ch) => ch,
+            _ => return Ok(()),
+        };
+
+        let smiley = msg.smiley_id.0;
+        get_mut_character!(ch, chunk).set_mood_smiley(smiley);
+        SERVER.with(|s| social::update_mood(&s.server, ch.id, smiley));
+
+        let buf = MoodSmileyResultMessage {
+            result_code: 0,
+            smiley_id: msg.smiley_id,
+        }.as_packet().unwrap();
+        write!(SERVER, self.base.token, buf);
         Ok(())
     }
 }

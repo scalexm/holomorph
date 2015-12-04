@@ -1,6 +1,6 @@
 pub mod companion;
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::game::look::EntityLook; use types::game::character::choice::CharacterBaseInformations; use types::game::context::roleplay::party::companion::PartyCompanionBaseInformations; use variants::PlayerStatusVariant; use types::game::context::roleplay::party::companion::PartyCompanionMemberInformations;
 impl_type!(DungeonPartyFinderPlayer, 373, player_id| VarInt, player_name| String, breed| i8, sex| bool, level| i8);

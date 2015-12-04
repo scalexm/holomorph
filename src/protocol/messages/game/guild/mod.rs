@@ -1,6 +1,6 @@
 pub mod tax;
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 use types::game::house::HouseInformationsForGuild; use types::game::context::roleplay::GuildInformations;  use types::game::guild::GuildEmblem; use types::game::guild::GuildMember; use variants::GuildVersatileInformationsVariant; use variants::GuildFactSheetInformationsVariant; use types::game::context::roleplay::BasicGuildInformations; use types::game::paddock::PaddockContentInformations; use types::game::character::CharacterMinimalInformations; use types::game::context::roleplay::BasicNamedAllianceInformations;
 impl_type!(ChallengeFightJoinRefusedMessage, 5908, player_id| VarInt, reason| i8);

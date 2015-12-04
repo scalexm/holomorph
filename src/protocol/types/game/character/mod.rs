@@ -4,7 +4,7 @@ pub mod choice;
 pub mod characteristic;
 pub mod alignment;
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::game::look::EntityLook; use types::game::context::roleplay::BasicAllianceInformations; use types::game::context::roleplay::BasicGuildInformations;
 impl_type!(AbstractCharacterInformation, 400, id| VarInt);

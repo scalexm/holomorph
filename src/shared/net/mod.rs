@@ -53,8 +53,14 @@ impl<C: 'static> Handler<C> {
                 callback: cb,
             }).ok().unwrap();
 
-            try!(event_loop.register_opt(self.listeners[tok].socket.as_ref().unwrap(),
-                tok, EventSet::readable(), PollOpt::edge()));
+            try!(
+                event_loop.register_opt(
+                    self.listeners[tok].socket.as_ref().unwrap(),
+                    tok,
+                    EventSet::readable(),
+                    PollOpt::edge()
+                )
+            );
 
             info!("ready to listen on {:?}", address);
             Ok(())
@@ -63,12 +69,13 @@ impl<C: 'static> Handler<C> {
     fn connect(&mut self, event_loop: &mut EventLoop<C>, address: SocketAddr,
                cb: fn(&mut C, SessionEvent)) -> io::Result<()> {
             let socket = try!(TcpStream::connect(&address));
+
             let tok = self.listeners.insert(Listener {
                 socket: None,
                 callback: cb,
             }).ok().unwrap();
 
-            try!(self.new_connection(event_loop, tok, socket, address));
+            self.new_connection(event_loop, tok, socket, address);
             Ok(())
     }
 
@@ -96,7 +103,7 @@ impl<C: 'static> Handler<C> {
     }
 
     fn new_connection(&mut self, event_loop: &mut EventLoop<C>, tok: Token, socket: TcpStream,
-                      address: SocketAddr) -> io::Result<()> {
+                      address: SocketAddr) {
         let ip = format!("{}", address.ip());
         let client_tok = self.connections
                              .insert(Connection::new(socket, tok))
@@ -108,27 +115,28 @@ impl<C: 'static> Handler<C> {
             cb(handler, SessionEvent::Connect(client_tok, ip))
         });
 
-        event_loop.register_opt(self.connections[client_tok].socket(),
-                                client_tok,
-                                EventSet::readable(),
-                                PollOpt::level())
+        event_loop.register_opt(
+            self.connections[client_tok].socket(),
+            client_tok,
+            EventSet::readable(),
+            PollOpt::level()
+        ).unwrap();
     }
 
     fn handle_server_event(&mut self, event_loop: &mut EventLoop<C>, tok: Token,
                            events: EventSet) -> io::Result<()> {
         assert!(events.is_readable());
 
-        match try!(self.listeners[tok].socket.as_ref().unwrap().accept()) {
-            Some(socket) => {
-                let addr = socket.peer_addr().ok().unwrap();
-                self.new_connection(event_loop,
-                                    tok,
-                                    socket,
-                                    addr)
-            }
-
-            None => Ok(()),
+        if let Some(socket) = try!(self.listeners[tok].socket.as_ref().unwrap().accept()) {
+            let addr = socket.peer_addr().ok().unwrap();
+            self.new_connection(
+                event_loop,
+                tok,
+                socket,
+                addr
+            );
         }
+        Ok(())
     }
 
     fn handle_client_event(&mut self, event_loop: &mut EventLoop<C>, tok: Token,
@@ -144,10 +152,12 @@ impl<C: 'static> Handler<C> {
 
         if events.is_writable() {
             if try!(self.connections[tok].writable()) {
-                event_loop.reregister(self.connections[tok].socket(),
-                                      tok,
-                                      EventSet::readable(),
-                                      PollOpt::level()).unwrap();
+                event_loop.reregister(
+                    self.connections[tok].socket(),
+                    tok,
+                    EventSet::readable(),
+                    PollOpt::level()
+                ).unwrap();
             }
         }
 

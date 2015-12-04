@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::game::look::EntityLook;
 impl_type!(PartyCompanionBaseInformations, 453, index_id| i8, companion_generic_id| i8, entity_look| EntityLook);

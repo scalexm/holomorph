@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::game::look::EntityLook; use messages::game::actions::AbstractGameActionMessage; use variants::AbstractFightDispellableEffectVariant; use types::game::actions::fight::GameActionMark; use variants::GameFightFighterInformationsVariant;
 impl_type!(AbstractGameActionFightTargetedAbilityMessage, 6118, base| AbstractGameActionMessage, target_id| i32, destination_cell_id| i16, critical| i8, silent_cast| bool);

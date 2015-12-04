@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 
 use types::game::interactive::*;
@@ -26,17 +26,23 @@ use types::game::mount::*;
 use types::game::actions::fight::*;
 use types::game::data::items::effects::*;
 
-impl_variant!(InteractiveElementSkillVariant,
+impl_variant!(
+    InteractiveElementSkillVariant,
     InteractiveElementSkill| InteractiveElementSkill,
-    InteractiveElementNamedSkill| InteractiveElementNamedSkill);
+    InteractiveElementNamedSkill| InteractiveElementNamedSkill
+);
 
-impl_variant!(InteractiveElementVariant,
+impl_variant!(
+    InteractiveElementVariant,
     InteractiveElement| InteractiveElement,
-    InteractiveElementWithAgeBonus| InteractiveElementWithAgeBonus);
+    InteractiveElementWithAgeBonus| InteractiveElementWithAgeBonus
+);
 
-impl_variant!(PlayerStatusVariant,
+impl_variant!(
+    PlayerStatusVariant,
     PlayerStatus| PlayerStatus,
-    PlayerStatusExtended| PlayerStatusExtended);
+    PlayerStatusExtended| PlayerStatusExtended
+);
 
 impl PlayerStatusVariant {
     pub fn status_id(&self) -> i8 {
@@ -47,46 +53,63 @@ impl PlayerStatusVariant {
     }
 }
 
-impl_variant!(CharacterBaseInformationsVariant,
+impl_variant!(
+    CharacterBaseInformationsVariant,
     CharacterBaseInformations| CharacterBaseInformations,
-    CharacterHardcoreOrEpicInformations| CharacterHardcoreOrEpicInformations);
+    CharacterHardcoreOrEpicInformations| CharacterHardcoreOrEpicInformations
+);
 
-impl_variant!(ServerSessionConstantVariant,
+impl_variant!(
+    ServerSessionConstantVariant,
     ServerSessionConstant| ServerSessionConstant,
     ServerSessionConstantInteger| ServerSessionConstantInteger,
     ServerSessionConstantLong| ServerSessionConstantLong,
-    ServerSessionConstantString| ServerSessionConstantString);
+    ServerSessionConstantString| ServerSessionConstantString
+);
 
-impl_variant!(IdolVariant,
+impl_variant!(
+    IdolVariant,
     Idol| Idol,
-    PartyIdol| PartyIdol);
+    PartyIdol| PartyIdol
+);
 
-impl_variant!(ShortcutVariant,
+impl_variant!(
+    ShortcutVariant,
     Shortcut| Shortcut,
     ShortcutEmote| ShortcutEmote,
     ShortcutObject| ShortcutObject,
     ShortcutObjectItem| ShortcutObjectItem,
     ShortcutObjectPreset| ShortcutObjectPreset,
     ShortcutSmiley| ShortcutSmiley,
-    ShortcutSpell| ShortcutSpell);
+    ShortcutSpell| ShortcutSpell
+);
 
-impl_variant!(MapCoordinatesVariant,
+impl_variant!(
+    MapCoordinatesVariant,
     MapCoordinates| MapCoordinates,
     MapCoordinatesAndId| MapCoordinatesAndId,
-    MapCoordinatesExtended| MapCoordinatesExtended);
+    MapCoordinatesExtended| MapCoordinatesExtended
+);
 
-impl_variant!(TaxCollectorInformationsVariant,
-    TaxCollectorInformations| TaxCollectorInformations);
+impl_variant!(
+    TaxCollectorInformationsVariant,
+    TaxCollectorInformations| TaxCollectorInformations
+);
 
-impl_variant!(GuildVersatileInformationsVariant,
+impl_variant!(
+    GuildVersatileInformationsVariant,
     GuildVersatileInformations| GuildVersatileInformations,
-    GuildInAllianceVersatileInformations| GuildInAllianceVersatileInformations);
+    GuildInAllianceVersatileInformations| GuildInAllianceVersatileInformations
+);
 
-impl_variant!(GuildFactSheetInformationsVariant,
+impl_variant!(
+    GuildFactSheetInformationsVariant,
     GuildFactSheetInformations| GuildFactSheetInformations,
-    GuildInsiderFactSheetInformations| GuildInsiderFactSheetInformations);
+    GuildInsiderFactSheetInformations| GuildInsiderFactSheetInformations
+);
 
-impl_variant!(GameContextActorInformationsVariant,
+impl_variant!(
+    GameContextActorInformationsVariant,
     GameContextActorInformations| GameContextActorInformations,
 
     GameFightFighterInformations| GameFightFighterInformations,
@@ -112,28 +135,38 @@ impl_variant!(GameContextActorInformationsVariant,
     GameRolePlayMutantInformations| GameRolePlayMutantInformations,
     GameRolePlayCharacterInformations| GameRolePlayCharacterInformations,
     GameRolePlayGroupMonsterInformations| GameRolePlayGroupMonsterInformations,
-    GameRolePlayGroupMonsterWaveInformations| GameRolePlayGroupMonsterWaveInformations);
+    GameRolePlayGroupMonsterWaveInformations| GameRolePlayGroupMonsterWaveInformations
+);
 
-impl_variant!(PrismInformationVariant,
+impl_variant!(
+    PrismInformationVariant,
     PrismInformation| PrismInformation,
     AlliancePrismInformation| AlliancePrismInformation,
-    AllianceInsiderPrismInformation| AllianceInsiderPrismInformation);
+    AllianceInsiderPrismInformation| AllianceInsiderPrismInformation
+);
 
-impl_variant!(CharacterMinimalPlusLookInformationsVariant,
+impl_variant!(
+    CharacterMinimalPlusLookInformationsVariant,
     CharacterMinimalPlusLookInformations| CharacterMinimalPlusLookInformations,
-    CharacterMinimalPlusLookAndGradeInformations| CharacterMinimalPlusLookAndGradeInformations);
+    CharacterMinimalPlusLookAndGradeInformations| CharacterMinimalPlusLookAndGradeInformations
+);
 
-impl_variant!(QuestObjectiveInformationsVariant,
+impl_variant!(
+    QuestObjectiveInformationsVariant,
     QuestObjectiveInformations| QuestObjectiveInformations,
-    QuestObjectiveInformationsWithCompletion| QuestObjectiveInformationsWithCompletion);
+    QuestObjectiveInformationsWithCompletion| QuestObjectiveInformationsWithCompletion
+);
 
-impl_variant!(SkillActionDescriptionVariant,
+impl_variant!(
+    SkillActionDescriptionVariant,
     SkillActionDescription| SkillActionDescription,
     SkillActionDescriptionCollect| SkillActionDescriptionCollect,
     SkillActionDescriptionCraft| SkillActionDescriptionCraft,
-    SkillActionDescriptionTimed| SkillActionDescriptionTimed);
+    SkillActionDescriptionTimed| SkillActionDescriptionTimed
+);
 
-impl_variant!(HumanOptionVariant,
+impl_variant!(
+    HumanOptionVariant,
     HumanOption| HumanOption,
     HumanOptionAlliance| HumanOptionAlliance,
     HumanOptionEmote| HumanOptionEmote,
@@ -141,31 +174,43 @@ impl_variant!(HumanOptionVariant,
     HumanOptionGuild| HumanOptionGuild,
     HumanOptionObjectUse| HumanOptionObjectUse,
     HumanOptionOrnament| HumanOptionOrnament,
-    HumanOptionTitle| HumanOptionTitle);
+    HumanOptionTitle| HumanOptionTitle
+);
 
-impl_variant!(GroupMonsterStaticInformationsVariant,
+impl_variant!(
+    GroupMonsterStaticInformationsVariant,
     GroupMonsterStaticInformations| GroupMonsterStaticInformations,
-    GroupMonsterStaticInformationsWithAlternatives| GroupMonsterStaticInformationsWithAlternatives);
+    GroupMonsterStaticInformationsWithAlternatives| GroupMonsterStaticInformationsWithAlternatives
+);
 
-impl_variant!(PortalInformationVariant,
-    PortalInformation| PortalInformation);
+impl_variant!(
+    PortalInformationVariant,
+    PortalInformation| PortalInformation
+);
 
-impl_variant!(HumanInformationsVariant,
-    HumanInformations| HumanInformations);
+impl_variant!(
+    HumanInformationsVariant,
+    HumanInformations| HumanInformations
+);
 
-impl_variant!(FightTeamMemberInformationsVariant,
+impl_variant!(
+    FightTeamMemberInformationsVariant,
     FightTeamMemberInformations| FightTeamMemberInformations,
     FightTeamMemberCompanionInformations| FightTeamMemberCompanionInformations,
     FightTeamMemberCharacterInformations| FightTeamMemberCharacterInformations,
     FightTeamMemberMonsterInformations| FightTeamMemberMonsterInformations,
     FightTeamMemberTaxCollectorInformations| FightTeamMemberTaxCollectorInformations,
-    FightTeamMemberWithAllianceCharacterInformations| FightTeamMemberWithAllianceCharacterInformations);
+    FightTeamMemberWithAllianceCharacterInformations| FightTeamMemberWithAllianceCharacterInformations
+);
 
-impl_variant!(GameFightMinimalStatsVariant,
+impl_variant!(
+    GameFightMinimalStatsVariant,
     GameFightMinimalStats| GameFightMinimalStats,
-    GameFightMinimalStatsPreparation| GameFightMinimalStatsPreparation);
+    GameFightMinimalStatsPreparation| GameFightMinimalStatsPreparation
+);
 
-impl_variant!(ObjectEffectVariant,
+impl_variant!(
+    ObjectEffectVariant,
     ObjectEffect| ObjectEffect,
     ObjectEffectCreature| ObjectEffectCreature,
     ObjectEffectDate| ObjectEffectDate,
@@ -175,58 +220,80 @@ impl_variant!(ObjectEffectVariant,
     ObjectEffectLadder| ObjectEffectLadder,
     ObjectEffectMinMax| ObjectEffectMinMax,
     ObjectEffectMount| ObjectEffectMount,
-    ObjectEffectString| ObjectEffectString);
+    ObjectEffectString| ObjectEffectString
+);
 
-impl_variant!(AbstractFightDispellableEffectVariant,
+impl_variant!(
+    AbstractFightDispellableEffectVariant,
     AbstractFightDispellableEffect| AbstractFightDispellableEffect,
     FightTemporaryBoostEffect| FightTemporaryBoostEffect,
     FightTemporaryBoostStateEffect| FightTemporaryBoostStateEffect,
     FightTemporaryBoostWeaponDamagesEffect| FightTemporaryBoostWeaponDamagesEffect,
     FightTemporarySpellBoostEffect| FightTemporarySpellBoostEffect,
     FightTemporarySpellImmunityEffect| FightTemporarySpellImmunityEffect,
-    FightTriggeredEffect| FightTriggeredEffect);
+    FightTriggeredEffect| FightTriggeredEffect
+);
 
-impl_variant!(TaxCollectorComplementaryInformationsVariant,
+impl_variant!(
+    TaxCollectorComplementaryInformationsVariant,
     TaxCollectorComplementaryInformations| TaxCollectorComplementaryInformations,
     TaxCollectorGuildInformations| TaxCollectorGuildInformations,
     TaxCollectorLootInformations| TaxCollectorLootInformations,
-    TaxCollectorWaitingForHelpInformations| TaxCollectorWaitingForHelpInformations);
+    TaxCollectorWaitingForHelpInformations| TaxCollectorWaitingForHelpInformations
+);
 
-impl_variant!(FightTeamInformationsVariant,
+impl_variant!(
+    FightTeamInformationsVariant,
     FightTeamInformations| FightTeamInformations,
-    FightAllianceTeamInformations| FightAllianceTeamInformations);
+    FightAllianceTeamInformations| FightAllianceTeamInformations
+);
 
-impl_variant!(FightResultAdditionalDataVariant,
+impl_variant!(
+    FightResultAdditionalDataVariant,
     FightResultAdditionalData| FightResultAdditionalData,
     FightResultExperienceData| FightResultExperienceData,
-    FightResultPvpData| FightResultPvpData);
+    FightResultPvpData| FightResultPvpData
+);
 
-impl_variant!(EntityDispositionInformationsVariant,
+impl_variant!(
+    EntityDispositionInformationsVariant,
     EntityDispositionInformations| EntityDispositionInformations,
     FightEntityDispositionInformations| FightEntityDispositionInformations,
-    IdentifiedEntityDispositionInformations| IdentifiedEntityDispositionInformations);
+    IdentifiedEntityDispositionInformations| IdentifiedEntityDispositionInformations
+);
 
-impl_variant!(AllianceFactSheetInformationsVariant,
-    AllianceFactSheetInformations| AllianceFactSheetInformations);
+impl_variant!(
+    AllianceFactSheetInformationsVariant,
+    AllianceFactSheetInformations| AllianceFactSheetInformations
+);
 
-impl_variant!(PrismSubareaEmptyInfoVariant,
+impl_variant!(
+    PrismSubareaEmptyInfoVariant,
     PrismSubareaEmptyInfo| PrismSubareaEmptyInfo,
-    PrismGeolocalizedInformation| PrismGeolocalizedInformation);
+    PrismGeolocalizedInformation| PrismGeolocalizedInformation
+);
 
-impl_variant!(UpdateMountBoostVariant,
+impl_variant!(
+    UpdateMountBoostVariant,
     UpdateMountBoost| UpdateMountBoost,
-    UpdateMountIntBoost| UpdateMountIntBoost);
+    UpdateMountIntBoost| UpdateMountIntBoost
+);
 
-impl_variant!(HouseInformationsVariant,
+impl_variant!(
+    HouseInformationsVariant,
     HouseInformations| HouseInformations,
-    HouseInformationsExtended| HouseInformationsExtended);
+    HouseInformationsExtended| HouseInformationsExtended
+);
 
-impl_variant!(AbstractSocialGroupInfosVariant,
+impl_variant!(
+    AbstractSocialGroupInfosVariant,
     AbstractSocialGroupInfos| AbstractSocialGroupInfos,
     BasicGuildInformations| BasicGuildInformations,
-    BasicAllianceInformations| BasicAllianceInformations);
+    BasicAllianceInformations| BasicAllianceInformations
+);
 
-impl_variant!(GameFightFighterInformationsVariant,
+impl_variant!(
+    GameFightFighterInformationsVariant,
     GameFightFighterInformations| GameFightFighterInformations,
     GameFightCompanionInformations| GameFightCompanionInformations,
     GameFightAIInformations| GameFightAIInformations,
@@ -235,11 +302,14 @@ impl_variant!(GameFightFighterInformationsVariant,
     GameFightCharacterInformations| GameFightCharacterInformations,
     GameFightMonsterWithAlignmentInformations| GameFightMonsterWithAlignmentInformations,
     GameFightMutantInformations| GameFightMutantInformations,
-    GameFightTaxCollectorInformations| GameFightTaxCollectorInformations);
+    GameFightTaxCollectorInformations| GameFightTaxCollectorInformations
+);
 
-impl_variant!(FriendInformationsVariant,
+impl_variant!(
+    FriendInformationsVariant,
     FriendInformations| FriendInformations,
-    FriendOnlineInformations| FriendOnlineInformations);
+    FriendOnlineInformations| FriendOnlineInformations
+);
 
 impl FriendInformationsVariant {
     pub fn name(&self) -> &str {
@@ -254,10 +324,12 @@ impl FriendInformationsVariant {
 
 impl_type!(SessionIgnoredInformations, 9999, name| String);
 
-impl_variant!(IgnoredInformationsVariant,
+impl_variant!(
+    IgnoredInformationsVariant,
     IgnoredInformations| IgnoredInformations,
     IgnoredOnlineInformations| IgnoredOnlineInformations,
-    SessionIgnoredInformations| SessionIgnoredInformations);
+    SessionIgnoredInformations| SessionIgnoredInformations
+);
 
 impl IgnoredInformationsVariant {
     pub fn name(&self) -> &str {
@@ -271,48 +343,65 @@ impl IgnoredInformationsVariant {
     }
 }
 
-impl_variant!(FriendSpouseInformationsVariant,
+impl_variant!(
+    FriendSpouseInformationsVariant,
     FriendSpouseInformations| FriendSpouseInformations,
-    FriendSpouseOnlineInformations| FriendSpouseOnlineInformations);
+    FriendSpouseOnlineInformations| FriendSpouseOnlineInformations
+);
 
-impl_variant!(PaddockInformationsVariant,
+impl_variant!(
+    PaddockInformationsVariant,
     PaddockInformations| PaddockInformations,
     PaddockContentInformations| PaddockContentInformations,
     PaddockBuyableInformations| PaddockBuyableInformations,
     PaddockAbandonnedInformations| PaddockAbandonnedInformations,
-    PaddockPrivateInformations| PaddockPrivateInformations);
+    PaddockPrivateInformations| PaddockPrivateInformations
+);
 
-impl_variant!(FightResultListEntryVariant,
+impl_variant!(
+    FightResultListEntryVariant,
     FightResultListEntry| FightResultListEntry,
     FightResultFighterListEntry| FightResultFighterListEntry,
     FightResultMutantListEntry| FightResultMutantListEntry,
     FightResultPlayerListEntry| FightResultPlayerListEntry,
-    FightResultTaxCollectorListEntry| FightResultTaxCollectorListEntry);
+    FightResultTaxCollectorListEntry| FightResultTaxCollectorListEntry
+);
 
-impl_variant!(TreasureHuntStepVariant,
+impl_variant!(
+    TreasureHuntStepVariant,
     TreasureHuntStep| TreasureHuntStep,
     TreasureHuntStepDig| TreasureHuntStepDig,
     TreasureHuntStepFight| TreasureHuntStepFight,
     TreasureHuntStepFollowDirection| TreasureHuntStepFollowDirection,
     TreasureHuntStepFollowDirectionToHint| TreasureHuntStepFollowDirectionToHint,
-    TreasureHuntStepFollowDirectionToPOI| TreasureHuntStepFollowDirectionToPOI);
+    TreasureHuntStepFollowDirectionToPOI| TreasureHuntStepFollowDirectionToPOI
+);
 
-impl_variant!(PartyMemberInformationsVariant,
+impl_variant!(
+    PartyMemberInformationsVariant,
     PartyMemberInformations| PartyMemberInformations,
-    PartyMemberArenaInformations| PartyMemberArenaInformations);
+    PartyMemberArenaInformations| PartyMemberArenaInformations
+);
 
-impl_variant!(QuestActiveInformationsVariant,
+impl_variant!(
+    QuestActiveInformationsVariant,
     QuestActiveInformations| QuestActiveInformations,
-    QuestActiveDetailedInformations| QuestActiveDetailedInformations);
+    QuestActiveDetailedInformations| QuestActiveDetailedInformations
+);
 
-impl_variant!(TaxCollectorStaticInformationsVariant,
+impl_variant!(
+    TaxCollectorStaticInformationsVariant,
     TaxCollectorStaticInformations| TaxCollectorStaticInformations,
-    TaxCollectorStaticExtendedInformations| TaxCollectorStaticExtendedInformations);
+    TaxCollectorStaticExtendedInformations| TaxCollectorStaticExtendedInformations
+);
 
-impl_variant!(PartyIdolVariant,
-    PartyIdol| PartyIdol);
+impl_variant!(
+    PartyIdolVariant,
+    PartyIdol| PartyIdol
+);
 
-impl_variant!(GameRolePlayActorInformationsVariant,
+impl_variant!(
+    GameRolePlayActorInformationsVariant,
     GameRolePlayTaxCollectorInformations| GameRolePlayTaxCollectorInformations,
     GameRolePlayActorInformations| GameRolePlayActorInformations,
     GameRolePlayNamedActorInformations| GameRolePlayNamedActorInformations,
@@ -326,11 +415,14 @@ impl_variant!(GameRolePlayActorInformationsVariant,
     GameRolePlayMutantInformations| GameRolePlayMutantInformations,
     GameRolePlayCharacterInformations| GameRolePlayCharacterInformations,
     GameRolePlayGroupMonsterInformations| GameRolePlayGroupMonsterInformations,
-    GameRolePlayGroupMonsterWaveInformations| GameRolePlayGroupMonsterWaveInformations);
+    GameRolePlayGroupMonsterWaveInformations| GameRolePlayGroupMonsterWaveInformations
+);
 
-impl_variant!(GameFightFighterLightInformationsVariant,
+impl_variant!(
+    GameFightFighterLightInformationsVariant,
     GameFightFighterLightInformations| GameFightFighterLightInformations,
     GameFightFighterNamedLightInformations| GameFightFighterNamedLightInformations,
     GameFightFighterMonsterLightInformations| GameFightFighterMonsterLightInformations,
     GameFightFighterTaxCollectorLightInformations| GameFightFighterTaxCollectorLightInformations,
-    GameFightFighterCompanionLightInformations| GameFightFighterCompanionLightInformations);
+    GameFightFighterCompanionLightInformations| GameFightFighterCompanionLightInformations
+);

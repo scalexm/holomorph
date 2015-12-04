@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 use types::game::data::items::ObjectItemToSell; use types::game::data::items::SellerBuyerDescriptor;  use types::game::context::roleplay::job::DecraftedItemStackInfo; use variants::UpdateMountBoostVariant; use types::game::data::items::ObjectItemToSellInNpcShop; use types::game::data::items::ObjectItemNotInContainer; use types::game::data::items::ObjectItemToSellInHumanVendorShop; use types::game::mount::MountClientData; use variants::ObjectEffectVariant; use types::game::data::items::ObjectItemGenericQuantity; use messages::game::dialog::LeaveDialogMessage; use types::game::data::items::ObjectItemToSellInBid; use types::game::data::items::ObjectItem; use types::game::data::items::BidExchangerObjectInfo;
 impl_type!(DecraftResultMessage, 6569, results| Vec<DecraftedItemStackInfo>);

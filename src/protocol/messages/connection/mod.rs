@@ -1,7 +1,7 @@
 pub mod search;
 pub mod register;
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::connection::GameServerInformations; use types::version::VersionExtended; use types::version::Version;
 impl_type!(CredentialsAcknowledgementMessage, 6314);

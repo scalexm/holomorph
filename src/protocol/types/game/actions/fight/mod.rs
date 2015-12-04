@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 
 impl_type!(AbstractFightDispellableEffect, 206, uid| VarInt, target_id| i32, turn_duration| i16, dispelable| i8, spell_id| VarShort, effect_id| VarInt, parent_boost_uid| VarInt);

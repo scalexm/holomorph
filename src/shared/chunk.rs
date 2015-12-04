@@ -20,17 +20,17 @@ pub fn send<F, C>(sender: &Sender<C>, job: F) where F : FnOnce(&mut C) + Send + 
 pub fn run<C: Send + 'static>(mut chunk: C, joins: &mut LinkedList<JoinHandle<()>>) -> Sender<C> {
     let (tx, rx) = mpsc::channel::<Msg<C>>();
     joins.push_back(thread::spawn(move || {
-            loop {
-                match rx.recv() {
-                    Ok(msg) => {
-                        match msg {
-                            Msg::Shutdown => return,
-                            Msg::ChunkCallback(thunk) => thunk.call_box((&mut chunk,)),
-                        }
+        loop {
+            match rx.recv() {
+                Ok(msg) => {
+                    match msg {
+                        Msg::Shutdown => return,
+                        Msg::ChunkCallback(thunk) => thunk.call_box((&mut chunk,)),
                     }
-                    Err(..) => return,
                 }
+                Err(..) => return,
             }
+        }
     }));
 
     tx

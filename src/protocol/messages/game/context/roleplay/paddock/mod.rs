@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::game::paddock::PaddockInformationsForSell; use variants::PaddockInformationsVariant;
 impl_type!(GameDataPlayFarmObjectAnimationMessage, 6026, cell_id| Vec<VarShort>);

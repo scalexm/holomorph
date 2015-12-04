@@ -2,7 +2,7 @@ pub mod smiley;
 pub mod report;
 pub mod channel;
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::game::data::items::ObjectItem;
 impl_type!(ChatAbstractClientMessage, 850, content| String);

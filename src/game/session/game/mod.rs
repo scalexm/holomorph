@@ -32,6 +32,11 @@ pub struct CharacterRef {
     movements: Option<Vec<i16>>,
 }
 
+pub enum SocialState {
+    Friend,
+    Ignored,
+}
+
 #[derive(Clone)]
 pub struct SocialInformations {
     pub friends: HashSet<i32>,
@@ -50,6 +55,28 @@ impl SocialInformations {
         self.ignored.contains(&account_id)
     }
 }
+
+/*#[derive(Clone)]
+pub struct SocialInformations {
+    pub friends: HashMap<i32, SocialState>,
+    warn_on_connection: bool,
+    warn_on_level_gain: bool,
+    pub status: PlayerStatusVariant,
+}
+
+impl SocialInformations {
+    fn get_social_state(&self, account_id: i32) -> SocialState {
+
+    }
+
+    pub fn is_friend_with(&self, account_id: i32) -> bool {
+        self.friends.get(&account_id).map(|state| )
+    }
+
+    pub fn ignores(&self, account_id: i32) -> bool {
+        self.ignored.contains(&account_id)
+    }
+}*/
 
 struct AccountData {
     id: i32,

@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::game::look::EntityLook; use types::game::context::roleplay::BasicGuildInformations; use variants::PlayerStatusVariant;
 impl_type!(AbstractContactInformations, 380, account_id| i32, account_name| String);

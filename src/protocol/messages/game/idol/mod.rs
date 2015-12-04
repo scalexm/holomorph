@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::game::idol::PartyIdol; use variants::IdolVariant; use variants::PartyIdolVariant;
 impl_type!(IdolFightPreparationUpdateMessage, 6586, idol_source| i8, idols| Vec<IdolVariant>);

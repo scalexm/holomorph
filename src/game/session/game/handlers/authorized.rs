@@ -5,16 +5,15 @@ use protocol::messages::authorized::*;
 use std::io::{Result, Cursor};
 use server::SERVER;
 
+#[register_handlers]
 impl Session {
     pub fn handle_admin_quiet_command_message<'a>(&mut self, chunk: Ref<'a>,
-                                                  mut data: Cursor<Vec<u8>>) -> Result<()> {
+                                                  msg: AdminQuietCommandMessage) -> Result<()> {
 
         let ch = match self.state {
             GameState::InContext(ref mut ch) => ch,
             _ => return Ok(()),
         };
-
-        let msg = try!(AdminQuietCommandMessage::deserialize(&mut data));
 
         let map_id: i32 = match msg.base.content.split(" ").last().map(|id| id.parse()) {
             Some(Ok(map_id)) => map_id,

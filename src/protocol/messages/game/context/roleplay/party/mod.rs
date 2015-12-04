@@ -1,6 +1,6 @@
 pub mod companion;
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 use types::game::context::roleplay::party::PartyInvitationMemberInformations;  use types::game::context::roleplay::party::DungeonPartyFinderPlayer; use types::game::context::roleplay::party::PartyMemberGeoPosition; use types::game::context::roleplay::party::PartyGuestInformations; use variants::PartyMemberInformationsVariant; use types::game::context::MapCoordinatesExtended;
 impl_type!(AbstractPartyEventMessage, 6273, base| AbstractPartyMessage);

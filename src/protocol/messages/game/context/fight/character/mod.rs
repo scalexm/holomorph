@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use variants::GameContextActorInformationsVariant; use variants::GameFightFighterInformationsVariant;
 impl_type!(GameFightRefreshFighterMessage, 6309, informations| GameContextActorInformationsVariant);

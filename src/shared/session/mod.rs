@@ -41,12 +41,7 @@ pub struct SessionBase {
 pub trait Session<U>: Sized {
     fn new(SessionBase) -> Self;
 
-    fn get_handler<'a>(u16) -> fn(&mut Self, Ref<'a, Self, U>, Cursor<Vec<u8>>)
-                                  -> io::Result<()>;
-
-    fn unhandled<'a>(&mut self, _: Ref<'a, Self, U>, _: Cursor<Vec<u8>>) -> io::Result<()> {
-        Ok(())
-    }
+    fn handle<'a>(&mut self, Ref<'a, Self, U>, i16, Cursor<Vec<u8>>) -> io::Result<()>;
 
     fn close<'a>(self, Ref<'a, Self, U>);
 }
@@ -65,8 +60,11 @@ impl SessionBase {
     pub fn save_logs(&self, conn: &mut Connection, account_id: i32) -> postgres::Result<()> {
         let trans = try!(conn.transaction());
         for log in &*self.logs.borrow() {
-            let stmt = try!(trans.prepare_cached("INSERT INTO logs(account_id, date, type,
-                content) VALUES($1, $2, $3, $4)"));
+            let stmt = try!(
+                trans.prepare_cached(
+                    "INSERT INTO logs(account_id, date, type, content) VALUES($1, $2, $3, $4)"
+                )
+            );
             let _ = try!(stmt.execute(&[&account_id, &log.date, &log.type_, &log.content]));
         }
         trans.commit()

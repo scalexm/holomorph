@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::web::krosmaster::KrosmasterFigure;
 impl_type!(KrosmasterAuthTokenErrorMessage, 6345, reason| i8);

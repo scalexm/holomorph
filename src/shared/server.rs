@@ -28,7 +28,8 @@ impl<T1: Session<U1>, U1, T2: Session<U2>, U2> ServerBase<T1, U1, T2, U2> {
     }
 
     pub fn session_callback<F>(&self, tok: Token, job: F)
-                           where F: for<'a> FnOnce(&mut T1, Ref<'a, T1, U1>) + Send + 'static {
+                               where F: for<'a> FnOnce(&mut T1, Ref<'a, T1, U1>)
+                               + Send + 'static {
         if let Some(chunk) = self.session_chunks.get(&tok) {
             chunk::send(&self.main_chunks[*chunk], move |chunk| {
                 chunk.session_callback(tok, job)

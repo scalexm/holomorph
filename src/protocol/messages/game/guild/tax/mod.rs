@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 use variants::TaxCollectorInformationsVariant;  use types::game::guild::tax::TaxCollectorBasicInformations; use types::game::context::roleplay::BasicGuildInformations; use types::game::character::CharacterMinimalPlusLookInformations; use types::game::guild::tax::TaxCollectorFightersInformation;
 impl_type!(AbstractTaxCollectorListMessage, 6568, informations| Vec<TaxCollectorInformationsVariant>);

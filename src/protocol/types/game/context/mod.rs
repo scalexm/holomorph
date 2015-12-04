@@ -1,7 +1,7 @@
 pub mod roleplay;
 pub mod fight;
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 use types::game::context::roleplay::GuildInformations;  use types::game::look::EntityLook; use types::game::context::roleplay::GameRolePlayActorInformations; use variants::EntityDispositionInformationsVariant; use types::game::context::roleplay::AllianceInformations; use variants::TaxCollectorStaticInformationsVariant;
 impl_type!(ActorOrientation, 353, id| i32, direction| i8);

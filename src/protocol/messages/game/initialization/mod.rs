@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::game::character::restriction::ActorRestrictionsInformations;
 impl_type!(CharacterCapabilitiesMessage, 6339, guild_emblem_symbol_categories| VarInt);

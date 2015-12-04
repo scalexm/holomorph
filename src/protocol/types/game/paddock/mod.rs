@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 use types::game::context::roleplay::GuildInformations;  use types::game::mount::ItemDurability; use types::game::context::roleplay::ObjectItemInRolePlay;
 impl_type!(MountInformationsForPaddock, 184, model_id| i8, name| String, owner_name| String);

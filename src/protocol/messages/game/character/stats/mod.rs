@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::game::character::characteristic::CharacterCharacteristicsInformations;
 impl_type!(CharacterExperienceGainMessage, 6321, experience_character| VarLong, experience_mount| VarLong, experience_guild| VarLong, experience_incarnation| VarLong);

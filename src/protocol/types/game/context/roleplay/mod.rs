@@ -3,7 +3,7 @@ pub mod quest;
 pub mod party;
 pub mod job;
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 use types::game::character::alignment::ActorAlignmentInformations; use variants::PortalInformationVariant; use types::game::look::IndexedEntityLook;  use variants::HumanInformationsVariant; use variants::HumanOptionVariant; use types::game::context::roleplay::quest::GameRolePlayNpcQuestFlag; use types::game::look::EntityLook; use types::game::guild::GuildEmblem; use types::game::character::restriction::ActorRestrictionsInformations; use types::game::context::GameContextActorInformations; use variants::GroupMonsterStaticInformationsVariant; use variants::PrismInformationVariant; use types::game::social::AbstractSocialGroupInfos; use types::game::context::MapCoordinatesExtended;
 impl_type!(AllianceInformations, 417, base| BasicNamedAllianceInformations, alliance_emblem| GuildEmblem);

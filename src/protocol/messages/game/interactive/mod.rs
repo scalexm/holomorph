@@ -1,7 +1,7 @@
 pub mod zaap;
 pub mod meeting;
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use variants::InteractiveElementVariant; use types::game::interactive::InteractiveElement; use types::game::interactive::StatedElement;
 impl_type!(InteractiveElementUpdatedMessage, 5708, interactive_element| InteractiveElement);

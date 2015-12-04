@@ -255,6 +255,10 @@ impl Character {
         &self.base
     }
 
+    pub fn set_mood_smiley(&mut self, smiley: i16) {
+        self.base.mood_smiley = smiley;
+    }
+
     pub fn max_life(&self) ->i32 {
         let mut life = 50 + (self.base.level - 1) * 10;
         if self.base.level > 100 {

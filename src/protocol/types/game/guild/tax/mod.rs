@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::game::look::EntityLook; use variants::CharacterMinimalPlusLookInformationsVariant; use types::game::context::roleplay::BasicGuildInformations; use variants::TaxCollectorComplementaryInformationsVariant; use types::game::fight::ProtectedEntityWaitingForHelpInfo;
 impl_type!(AdditionalTaxCollectorInformations, 165, collector_caller_name| String, date| i32);

@@ -7,15 +7,16 @@ use session::game::chunk::Ref;
 use std::io::{Result, Cursor};
 use server::{social, SERVER};
 
+#[register_handlers]
 impl Session {
     pub fn handle_player_status_update_request<'a>(&mut self, _: Ref<'a>,
-                                                   mut data: Cursor<Vec<u8>>) -> Result<()> {
+                                                   mut msg: PlayerStatusUpdateRequestMessage)
+                                                   -> Result<()> {
         let ch = match self.state {
             GameState::InContext(ref ch) => ch,
             _ => return Ok(()),
        };
 
-       let mut msg = try!(PlayerStatusUpdateRequestMessage::deserialize(&mut data));
        if let PlayerStatusVariant::PlayerStatusExtended(ref mut status) = msg.status {
            if status.base.status_id != player_status::AFK || status.message.len() > 200 {
                let buf = PlayerStatusUpdateErrorMessage.as_packet().unwrap();

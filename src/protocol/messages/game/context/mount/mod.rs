@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 use types::game::paddock::PaddockItem;  use types::game::mount::MountClientData;
 impl_type!(GameDataPaddockObjectAddMessage, 5990, paddock_item_description| PaddockItem);

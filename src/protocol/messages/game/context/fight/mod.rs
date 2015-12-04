@@ -1,7 +1,7 @@
 pub mod character;
 pub mod challenge;
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 use types::game::context::fight::GameFightSpellCooldown;  use types::game::data::items::SpellItem; use types::game::context::fight::FightTeamInformations; use types::game::context::fight::GameFightResumeSlaveInfo; use types::game::actions::fight::GameActionMark; use types::game::idol::Idol; use types::game::context::roleplay::party::NamedPartyTeam; use types::game::context::roleplay::party::NamedPartyTeamWithOutcome; use variants::ShortcutVariant; use variants::FightResultListEntryVariant; use types::game::character::characteristic::CharacterCharacteristicsInformations; use types::game::action::fight::FightDispellableEffectExtendedInformations; use variants::GameFightFighterInformationsVariant;
 impl_type!(GameFightEndMessage, 720, duration| i32, age_bonus| i16, loot_share_limit_malus| i16, results| Vec<FightResultListEntryVariant>, named_party_teams_outcomes| Vec<NamedPartyTeamWithOutcome>);

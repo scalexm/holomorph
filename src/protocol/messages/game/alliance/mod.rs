@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use variants::AllianceFactSheetInformationsVariant; use types::game::social::AllianceVersatileInformations; use types::game::guild::GuildEmblem; use types::game::social::GuildInsiderFactSheetInformations; use types::game::context::roleplay::BasicAllianceInformations; use types::game::context::roleplay::GuildInAllianceInformations; use types::game::social::AllianceFactSheetInformations; use types::game::context::roleplay::AllianceInformations; use variants::PrismSubareaEmptyInfoVariant; use types::game::context::roleplay::BasicNamedAllianceInformations;
 impl_type!(AllianceChangeGuildRightsMessage, 6426, guild_id| VarInt, rights| i8);

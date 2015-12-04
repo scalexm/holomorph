@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::updater::ContentPart;
 impl_type!(DownloadCurrentSpeedMessage, 1511, download_speed| i8);

@@ -1,6 +1,6 @@
 pub mod guild;
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 use types::game::house::AccountHouseInformations;  use variants::HouseInformationsVariant; use types::game::house::HouseInformationsForSell; use messages::game::context::roleplay::lockable::LockableChangeCodeMessage;
 impl_type!(AccountHouseMessage, 6315, houses| Vec<AccountHouseInformations>);

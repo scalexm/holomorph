@@ -1,7 +1,8 @@
 use session::game::{GameState, Session, CharacterRef};
 use session::game::chunk::{self, Ref};
 use protocol::messages::game::context::{GameContextCreateMessage,
-    GameContextDestroyMessage, GameMapMovementRequestMessage, GameMapMovementCancelMessage};
+    GameContextDestroyMessage, GameMapMovementRequestMessage, GameMapMovementCancelMessage,
+    GameMapMovementConfirmMessage, GameContextCreateRequestMessage};
 use protocol::*;
 use protocol::messages::game::context::roleplay::*;
 use protocol::messages::game::basic::{TextInformationMessage, BasicNoOperationMessage};
@@ -13,9 +14,11 @@ use server::SERVER;
 use time;
 use std::mem;
 
+#[register_handlers]
 impl Session {
     pub fn handle_game_context_create_request<'a>(&mut self, mut chunk: Ref<'a>,
-                                                  _: Cursor<Vec<u8>>) -> Result<()> {
+                                                  _: GameContextCreateRequestMessage)
+                                                  -> Result<()> {
         let (map_id, ch_id) = match self.state {
             GameState::SwitchingContext(map_id, ref ch) => (map_id, ch.minimal().id()),
             _ => return Ok(()),
@@ -122,7 +125,8 @@ impl Session {
         Ok(())
     }
 
-    pub fn handle_map_informations_request<'a>(&mut self, chunk: Ref<'a>, _: Cursor<Vec<u8>>)
+    pub fn handle_map_informations_request<'a>(&mut self, chunk: Ref<'a>,
+                                               msg: MapInformationsRequestMessage)
                                                -> Result<()> {
         let ch = match self.state {
             GameState::InContext(ref ch) => ch,
@@ -141,7 +145,8 @@ impl Session {
     }
 
     pub fn handle_game_map_movement_request<'a>(&mut self, chunk: Ref<'a>,
-                                                mut data: Cursor<Vec<u8>>) -> Result<()> {
+                                                msg: GameMapMovementRequestMessage)
+                                                -> Result<()> {
         let ch = match self.state {
             GameState::InContext(ref mut ch) => ch,
             _ => return Ok(()),
@@ -151,8 +156,6 @@ impl Session {
             return Ok(());
         }
 
-        let msg = try!(GameMapMovementRequestMessage::deserialize(&mut data));
-
         ch.movements = Some(msg.key_movements.clone());
         chunk.maps.get(&ch.map_id).unwrap().start_move_actor(ch.id, msg.key_movements);
 
@@ -160,7 +163,7 @@ impl Session {
     }
 
     pub fn handle_game_map_movement_confirm<'a>(&mut self, mut chunk: Ref<'a>,
-                                                _: Cursor<Vec<u8>>) -> Result<()> {
+                                                _: GameMapMovementConfirmMessage) -> Result<()> {
         let ch = match self.state {
             GameState::InContext(ref mut ch) => ch,
             _ => return Ok(()),
@@ -186,13 +189,11 @@ impl Session {
     }
 
     pub fn handle_game_map_movement_cancel<'a>(&mut self, mut chunk: Ref<'a>,
-                                               mut data: Cursor<Vec<u8>>) -> Result<()> {
+                                               msg: GameMapMovementCancelMessage) -> Result<()> {
         let ch = match self.state {
             GameState::InContext(ref mut ch) => ch,
             _ => return Ok(()),
         };
-
-        let msg = try!(GameMapMovementCancelMessage::deserialize(&mut data));
 
         let movements = mem::replace(&mut ch.movements, None);
         let movements = match movements {
@@ -208,7 +209,7 @@ impl Session {
         Ok(())
     }
 
-    pub fn handle_change_map<'a>(&mut self, chunk: Ref<'a>, mut data: Cursor<Vec<u8>>)
+    pub fn handle_change_map<'a>(&mut self, chunk: Ref<'a>, msg: ChangeMapMessage)
                                  -> Result<()> {
         let ch = match self.state {
             GameState::InContext(ref mut ch) => ch,
@@ -219,7 +220,6 @@ impl Session {
             return Ok(());
         }
 
-        let msg = try!(ChangeMapMessage::deserialize(&mut data));
         let cell = get_character!(ch, chunk).cell_id();
 
         let new_pos = SERVER.with(|s| {

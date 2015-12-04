@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 
 impl_type!(MailStatusMessage, 6275, unread| VarShort, total| VarShort);

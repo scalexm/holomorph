@@ -5,7 +5,7 @@ pub mod fight;
 pub mod dungeon;
 pub mod display;
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 use types::game::context::EntityMovementInformations;  use types::game::look::EntityLook; use types::game::context::ActorOrientation; use types::game::context::IdentifiedEntityDispositionInformations;
 impl_type!(GameCautiousMapMovementMessage, 6497, base| GameMapMovementMessage);

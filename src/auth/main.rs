@@ -1,3 +1,6 @@
+#![feature(plugin)]
+#![plugin(codegen)]
+
 #[macro_use]
 extern crate shared;
 #[macro_use]
@@ -11,6 +14,8 @@ extern crate eventual;
 extern crate rustc_serialize;
 extern crate rand;
 extern crate protocol;
+#[macro_use]
+extern crate diesel;
 
 mod session;
 mod config;
@@ -47,9 +52,11 @@ fn start(args: &str) -> ProgramState {
     let cnf = shared::config::from_file::<Config>(&args);
     let mut join_handles = LinkedList::new();
 
-    let db = database::spawn_threads(cnf.database_threads,
-                                     &cnf.database_uri,
-                                     &mut join_handles);
+    let db = database::spawn_threads(
+        cnf.database_threads,
+        &cnf.database_uri,
+        &mut join_handles
+    );
     let key = load(&cnf.key_path);
     let patch = load(&cnf.patch_path);
 
@@ -59,12 +66,14 @@ fn start(args: &str) -> ProgramState {
         let mut conn = database::connect(&cnf.database_uri);
         let server = chunk::run(server::Server::new(), &mut join_handles);
 
-        let mut server_data = AuthServerData::new(server,
-                                                  io_loop.channel(),
-                                                  db,
-                                                  key,
-                                                  patch,
-                                                  cnf);
+        let mut server_data = AuthServerData::new(
+            server,
+            io_loop.channel(),
+            db,
+            key,
+            patch,
+            cnf
+        );
 
         if let Err(err) = server_data.load(&mut conn) {
             panic!("loading failed: {}", err);
@@ -76,7 +85,7 @@ fn start(args: &str) -> ProgramState {
     *SYNC_SERVER.lock().unwrap() = Some(server_data.clone());
 
     assert!(server_data.cnf.server_threads >= 1);
-    for _ in (0..server_data.cnf.server_threads) {
+    for _ in 0..server_data.cnf.server_threads {
         let tx = chunk::run(auth::chunk::new(), &mut join_handles);
         server::add_chunk(&server_data.server, tx);
     }
@@ -86,11 +95,19 @@ fn start(args: &str) -> ProgramState {
 
     let mut network_handler = net::Handler::new(server_data.server.clone());
 
-    network_handler.add_callback(&mut io_loop, &server_data.cnf.bind_address,
-                                 server::Server::auth_event, CallbackType::Listen);
+    network_handler.add_callback(
+        &mut io_loop,
+        &server_data.cnf.bind_address,
+        server::Server::auth_event,
+        CallbackType::Listen
+    );
 
-    network_handler.add_callback(&mut io_loop, &server_data.cnf.game_bind_address,
-                                 server::Server::game_event, CallbackType::Listen);
+    network_handler.add_callback(
+        &mut io_loop,
+        &server_data.cnf.game_bind_address,
+        server::Server::game_event,
+        CallbackType::Listen
+    );
 
     server::start_queue_timer(&server_data.server);
 

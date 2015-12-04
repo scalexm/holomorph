@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::game::startup::StartupActionAddObject;
 impl_type!(StartupActionAddMessage, 6538, new_action| StartupActionAddObject);

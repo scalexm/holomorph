@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 use types::game::context::roleplay::job::JobCrafterDirectoryEntryJobInfo;  use types::game::look::EntityLook; use types::game::context::roleplay::job::JobExperience; use types::game::context::roleplay::job::JobCrafterDirectorySettings; use types::game::context::roleplay::job::JobDescription; use types::game::context::roleplay::job::JobCrafterDirectoryListEntry; use types::game::context::roleplay::job::JobCrafterDirectoryEntryPlayerInfo;
 impl_type!(JobAllowMultiCraftRequestMessage, 5748, enabled| bool);

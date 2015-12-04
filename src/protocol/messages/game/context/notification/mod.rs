@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 
 impl_type!(NotificationByServerMessage, 6103, id| VarShort, parameters| Vec<String>, force_open| bool);

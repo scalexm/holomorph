@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 
 impl_type!(GameRolePlayArenaFightAnswerMessage, 6279, fight_id| i32, accept| bool);

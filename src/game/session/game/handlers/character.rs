@@ -45,26 +45,6 @@ fn load_character(conn: &mut Connection, tok: Token, base: CharacterMinimal)
 }
 
 impl Session {
-    pub fn handle_characters_list_request<'a>(&mut self, _: Ref<'a>, _: Cursor<Vec<u8>>)
-                                              -> io::Result<()> {
-        let characters = match self.state {
-            GameState::CharacterSelection(ref characters) => characters,
-            _ => return Ok(()),
-        };
-
-        let buf = CharactersListMessage {
-            base: BasicCharactersListMessage {
-                characters: characters.iter()
-                                      .map(|ch| ch.1.as_character_base().into())
-                                      .collect(),
-            },
-            has_startup_actions: false,
-        }.as_packet().unwrap();
-
-        write!(SERVER, self.base.token, buf);
-        Ok(())
-    }
-
     fn character_selection_success(&mut self, _: &mut ChunkImpl, ch: Character, map_id: i32,
                                    friends: HashMap<i32, FriendInformationsVariant>,
                                    ignored: HashMap<i32, IgnoredInformationsVariant>) {
@@ -103,16 +83,37 @@ impl Session {
         self.friends = friends;
         self.ignored = ignored;
     }
+}
 
-    pub fn handle_character_selection<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>)
+#[register_handlers]
+impl Session {
+    pub fn handle_characters_list_request<'a>(&mut self, _: Ref<'a>,
+                                              _: CharactersListRequestMessage) -> io::Result<()> {
+        let characters = match self.state {
+            GameState::CharacterSelection(ref characters) => characters,
+            _ => return Ok(()),
+        };
+
+        let buf = CharactersListMessage {
+            base: BasicCharactersListMessage {
+                characters: characters.iter()
+                                      .map(|ch| ch.1.as_character_base().into())
+                                      .collect(),
+            },
+            has_startup_actions: false,
+        }.as_packet().unwrap();
+
+        write!(SERVER, self.base.token, buf);
+        Ok(())
+    }
+
+    pub fn handle_character_selection<'a>(&mut self, _: Ref<'a>, msg: CharacterSelectionMessage)
                                           -> io::Result<()> {
         let ch = {
             let characters = match self.state {
                 GameState::CharacterSelection(ref mut characters) => characters,
                 _ => return Ok(()),
             };
-
-            let msg = try!(CharacterSelectionMessage::deserialize(&mut data));
 
             match characters.remove(&msg.id) {
                 Some(ch) => ch,

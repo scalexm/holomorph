@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 
 impl_type!(Achievement, 363, id| VarShort, finished_objective| Vec<AchievementObjective>, started_objectives| Vec<AchievementStartedObjective>);

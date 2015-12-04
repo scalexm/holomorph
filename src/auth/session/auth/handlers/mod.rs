@@ -40,12 +40,8 @@ impl shared::session::Session<ChunkImpl> for Session {
         }
     }
 
-    fn get_handler<'a>(id: u16) -> (fn(&mut Session, Ref<'a>, Cursor<Vec<u8>>) -> Result<()>) {
-        match id {
-            4 => Session::handle_identification,
-            40 => Session::handle_server_selection,
-            _ => Session::unhandled,
-        }
+    fn handle<'a>(&mut self, chunk: Ref<'a>, id: i16, mut data: Cursor<Vec<u8>>) -> Result<()> {
+        handle!(self, chunk, id, data)
     }
 
     fn close<'a>(self, _: Ref<'a>) {

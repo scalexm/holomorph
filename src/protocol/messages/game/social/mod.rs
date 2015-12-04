@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::game::look::EntityLook;
 impl_type!(ContactLookErrorMessage, 6045, request_id| VarInt);

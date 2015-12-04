@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use types::game::data::items::effects::ObjectEffectInteger;
 impl_type!(ItemDurability, 168, durability| i16, durability_max| i16);

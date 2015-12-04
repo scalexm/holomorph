@@ -41,12 +41,11 @@ impl Server {
     // return account_id mapping to name
     fn search_for_player(&self, name: &str) -> Option<i32> {
         let name = name.to_lowercase();
-        let ch_id = if name.starts_with("*") {
+        if name.starts_with("*") {
             self.character_nicknames.get(&name[1..])
         } else {
             self.character_names.get(&name).or(self.character_nicknames.get(&name))
-        };
-        ch_id.map(|id| self.characters.get(&id).unwrap().account_id())
+        }.map(|id| self.characters.get(&id).unwrap().account_id())
     }
 }
 
@@ -172,5 +171,12 @@ pub fn update_player_status(sender: &Sender, account_id: i32, ch_id: i32,
         server.session_socials.get_mut(&account_id).unwrap().status = status;
         server.update_social(server.characters.get(&ch_id).unwrap(),
                              SocialState::Update);
+    })
+}
+
+pub fn update_mood(sender: &Sender, ch_id: i32, mood: i16) {
+    chunk::send(sender, move |server| {
+        let ch = server.characters.get_mut(&ch_id).unwrap();
+        ch.set_mood_smiley(mood);
     })
 }

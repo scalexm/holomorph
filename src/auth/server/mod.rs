@@ -47,7 +47,6 @@ impl Server {
 
     fn update_game_server(&mut self, id: i16, status: i8,
                           ip: String, port: i16) {
-
         for chunk in &self.base.main_chunks {
             let ip = ip.clone();
             chunk::send(chunk, move |chunk| {
@@ -87,9 +86,8 @@ pub fn set_game_chunk(sender: &Sender, chunk: game::chunk::Sender) {
 pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32,
                                  already_logged: i16, job: F)
                                  where F: for<'a> FnOnce(&mut auth::Session,
-                                                     &auth::chunk::ChunkImpl,
-                                                     bool)
-                                 + Send + 'static {
+                                                         &auth::chunk::ChunkImpl,
+                                                         bool) + Send + 'static {
     chunk::send(sender, move |server| {
         let already = server.base.session_ids.insert(id, tok);
         if let Some(session) = already {

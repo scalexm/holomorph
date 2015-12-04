@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
  use variants::TreasureHuntStepVariant; use types::game::context::roleplay::treasure_hunt::TreasureHuntFlag;
 impl_type!(PortalUseRequestMessage, 6492, portal_id| VarInt);

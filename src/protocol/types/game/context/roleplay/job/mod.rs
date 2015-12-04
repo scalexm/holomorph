@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 use variants::SkillActionDescriptionVariant;  use variants::PlayerStatusVariant;
 impl_type!(DecraftedItemStackInfo, 481, object_uid| VarInt, bonus_min| f32, bonus_max| f32, runes_id| Vec<VarShort>, runes_qty| Vec<VarInt>);

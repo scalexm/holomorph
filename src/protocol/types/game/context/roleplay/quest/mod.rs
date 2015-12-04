@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use io::Result;
+use std::io::Result;
 use protocol::*;
 use variants::QuestObjectiveInformationsVariant; 
 impl_type!(GameRolePlayNpcQuestFlag, 384, quests_to_valid_id| Vec<VarShort>, quests_to_start_id| Vec<VarShort>);

@@ -48,39 +48,45 @@ impl shared::session::Session<ChunkImpl> for Session {
         }
     }
 
-    fn get_handler<'a>(id: u16) -> (fn(&mut Session, Ref<'a>, Cursor<Vec<u8>>) -> Result<()>) {
-        match id {
-            110 => Session::handle_authentication_ticket,
+    fn handle<'a>(&mut self, chunk: Ref<'a>, id: i16, mut data: Cursor<Vec<u8>>) -> Result<()> {
+        use protocol::messages::game::friend::{
+            FriendsGetListMessage,
+            FriendSetWarnOnConnectionMessage,
+            FriendSetWarnOnLevelGainMessage,
+            IgnoredGetListMessage,
+            FriendAddRequestMessage,
+            FriendDeleteRequestMessage,
+            IgnoredAddRequestMessage,
+            IgnoredDeleteRequestMessage,
+        };
+        use protocol::messages::game::character::status::PlayerStatusUpdateRequestMessage;
+        use protocol::messages::game::chat::{
+            ChatClientMultiMessage,
+            ChatClientMultiWithObjectMessage,
+        };
+        use protocol::messages::game::chat::smiley::{
+            ChatSmileyRequestMessage,
+            MoodSmileyRequestMessage,
+        };
+        use protocol::messages::game::character::choice::{
+            CharactersListRequestMessage,
+            CharacterSelectionMessage,
+        };
+        use protocol::messages::authorized::{
+            AdminQuietCommandMessage,
+        };
+        use protocol::messages::game::context::{
+            GameContextCreateRequestMessage,
+            GameMapMovementRequestMessage,
+            GameMapMovementCancelMessage,
+            GameMapMovementConfirmMessage,
+        };
+        use protocol::messages::game::context::roleplay::{
+            MapInformationsRequestMessage,
+            ChangeMapMessage,
+        };
 
-            150 => Session::handle_characters_list_request,
-            152 => Session::handle_character_selection,
-
-            4001 => Session::handle_friends_get_list,
-            5676 => Session::handle_ignored_get_list,
-            5602 => Session::handle_friend_set_warn_on_connection,
-            6077 => Session::handle_friend_set_warn_on_level_gain,
-            4004 => Session::handle_friend_add_request,
-            5673 => Session::handle_ignored_add_request,
-            5603 => Session::handle_friend_delete_request,
-            5680 => Session::handle_ignored_delete_request,
-
-            250 => Session::handle_game_context_create_request,
-            225 => Session::handle_map_informations_request,
-
-            950 => Session::handle_game_map_movement_request,
-            952 => Session::handle_game_map_movement_confirm,
-            953 => Session::handle_game_map_movement_cancel,
-            221 => Session::handle_change_map,
-
-            861 => Session::handle_chat_client_multi,
-            862 => Session::handle_chat_client_multi_with_object,
-
-            5662 => Session::handle_admin_quiet_command_message,
-
-            6387 => Session::handle_player_status_update_request,
-
-            _ => Session::unhandled,
-        }
+        handle!(self, chunk, id, data)
     }
 
     fn close<'a>(mut self, mut chunk: Ref<'a>) {

@@ -150,8 +150,11 @@ impl Session {
 
         write!(SERVER, self.base.token, buf);
     }
+}
 
-    pub fn handle_identification<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>)
+#[register_handlers]
+impl Session {
+    pub fn handle_identification<'a>(&mut self, _: Ref<'a>, msg: IdentificationMessage)
                                      -> io::Result<()> {
         use std::io::Read;
         use protocol::io::ReadExt;
@@ -170,8 +173,6 @@ impl Session {
             write!(SERVER, self.base.token, buf);
             return Ok(());
         }
-
-        let msg = try!(IdentificationMessage::deserialize(&mut data));
 
         let mut credentials = Cursor::new(msg.credentials.0);
         let username = try!(credentials.read_string());

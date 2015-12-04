@@ -9,7 +9,40 @@ use protocol::messages::game::basic::BasicNoOperationMessage;
 use server::{social, SERVER};
 
 impl Session {
-    pub fn handle_friends_get_list<'a>(&mut self, _: Ref<'a>, _: Cursor<Vec<u8>>) -> Result<()> {
+    pub fn friend_added_success(&mut self, infos: (i32, FriendInformationsVariant)) {
+        let buf = FriendAddedMessage {
+            friend_added: infos.1.clone(),
+        }.as_packet().unwrap();
+        write!(SERVER, self.base.token, buf);
+
+        let _ = self.account.as_mut().unwrap().social.friends.insert(infos.0);
+        let _ = self.friends.insert(infos.0, infos.1);
+    }
+
+    pub fn ignored_added_success(&mut self, infos: (i32, IgnoredInformationsVariant),
+                                 for_session: bool) {
+        let buf = IgnoredAddedMessage {
+            ignore_added: infos.1.clone(),
+            session: for_session,
+        }.as_packet().unwrap();
+        write!(SERVER, self.base.token, buf);
+
+        if !for_session {
+            let _ = self.account.as_mut().unwrap().social.ignored.insert(infos.0);
+            let _ = self.ignored.insert(infos.0, infos.1);
+        } else {
+            let _ = self.ignored.insert(infos.0, IgnoredInformationsVariant
+                ::SessionIgnoredInformations(SessionIgnoredInformations {
+                    name: infos.1.name().to_string(),
+                }));
+        }
+    }
+}
+
+#[register_handlers]
+impl Session {
+    pub fn handle_friends_get_list<'a>(&mut self, _: Ref<'a>, _: FriendsGetListMessage)
+                                       -> Result<()> {
         match self.state {
             GameState::InContext(_) => (),
             _ => return Ok(()),
@@ -25,7 +58,8 @@ impl Session {
     }
 
     pub fn handle_friend_set_warn_on_connection<'a>(&mut self, _: Ref<'a>,
-                                                    mut data: Cursor<Vec<u8>>) -> Result<()> {
+                                                    msg: FriendSetWarnOnConnectionMessage)
+                                                    -> Result<()> {
         match self.state {
             GameState::InContext(_) => (),
             _ => return Ok(()),
@@ -33,7 +67,6 @@ impl Session {
 
         let account = self.account.as_mut().unwrap();
 
-        let msg = try!(FriendSetWarnOnConnectionMessage::deserialize(&mut data));
         account.social.warn_on_connection = msg.enable;
 
         let buf = BasicNoOperationMessage.as_packet().unwrap();
@@ -43,7 +76,8 @@ impl Session {
     }
 
     pub fn handle_friend_set_warn_on_level_gain<'a>(&mut self, _: Ref<'a>,
-                                                    mut data: Cursor<Vec<u8>>) -> Result<()> {
+                                                    msg: FriendSetWarnOnLevelGainMessage)
+                                                    -> Result<()> {
         match self.state {
             GameState::InContext(_) => (),
             _ => return Ok(()),
@@ -51,7 +85,6 @@ impl Session {
 
         let account = self.account.as_mut().unwrap();
 
-        let msg = try!(FriendSetWarnOnLevelGainMessage::deserialize(&mut data));
         account.social.warn_on_level_gain = msg.enable;
 
         let buf = BasicNoOperationMessage.as_packet().unwrap();
@@ -60,7 +93,8 @@ impl Session {
         Ok(())
     }
 
-    pub fn handle_ignored_get_list<'a>(&mut self, _: Ref<'a>, _: Cursor<Vec<u8>>) -> Result<()> {
+    pub fn handle_ignored_get_list<'a>(&mut self, _: Ref<'a>, _: IgnoredGetListMessage)
+                                       -> Result<()> {
         match self.state {
             GameState::InContext(_) => (),
             _ => return Ok(()),
@@ -80,17 +114,7 @@ impl Session {
         Ok(())
     }
 
-    pub fn friend_added_success(&mut self, infos: (i32, FriendInformationsVariant)) {
-        let buf = FriendAddedMessage {
-            friend_added: infos.1.clone(),
-        }.as_packet().unwrap();
-        write!(SERVER, self.base.token, buf);
-
-        let _ = self.account.as_mut().unwrap().social.friends.insert(infos.0);
-        let _ = self.friends.insert(infos.0, infos.1);
-    }
-
-    pub fn handle_friend_add_request<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>)
+    pub fn handle_friend_add_request<'a>(&mut self, _: Ref<'a>, msg: FriendAddRequestMessage)
                                          -> Result<()> {
          match self.state {
              GameState::InContext(_) => (),
@@ -108,7 +132,6 @@ impl Session {
              return Ok(());
          }
 
-         let msg = try!(FriendAddRequestMessage::deserialize(&mut data));
          let name = msg.name;
          SERVER.with(|s| {
              social::add_friend(&s.server, self.base.token, account.id, name,
@@ -117,14 +140,12 @@ impl Session {
          Ok(())
     }
 
-    pub fn handle_friend_delete_request<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>)
-                                            -> Result<()> {
+    pub fn handle_friend_delete_request<'a>(&mut self, _: Ref<'a>,
+                                            msg: FriendDeleteRequestMessage) -> Result<()> {
         match self.state {
             GameState::InContext(_) => (),
             _ => return Ok(()),
         };
-
-        let msg = try!(FriendDeleteRequestMessage::deserialize(&mut data));
 
         // do not call account.social.is_friend_with because we can only delete friends
         // which are on the server
@@ -146,26 +167,7 @@ impl Session {
         Ok(())
     }
 
-    pub fn ignored_added_success(&mut self, infos: (i32, IgnoredInformationsVariant),
-                                 for_session: bool) {
-        let buf = IgnoredAddedMessage {
-            ignore_added: infos.1.clone(),
-            session: for_session,
-        }.as_packet().unwrap();
-        write!(SERVER, self.base.token, buf);
-
-        if !for_session {
-            let _ = self.account.as_mut().unwrap().social.ignored.insert(infos.0);
-            let _ = self.ignored.insert(infos.0, infos.1);
-        } else {
-            let _ = self.ignored.insert(infos.0, IgnoredInformationsVariant
-                ::SessionIgnoredInformations(SessionIgnoredInformations {
-                    name: infos.1.name().to_string(),
-                }));
-        }
-    }
-
-    pub fn handle_ignored_add_request<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>)
+    pub fn handle_ignored_add_request<'a>(&mut self, _: Ref<'a>, msg: IgnoredAddRequestMessage)
                                          -> Result<()> {
          match self.state {
              GameState::InContext(_) => (),
@@ -183,7 +185,6 @@ impl Session {
              return Ok(());
          }
 
-         let msg = try!(IgnoredAddRequestMessage::deserialize(&mut data));
          let name = msg.name;
          let for_session = msg.session;
          SERVER.with(|s| {
@@ -195,14 +196,12 @@ impl Session {
          Ok(())
     }
 
-    pub fn handle_ignored_delete_request<'a>(&mut self, _: Ref<'a>, mut data: Cursor<Vec<u8>>)
-                                             -> Result<()> {
+    pub fn handle_ignored_delete_request<'a>(&mut self, _: Ref<'a>,
+                                             msg: IgnoredDeleteRequestMessage) -> Result<()> {
         match self.state {
             GameState::InContext(_) => (),
             _ => return Ok(()),
         };
-
-        let msg = try!(IgnoredDeleteRequestMessage::deserialize(&mut data));
 
         // same as in handle_friend_delete_request
         if !self.ignored.contains_key(&msg.account_id) {
