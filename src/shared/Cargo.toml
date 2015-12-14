@@ -6,11 +6,12 @@ authors = ["scalexm <martin.alex32@hotmail.fr>"]
 [dependencies]
 time = "*"
 rustc-serialize = "*"
-postgres = "*"
-mio = "*"
+mio = "^0.5.0"
 rust-crypto = "*"
 rand = "*"
 log = "*"
+diesel = { git = "https://github.com/sgrif/diesel" }
+diesel_codegen = { git = "https://github.com/sgrif/diesel", default-features = false, features = ["nightly"] }
 protocol = { path = "../protocol" }
 
 [dependencies.eventual]

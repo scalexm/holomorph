@@ -4,16 +4,23 @@ use protocol::messages::connection::*;
 use protocol::enums::{server_status, server_connection_error};
 use session::auth::Session;
 use session::auth::chunk::{Ref, ChunkImpl};
-use postgres::{self, Connection};
+use diesel::*;
 use shared::{crypt, database};
 use rand::{self, Rng};
 use server::SERVER;
 
 pub struct Error(i8, i8);
 
-fn update_ticket(conn: &mut Connection, id: i32, ticket: String) -> postgres::Result<()> {
-    let stmt = try!(conn.prepare_cached("UPDATE accounts SET ticket = $1 WHERE id = $2"));
-    let _ = try!(stmt.execute(&[&ticket, &id]));
+fn update_ticket(conn: &Connection, id: i32, ticket: &str) -> QueryResult<()> {
+    use diesel::query_builder::update;
+    use shared::database::schema::accounts;
+
+    try!(
+        update(
+            accounts::table.filter(accounts::id.eq(&id))
+        ).set(accounts::ticket.eq(ticket))
+         .execute(conn)
+    );
     Ok(())
 }
 
@@ -42,8 +49,12 @@ impl Session {
         }
 
         let ticket: String = rand::thread_rng().gen_ascii_chars().take(32).collect();
-        log_info!(self, "server selection: server_id = {}, ticket = {}",
-            server_id, ticket);
+        log_info!(
+            self,
+            "server selection: server_id = {}, ticket = {}",
+            server_id,
+            ticket
+        );
 
         let result = match crypt::aes_256(&self.aes_key[0..32],
                                           &self.aes_key[0..16],
@@ -72,7 +83,7 @@ impl Session {
 
         SERVER.with(|s| database::execute(&s.db, move |conn| {
             use shared::net::Msg;
-            match update_ticket(conn, id, ticket) {
+            match update_ticket(conn, id, &ticket) {
                 Ok(()) => {
                     // the client expects this socket shutdown
                     let _ = io_loop.send(Msg::Close(tok));

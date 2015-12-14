@@ -1,4 +1,4 @@
-use std::io::{self, Cursor};
+use std::io;
 use protocol::{Protocol, VarIntVec, VarShort, Flag};
 use protocol::messages::connection::*;
 use protocol::messages::security::*;
@@ -6,7 +6,7 @@ use protocol::messages::queues::*;
 use protocol::enums::{server_status, identification_failure_reason};
 use session::auth::{AccountData, Session, QueueState};
 use session::auth::chunk::{Ref, ChunkImpl};
-use postgres::{self, Connection};
+use diesel::*;
 use server::{self, SERVER};
 use shared::{database, crypt};
 use time;
@@ -17,36 +17,55 @@ pub static QUEUE_SIZE: AtomicIsize = ATOMIC_ISIZE_INIT;
 pub static QUEUE_COUNTER: AtomicIsize = ATOMIC_ISIZE_INIT;
 
 enum Error {
-    Sql(postgres::error::Error),
+    Sql(result::Error),
     Reason(i8),
     Banned(i64),
 }
 
-impl From<postgres::error::Error> for Error {
-    fn from(err: postgres::error::Error) -> Error {
+impl From<result::Error> for Error {
+    fn from(err: result::Error) -> Error {
         Error::Sql(err)
     }
 }
 
-fn authenticate(conn: &mut Connection, account: String, password: String, addr: String)
-                -> Result<AccountData, Error> {
-    let trans = try!(conn.transaction());
+impl From<result::TransactionError<Error>> for Error {
+    fn from(err: result::TransactionError<Error>) -> Error {
+        match err {
+            TransactionError::UserReturnedError(err) => err,
+            TransactionError::CouldntCreateTransaction(err) => Error::Sql(err),
+        }
+    }
+}
 
-    let stmt = try!(trans.prepare_cached("SELECT 1 FROM ip_bans WHERE ip = $1"));
+#[derive(Queriable)]
+struct Credentials {
+    password: String,
+    salt: String,
+}
 
-    if try!(stmt.query(&[&addr])).len() != 0 {
+fn authenticate(conn: &Connection, account: String, password: String, addr: String)
+                -> Result<(AccountData, HashMap<i16, i8>), Error> {
+    use shared::database::schema::{accounts, ip_bans, character_counts};
+
+    let ip_ban: Option<i32> = try!(
+        ip_bans::table.filter(ip_bans::ip.eq(&addr))
+                      .select_sql::<types::Integer>("1")
+                      .first(conn)
+                      .optional()
+    );
+
+    if ip_ban.is_some() {
         return Err(Error::Reason(identification_failure_reason::WRONG_CREDENTIALS));
     }
 
-    let stmt = try!(trans.prepare_cached("SELECT * FROM accounts WHERE account = $1"));
-    let rows = try!(stmt.query(&[&account]));
+    let filter = accounts::table.filter(accounts::account.eq(&account));
 
-    if rows.len() == 0 {
-        return Err(Error::Reason(identification_failure_reason::WRONG_CREDENTIALS));
-    }
-
-    let row = rows.get(0);
-    let ban_end: i64 = try!(row.get_opt("ban_end"));
+    let ban_end: i64 = match try!(filter.select(accounts::ban_end)
+                                        .first(conn)
+                                        .optional()) {
+        Some(ban_end) => ban_end,
+        None => return Err(Error::Reason(identification_failure_reason::WRONG_CREDENTIALS)),
+    };
 
     if ban_end < 0 {
         return Err(Error::Reason(identification_failure_reason::BANNED));
@@ -56,50 +75,58 @@ fn authenticate(conn: &mut Connection, account: String, password: String, addr: 
         return Err(Error::Banned(ban_end));
     }
 
-    let db_password: String = try!(row.get_opt("password"));
-    let salt: String = try!(row.get_opt("salt"));
-    if crypt::md5(&(crypt::md5(&password) + &salt)) != db_password {
+    let credentials: Credentials = try!(
+        filter.select((accounts::password, accounts::salt))
+              .first(conn)
+    );
+
+    if crypt::md5(&(crypt::md5(&password) + &credentials.salt)) != credentials.password {
         return Err(Error::Reason(identification_failure_reason::WRONG_CREDENTIALS));
     }
 
-    let id: i32 = try!(row.get_opt("id"));
+    let account: AccountData = try!(
+        filter.select((
+            accounts::id,
+            accounts::account,
+            accounts::nickname,
+            accounts::secret_question,
+            accounts::level,
+            accounts::subscription_end,
+            accounts::creation_date,
+            accounts::already_logged,
+            accounts::last_server
+        )).first(conn)
+    );
+
     let mut character_counts = HashMap::new();
+    let _ = try!(
+        character_counts::table.filter(character_counts::account_id.eq(&account.id))
+                               .select(character_counts::server_id)
+                               .load::<i16>(conn)
+    ).map(|serv_id| *character_counts.entry(serv_id).or_insert(0) += 1).count();
 
-    let stmt = try!(trans.prepare_cached("SELECT server_id FROM character_counts
-        WHERE account_id = $1"));
-    let rows = try!(stmt.query(&[&id]));
-    for row in rows {
-        let id: i16 = try!(row.get_opt("server_id"));
-        *character_counts.entry(id).or_insert(0) += 1;
-    }
+    /*for server_id in rows {
+        *character_counts.entry(server_id).or_insert(0) += 1;
+    }*/
 
-    try!(trans.commit());
-
-    let level: i16 = try!(row.get_opt("level"));
-    Ok(AccountData {
-        id: id,
-        account: try!(row.get_opt("account")),
-        nickname: try!(row.get_opt("nickname")),
-        secret_question: try!(row.get_opt("secret_question")),
-        level: level as i8,
-        subscription_end: try!(row.get_opt("subscription_end")),
-        subscription_elapsed: 0,
-        creation_date: try!(row.get_opt("creation_date")),
-        character_counts: character_counts,
-        already_logged: try!(row.get_opt("logged")),
-        last_server: try!(row.get_opt("last_server")),
-    })
+    Ok((account, character_counts))
 }
 
 impl Session {
     fn identification_success(&mut self, chunk: &ChunkImpl, data: AccountData,
+                              character_counts: HashMap<i16, i8>,
                               already_logged: bool, auto_connect: bool) {
         let already_logged = already_logged || data.already_logged != 0;
-        log_info!(self, "connection: ip = {}, already_logged = {}",
-                  self.base.address, already_logged);
+        log_info!(
+            self,
+            "connection: ip = {}, already_logged = {}",
+            self.base.address,
+            already_logged
+        );
 
         self.queue_state = QueueState::None;
         self.account = Some(data);
+        self.character_counts = character_counts;
         let data = self.account.as_ref().unwrap();
         let subscriber = data.is_subscriber();
 
@@ -117,7 +144,7 @@ impl Session {
             community_id: 0,
             secret_question: data.secret_question.clone(),
             account_creation: (data.creation_date * 1000) as f64,
-            subscription_elapsed_duration: (data.subscription_elapsed * 1000) as f64,
+            subscription_elapsed_duration: 0.,
             subscription_end_date: match subscriber {
                 true => data.subscription_end * 1000,
                 false => 0,
@@ -174,7 +201,7 @@ impl Session {
             return Ok(());
         }
 
-        let mut credentials = Cursor::new(msg.credentials.0);
+        let mut credentials = io::Cursor::new(msg.credentials.0);
         let username = try!(credentials.read_string());
         let password = try!(credentials.read_string());
         try!(credentials.read_to_end(&mut self.aes_key));
@@ -189,7 +216,10 @@ impl Session {
                                             QUEUE_COUNTER.load(Ordering::Relaxed));
 
         SERVER.with(|s| database::execute(&s.db, move |conn| {
-            match authenticate(conn, username, password, addr) {
+            let res = conn.transaction(|| {
+                authenticate(conn, username, password, addr)
+            }).map_err(From::from);
+            match res {
                 Err(err) => {
                     let buf = match err {
                         Error::Banned(ban_end) =>
@@ -215,11 +245,17 @@ impl Session {
                     let _ = io_loop.send(Msg::WriteAndClose(token, buf));
                 }
 
-                Ok(data) => {
+                Ok((data, counts)) => {
                     let id = data.id;
                     server::identification_success(&server, token, id, data.already_logged,
                         move |session, chunk, already| {
-                            session.identification_success(chunk, data, already, auto_connect)
+                            session.identification_success(
+                                chunk,
+                                data,
+                                counts,
+                                already,
+                                auto_connect
+                            )
                         });
                 }
             }

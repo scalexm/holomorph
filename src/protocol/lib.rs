@@ -1,5 +1,3 @@
-#![feature(read_exact)]
-
 extern crate byteorder;
 
 macro_rules! impl_variant {

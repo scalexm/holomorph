@@ -1,11 +1,9 @@
-#![feature(fnbox)]
-#![feature(ip_addr)]
-#![feature(unboxed_closures)]
+#![feature(fnbox, ip_addr, unboxed_closures, custom_derive, custom_attribute, plugin)]
+#![plugin(diesel_codegen)]
 
-#[macro_use]
-extern crate log;
+#[macro_use] extern crate log;
+#[macro_use] extern crate diesel;
 extern crate mio;
-extern crate postgres;
 extern crate rustc_serialize;
 extern crate crypto;
 extern crate eventual;

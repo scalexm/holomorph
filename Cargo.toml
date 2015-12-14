@@ -9,16 +9,14 @@ log = "*"
 env_logger = "*"
 time = "*"
 rustc-serialize = "*"
-postgres = "*"
 lazy_static = "*"
 shared = { path = "src/shared" }
 protocol = { path = "src/protocol" }
-diesel = "*"
-quasi_macros = "*"
-quasi = "*"
-
-[dependencies.eventual]
-git = "https://github.com/carllerche/eventual"
+diesel = { git = "https://github.com/sgrif/diesel" }
+diesel_codegen = { git = "https://github.com/sgrif/diesel", default-features = false, features = ["nightly"] }
+quasi = { version = "^0.3.10", default-features = false }
+quasi_macros = { version = "^0.3.10" }
+eventual = { git = "https://github.com/carllerche/eventual" }
 
 [profile.release]
 debug = true

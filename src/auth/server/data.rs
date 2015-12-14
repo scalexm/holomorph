@@ -2,29 +2,17 @@ use shared::{net, database};
 use config::Config;
 use std::sync::Arc;
 use std::collections::HashMap;
-use postgres::{Connection, Result};
-use postgres::rows::Row;
+use diesel::*;
 use server;
 
+#[derive(Queriable)]
 pub struct GameServerData {
     id: i16,
     key: String,
-    min_level: i8,
+    min_level: i16,
 }
 
 impl GameServerData {
-    pub fn from_sql<'a>(row: Row<'a>) -> (i16, Self) {
-        let id = row.get("id");
-        assert!(id > 0); // id 0 is used as a null value
-        let min_level: i16 = row.get("min_level");
-
-        (id, GameServerData {
-            id: id,
-            key: row.get("key"),
-            min_level: min_level as i8,
-        })
-    }
-
     pub fn id(&self) -> i16 {
         self.id
     }
@@ -33,7 +21,7 @@ impl GameServerData {
         &self.key
     }
 
-    pub fn min_level(&self) -> i8 {
+    pub fn min_level(&self) -> i16 {
         self.min_level
     }
 }
@@ -52,7 +40,6 @@ pub struct AuthServerData {
 impl AuthServerData {
     pub fn new(server: server::Sender, io_loop: net::Sender, db: database::Sender, key: Vec<u8>,
                patch: Vec<u8>, cnf: Config) -> Self {
-
             AuthServerData {
                 server: server,
                 io_loop: io_loop,
@@ -64,12 +51,15 @@ impl AuthServerData {
             }
     }
 
-    pub fn load(&mut self, conn: &mut Connection) -> Result<()> {
-        let stmt = try!(conn.prepare("SELECT * FROM game_servers"));
-        self.game_servers = Arc::new(try!(stmt.query(&[])).iter().map(|row|
-            GameServerData::from_sql(row)).collect());
-        info!("loaded {} game servers", self.game_servers.len());
+    pub fn load(&mut self, conn: &mut Connection) {
+        use shared::database::schema::game_servers;
 
-        Ok(())
+        self.game_servers = Arc::new(
+            game_servers::table.load::<GameServerData>(&conn)
+                               .unwrap()
+                               .map(|gs| (gs.id(), gs))
+                               .collect()
+        );
+        info!("loaded {} game servers", self.game_servers.len());
     }
 }

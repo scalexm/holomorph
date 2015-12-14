@@ -1,23 +1,42 @@
 pub mod chunk;
 
 use net::Token;
-use std::io::{self, Cursor};
+use std::io;
 use self::chunk::Ref;
 use std::collections::LinkedList;
 use std::cell::RefCell;
-use postgres::{self, Connection};
+use diesel::*;
 use time;
+use database::schema::logs;
 
 struct SessionLog {
     date: i64,
-    type_: String,
+    log_type: String,
     content: String,
+}
+
+#[insertable_into(logs)]
+struct NewLog<'a>(
+    #[column_name="account_id"]
+    i32,
+    #[column_name="date"]
+    i64,
+    #[column_name="log_type"]
+    &'a str,
+    #[column_name="content"]
+    &'a str
+);
+
+impl<'a> NewLog<'a> {
+    fn new(account_id: i32, log: &'a SessionLog) -> Self {
+        NewLog(account_id, log.date, &log.log_type, &log.content)
+    }
 }
 
 #[macro_export]
 macro_rules! log_custom {
-    ($session: expr, $type_: expr, $($arg: tt)*) => {{
-        $session.base.push_log($type_.to_string(), format!($($arg)*));
+    ($session: expr, $ty: expr, $($arg: tt)*) => {{
+        $session.base.push_log($ty.to_string(), format!($($arg)*));
     }};
 }
 
@@ -41,7 +60,7 @@ pub struct SessionBase {
 pub trait Session<U>: Sized {
     fn new(SessionBase) -> Self;
 
-    fn handle<'a>(&mut self, Ref<'a, Self, U>, i16, Cursor<Vec<u8>>) -> io::Result<()>;
+    fn handle<'a>(&mut self, Ref<'a, Self, U>, i16, io::Cursor<Vec<u8>>) -> io::Result<()>;
 
     fn close<'a>(self, Ref<'a, Self, U>);
 }
@@ -57,23 +76,22 @@ impl SessionBase {
         }
     }
 
-    pub fn save_logs(&self, conn: &mut Connection, account_id: i32) -> postgres::Result<()> {
-        let trans = try!(conn.transaction());
-        for log in &*self.logs.borrow() {
-            let stmt = try!(
-                trans.prepare_cached(
-                    "INSERT INTO logs(account_id, date, type, content) VALUES($1, $2, $3, $4)"
-                )
-            );
-            let _ = try!(stmt.execute(&[&account_id, &log.date, &log.type_, &log.content]));
-        }
-        trans.commit()
+    pub fn save_logs(&self, conn: &Connection, account_id: i32) -> QueryResult<()> {
+        use diesel::query_builder::insert;
+        try!(conn.transaction(|| {
+            let logs = self.logs.borrow();
+            let rows: Vec<_> = logs.iter()
+                                   .map(|log| NewLog::new(account_id, log))
+                                   .collect();
+            insert(&rows).into(logs::table).execute(conn)
+        }));
+        Ok(())
     }
 
-    pub fn push_log(&self, type_: String, content: String) {
+    pub fn push_log(&self, log_type: String, content: String) {
         self.logs.borrow_mut().push_back(SessionLog {
-            date: time::precise_time_ns() as i64,
-            type_: type_,
+            date: time::get_time().sec,
+            log_type: log_type,
             content: content,
         });
     }

@@ -1,11 +1,9 @@
-#![crate_type="dylib"]
 #![feature(plugin_registrar, rustc_private, slice_patterns, plugin)]
 #![plugin(quasi_macros)]
 
-extern crate syntax;
-#[macro_use]
-extern crate lazy_static;
 extern crate rustc_plugin;
+extern crate syntax;
+#[macro_use] extern crate lazy_static;
 extern crate quasi;
 
 use std::collections::HashMap;

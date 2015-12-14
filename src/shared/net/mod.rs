@@ -54,7 +54,7 @@ impl<C: 'static> Handler<C> {
             }).ok().unwrap();
 
             try!(
-                event_loop.register_opt(
+                event_loop.register(
                     self.listeners[tok].socket.as_ref().unwrap(),
                     tok,
                     EventSet::readable(),
@@ -115,7 +115,7 @@ impl<C: 'static> Handler<C> {
             cb(handler, SessionEvent::Connect(client_tok, ip))
         });
 
-        event_loop.register_opt(
+        event_loop.register(
             self.connections[client_tok].socket(),
             client_tok,
             EventSet::readable(),
@@ -127,12 +127,11 @@ impl<C: 'static> Handler<C> {
                            events: EventSet) -> io::Result<()> {
         assert!(events.is_readable());
 
-        if let Some(socket) = try!(self.listeners[tok].socket.as_ref().unwrap().accept()) {
-            let addr = socket.peer_addr().ok().unwrap();
+        if let Some((sock, addr)) = try!(self.listeners[tok].socket.as_ref().unwrap().accept()) {
             self.new_connection(
                 event_loop,
                 tok,
-                socket,
+                sock,
                 addr
             );
         }

@@ -1,4 +1,6 @@
-use postgres::{Connection, SslMode};
+pub mod schema;
+
+use diesel::*;
 use std::sync::{Arc, Mutex, mpsc};
 use std::boxed::FnBox;
 use std::thread::{self, JoinHandle};
@@ -6,13 +8,13 @@ use std::collections::LinkedList;
 
 // same as Connection::connect but panics on failure
 pub fn connect(uri: &str) -> Connection {
-    match Connection::connect(uri, &SslMode::None) {
+    match Connection::establish(uri) {
         Ok(conn) => conn,
         Err(err) => panic!("database connection failed: {}", err),
     }
 }
 
-pub type Thunk = Box<FnBox(&mut Connection) + Send + 'static>;
+pub type Thunk = Box<FnBox(&Connection) + Send + 'static>;
 pub type Sender = mpsc::Sender<Thunk>;
 
 // starts a thread pool
@@ -25,9 +27,10 @@ pub fn spawn_threads(threads: usize, uri: &str, joins: &mut LinkedList<JoinHandl
 
     for _ in 0..threads {
         let rx = rx.clone();
-        let mut conn = connect(uri);
+        let uri = uri.to_string();
 
         joins.push_back(thread::spawn(move || {
+            let conn = connect(&uri);
             loop {
                 // we acquire the lock only for receiving, not for executing a job
                 let msg = {
@@ -36,7 +39,7 @@ pub fn spawn_threads(threads: usize, uri: &str, joins: &mut LinkedList<JoinHandl
                 };
 
                 match msg {
-                    Ok(job) => job.call_box((&mut conn,)),
+                    Ok(job) => job.call_box((&conn,)),
                     Err(..) => return,
                 }
             }
@@ -47,7 +50,7 @@ pub fn spawn_threads(threads: usize, uri: &str, joins: &mut LinkedList<JoinHandl
 }
 
 // helper function to convert an FnOnce into an FnBox and send it to the pool
-pub fn execute<F>(sender: &Sender, job: F) where F : FnOnce(&mut Connection) + Send + 'static {
-    let boxed_job: Thunk = Box::new(move |conn: &mut Connection| job(conn));
+pub fn execute<F>(sender: &Sender, job: F) where F : FnOnce(&Connection) + Send + 'static {
+    let boxed_job: Thunk = Box::new(move |conn: &Connection| job(conn));
     let _ = sender.send(boxed_job);
 }

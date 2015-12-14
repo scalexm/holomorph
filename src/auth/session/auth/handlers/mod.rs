@@ -14,6 +14,7 @@ use std::io::{Result, Cursor};
 use server::SERVER;
 use protocol::enums::server_status;
 use shared::{self, database};
+use std::collections::HashMap;
 
 impl shared::session::Session<ChunkImpl> for Session {
     fn new(base: shared::session::SessionBase) -> Self {
@@ -37,6 +38,7 @@ impl shared::session::Session<ChunkImpl> for Session {
             queue_state: QueueState::None,
             custom_identification: false,
             aes_key: Vec::new(),
+            character_counts: HashMap::new(),
         }
     }
 
@@ -89,7 +91,7 @@ impl Session {
             status: status,
             completion: 0,
             is_selectable: status == server_status::ONLINE,
-            characters_count: *data.character_counts.get(&server.id()).unwrap_or(&0),
+            characters_count: *self.character_counts.get(&server.id()).unwrap_or(&0),
             characters_slots: 0,
             date: 0.,
         }

@@ -1,21 +1,16 @@
-#![feature(plugin)]
-#![plugin(codegen)]
+#![feature(plugin, custom_attribute, custom_derive)]
+#![plugin(codegen, diesel_codegen)]
 
-#[macro_use]
-extern crate shared;
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate lazy_static;
+#[macro_use] extern crate shared;
+#[macro_use] extern crate log;
+#[macro_use] extern crate lazy_static;
+#[macro_use] extern crate diesel;
 extern crate env_logger;
-extern crate postgres;
 extern crate time;
 extern crate eventual;
 extern crate rustc_serialize;
 extern crate rand;
 extern crate protocol;
-#[macro_use]
-extern crate diesel;
 
 mod session;
 mod config;
@@ -75,10 +70,7 @@ fn start(args: &str) -> ProgramState {
             cnf
         );
 
-        if let Err(err) = server_data.load(&mut conn) {
-            panic!("loading failed: {}", err);
-        }
-
+        server_data.load(&mut conn);
         server_data
     };
 
