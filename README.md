@@ -7,10 +7,7 @@ Dofus server emulator written in rust.
 ##Noteworthy dependencies
 * [mio](https://github.com/carllerche/mio)
 * [byteorder](https://github.com/BurntSushi/byteorder)
-* [rust-postgres](https://github.com/sfackler/rust-postgres)
-
-##Platforms
-Currently runs on Linux and Mac OS.
+* [diesel](https://github.com/sgrif/diesel)
 
 ##Thanks
 * [LuaxY](https://github.com/LuaxY)

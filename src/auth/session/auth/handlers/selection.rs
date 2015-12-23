@@ -15,13 +15,10 @@ fn update_ticket(conn: &Connection, id: i32, ticket: &str) -> QueryResult<()> {
     use diesel::query_builder::update;
     use shared::database::schema::accounts;
 
-    try!(
-        update(
-            accounts::table.filter(accounts::id.eq(&id))
-        ).set(accounts::ticket.eq(ticket))
-         .execute(conn)
-    );
-    Ok(())
+    update(
+        accounts::table.filter(accounts::id.eq(&id))
+    ).set(accounts::ticket.eq(ticket))
+     .execute(conn).map(|_| ())
 }
 
 impl Session {

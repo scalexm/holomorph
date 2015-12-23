@@ -5,6 +5,7 @@ authors = ["scalexm <martin.alex32@hotmail.fr>"]
 
 [dependencies]
 byteorder = "*"
+diesel = { git = "https://github.com/sgrif/diesel" }
 
 [profile.release]
 debug = true

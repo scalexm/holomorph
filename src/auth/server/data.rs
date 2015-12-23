@@ -51,11 +51,11 @@ impl AuthServerData {
             }
     }
 
-    pub fn load(&mut self, conn: &mut Connection) {
+    pub fn load(&mut self, conn: &Connection) {
         use shared::database::schema::game_servers;
 
         self.game_servers = Arc::new(
-            game_servers::table.load::<GameServerData>(&conn)
+            game_servers::table.load::<GameServerData>(conn)
                                .unwrap()
                                .map(|gs| (gs.id(), gs))
                                .collect()

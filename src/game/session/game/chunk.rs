@@ -28,14 +28,12 @@ impl ChunkImpl {
                                   if s.area_id() == a_id { Some(s.id()) }
                                   else { None }
                               }) {
-
                 for m_id in server.maps
                                   .values()
                                   .filter_map(|m| {
                                       if m.sub_area_id() == s_id { Some(m.id()) }
                                       else { None }
                                   }) {
-
                     let _ = maps.insert(m_id, Map::new(m_id, a_id));
                 }
             }
@@ -59,16 +57,16 @@ pub fn update_queue(chunk: &Chunk) {
 }
 
 #[derive(Copy, Clone)]
-pub enum SocialState {
+pub enum SocialUpdateType{
     Online,
-    Update,
-    UpdateWithLevel(i16),
+    Default,
+    WithLevel(i16),
 }
 
 pub fn update_social(chunk: &mut Chunk, ch: CharacterMinimal, social: Option<SocialInformations>,
-                     state: SocialState) {
+                     ty: SocialUpdateType) {
     for session in &mut chunk.sessions {
-        session.1.update_social(&ch, social.as_ref(), state);
+        session.1.update_social(&ch, social.as_ref(), ty);
     }
 }
 
@@ -90,9 +88,9 @@ pub fn teleport_character(chunk: &mut Chunk, mut ch: Character, map_id: i32, cel
     SERVER.with(|s| {
         let map = s.maps.get(&map_id).unwrap();
         let area_id = s.sub_areas
-            .get(&map.sub_area_id())
-            .unwrap()
-            .area_id();
+                       .get(&map.sub_area_id())
+                       .unwrap()
+                       .area_id();
 
         let tok = ch.session();
         let session = chunk.sessions.remove(&tok).unwrap();
@@ -137,12 +135,3 @@ pub fn send_to_area(chunk: &Chunk, area_id: i16, buf: Vec<u8>) {
         }
     }
 }
-
-/*pub fn send_to_all(chunk: &Chunk, buf: Vec<u8>) {
-    for s in chunk.sessions.values() {
-        if let GameState::InContext(..) = s.state {
-            let buf = buf.clone();
-            write!(SERVER, s.base.token, buf);
-        }
-    }
-}*/

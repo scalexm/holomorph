@@ -2,8 +2,8 @@ pub mod data;
 pub mod social;
 
 use session::{auth, game};
-use session::game::SocialInformations;
-use session::game::chunk::SocialState;
+use session::game::{SocialState, SocialInformations};
+use session::game::chunk::SocialUpdateType;
 use std::collections::{HashSet, HashMap};
 use shared::net::{Token, SessionEvent};
 use shared::{self, chunk, HashBiMap};
@@ -65,7 +65,7 @@ impl Server {
             let account_id = self.session_accounts.inv_remove(&tok);
             if let Some(id) = id {
                 let _ = self.session_socials.remove(&account_id.unwrap());
-                self.update_social(self.characters.get(&id).unwrap(), SocialState::Update);
+                self.update_social(self.characters.get(&id).unwrap(), SocialUpdateType::Default);
             }
         }
 
@@ -138,6 +138,24 @@ pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32, job: F)
     });
 }
 
+macro_rules! load_social {
+    ($state: expr, $social: ident, $server: ident, $account_id: ident) => {
+        $social.get($state).iter().cloned().filter_map(|r_id| {
+            $server.character_accounts.get(&r_id).map(|ch_id| {
+                let ch = $server.characters.get(ch_id).unwrap();
+                (
+                    r_id,
+                    ch.as_relation_infos(
+                        $account_id,
+                        $server.session_socials.get(&ch.account_id()),
+                        $state
+                    )
+                )
+            })
+        })
+    };
+}
+
 pub fn character_selection_success<F>(sender: &Sender, tok: Token, account_id: i32, ch_id: i32,
                                       social: SocialInformations, job: F)
                                       where F: FnOnce(&mut game::Session,
@@ -149,16 +167,22 @@ pub fn character_selection_success<F>(sender: &Sender, tok: Token, account_id: i
         let _ = server.session_characters.insert(ch_id, tok);
         let _ = server.session_accounts.insert(account_id, tok);
 
-        let friends = social.friends.iter().cloned().filter_map(|f| {
-            server.get_friend_infos(f, account_id).map(|infos| (f, infos))
-        }).collect();
+        let friends = load_social!(
+            SocialState::Friend,
+            social,
+            server,
+            account_id
+        ).map(|(id, f)| (id, f.as_friend())).collect();
 
-        let ignored = social.ignored.iter().cloned().filter_map(|i| {
-            server.get_ignored_infos(i).map(|infos| (i, infos))
-        }).collect();
+        let ignored = load_social!(
+            SocialState::Ignored,
+            social,
+            server,
+            account_id
+        ).map(|(id, i)| (id, i.as_ignored())).collect();
 
         let _ = server.session_socials.insert(account_id, social);
-        server.update_social(server.characters.get(&ch_id).unwrap(), SocialState::Online);
+        server.update_social(server.characters.get(&ch_id).unwrap(), SocialUpdateType::Online);
 
         server.base.session_callback(tok, move |session, mut chunk| {
             job(session, &mut *chunk, friends, ignored)

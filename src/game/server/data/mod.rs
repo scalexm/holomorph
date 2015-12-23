@@ -3,7 +3,7 @@ mod map;
 use std::sync::Arc;
 use config::Config;
 use shared::{net, database};
-use postgres::{Connection, Result};
+use diesel::*;
 use character::CharacterMinimal;
 use self::map::*;
 use std::collections::{HashMap, LinkedList};
@@ -26,7 +26,6 @@ pub struct GameServerData {
 impl GameServerData {
     pub fn new(server: server::Sender, io_loop: net::Sender, cnf: Config, db: database::Sender,
                auth_db: database::Sender, shutdown: mpsc::Sender<()>) -> Self {
-
         GameServerData {
             server: server,
             io_loop: io_loop,
@@ -40,24 +39,58 @@ impl GameServerData {
         }
     }
 
-    pub fn load(&mut self, conn: &mut Connection) -> Result<()> {
-        let stmt = try!(conn.prepare("SELECT * FROM areas"));
-        self.areas = Arc::new(try!(stmt.query(&[])).iter().map(|row|
-            AreaData::from_sql(row)).collect());
+    pub fn load(&mut self, conn: &Connection) {
+        use shared::database::schema::{areas, sub_areas, maps, map_positions};
+
+        self.areas = Arc::new(
+            areas::table.load::<AreaData>(conn)
+                        .unwrap()
+                        .map(|a| (a.id(), a))
+                        .collect()
+        );
         info!("loaded {} areas", self.areas.len());
 
-        let stmt = try!(conn.prepare("SELECT * FROM sub_areas"));
-        self.sub_areas = Arc::new(try!(stmt.query(&[])).iter().map(|row|
-            SubAreaData::from_sql(&*self.areas, row)).collect());
+        self.sub_areas = Arc::new(
+            sub_areas::table.load::<SubAreaData>(conn)
+                            .unwrap()
+                            .map(|s| {
+                                s.verif_area(&*self.areas);
+                                (s.id(), s)
+                            })
+                            .collect()
+        );
         info!("loaded {} sub areas", self.sub_areas.len());
 
-        let stmt = try!(conn.prepare("SELECT * FROM map_positions JOIN maps
-            ON map_positions.id = maps.id"));
-        self.maps = Arc::new(try!(stmt.query(&[])).iter().map(|row|
-            MapData::from_sql(&*self.sub_areas, row)).collect());
+        self.maps = Arc::new(
+            maps::table.inner_join(map_positions::table)
+                       .select((
+                           map_positions::id,
+                           map_positions::pos_x,
+                           map_positions::pos_y,
+                           map_positions::outdoor,
+                           map_positions::capabilities,
+                           map_positions::sub_area_id,
+                           maps::left,
+                           maps::right,
+                           maps::top,
+                           maps::bottom,
+                           maps::cells,
+                           maps::client_top,
+                           maps::client_bottom,
+                           maps::custom_left_cell,
+                           maps::custom_right_cell,
+                           maps::custom_top_cell,
+                           maps::custom_bottom_cell,
+                       ))
+                       .load::<MapData>(conn)
+                       .unwrap()
+                       .map(|m| {
+                          m.verif_cells();
+                          (m.id(), m)
+                       })
+                       .collect()
+        );
         info!("loaded {} maps", self.maps.len());
-
-        Ok(())
     }
 
     pub fn shutdown(&self) {
@@ -66,11 +99,14 @@ impl GameServerData {
 }
 
 impl Server {
-    pub fn load(&mut self, conn: &mut Connection) -> Result<()> {
-        let stmt = try!(conn.prepare("SELECT * FROM character_minimals"));
-        self.characters = try!(stmt.query(&[])).iter()
-                                               .map(|row| CharacterMinimal::from_sql(row))
-                                               .collect();
+    pub fn load(&mut self, conn: &Connection) {
+        use shared::database::schema::character_minimals;
+
+        self.characters = character_minimals::table.load::<CharacterMinimal>(conn)
+                                                   .unwrap()
+                                                   .map(|ch| (ch.id(), ch))
+                                                   .collect();
+
         let (nicknames, names_plus_accounts): (_, LinkedList<(_, _)>) =
             self.characters.iter().map(|(id, ch)| {
                 ((ch.account_nickname().to_lowercase(), *id),
@@ -81,7 +117,5 @@ impl Server {
         self.character_names = names;
         self.character_accounts = accounts;
         info!("loaded {} characters", self.characters.len());
-
-        Ok(())
     }
 }

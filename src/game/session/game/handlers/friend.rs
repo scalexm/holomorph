@@ -1,40 +1,51 @@
-use session::game::{GameState, Session};
+use session::game::{GameState, Session, SocialState};
 use session::game::chunk::Ref;
-use std::io::{Result, Cursor};
+use std::io::Result;
 use protocol::*;
 use protocol::messages::game::friend::*;
-use protocol::variants::{FriendInformationsVariant, IgnoredInformationsVariant,
-    SessionIgnoredInformations};
+use protocol::variants::{
+    IgnoredInformationsVariant,
+    SessionIgnoredInformations
+};
 use protocol::messages::game::basic::BasicNoOperationMessage;
 use server::{social, SERVER};
+use character::social::RelationInformations;
 
 impl Session {
-    pub fn friend_added_success(&mut self, infos: (i32, FriendInformationsVariant)) {
+    pub fn friend_added_success(&mut self, infos: (i32, RelationInformations)) {
+        let (f_id, infos) = (infos.0, infos.1.as_friend());
         let buf = FriendAddedMessage {
-            friend_added: infos.1.clone(),
+            friend_added: infos.clone(),
         }.as_packet().unwrap();
         write!(SERVER, self.base.token, buf);
 
-        let _ = self.account.as_mut().unwrap().social.friends.insert(infos.0);
-        let _ = self.friends.insert(infos.0, infos.1);
+        let account = self.account.as_mut().unwrap();
+        let _ = account.social.friends.insert(f_id);
+        let _ = self.friends_cache.insert(f_id, infos);
     }
 
-    pub fn ignored_added_success(&mut self, infos: (i32, IgnoredInformationsVariant),
+    pub fn ignored_added_success(&mut self, infos: (i32, RelationInformations),
                                  for_session: bool) {
+        let (i_id, infos) = (infos.0, infos.1.as_ignored());
         let buf = IgnoredAddedMessage {
-            ignore_added: infos.1.clone(),
+            ignore_added: infos.clone(),
             session: for_session,
         }.as_packet().unwrap();
         write!(SERVER, self.base.token, buf);
 
         if !for_session {
-            let _ = self.account.as_mut().unwrap().social.ignored.insert(infos.0);
-            let _ = self.ignored.insert(infos.0, infos.1);
+            let account = self.account.as_mut().unwrap();
+            let _ = account.social.ignored.insert(i_id);
+            let _ = self.ignored_cache.insert(i_id, infos);
         } else {
-            let _ = self.ignored.insert(infos.0, IgnoredInformationsVariant
-                ::SessionIgnoredInformations(SessionIgnoredInformations {
-                    name: infos.1.name().to_string(),
-                }));
+            let _ = self.ignored_cache.insert(
+                i_id,
+                IgnoredInformationsVariant::SessionIgnoredInformations(
+                    SessionIgnoredInformations {
+                        name: infos.name().to_string(),
+                    }
+                )
+            );
         }
     }
 }
@@ -49,7 +60,7 @@ impl Session {
         };
 
         let buf = FriendsListMessage {
-            friends_list: self.friends.values().cloned().collect(),
+            friends_list: self.friends_cache.values().cloned().collect(),
         }.as_packet().unwrap();
 
         write!(SERVER, self.base.token, buf);
@@ -66,7 +77,6 @@ impl Session {
         };
 
         let account = self.account.as_mut().unwrap();
-
         account.social.warn_on_connection = msg.enable;
 
         let buf = BasicNoOperationMessage.as_packet().unwrap();
@@ -84,7 +94,6 @@ impl Session {
         };
 
         let account = self.account.as_mut().unwrap();
-
         account.social.warn_on_level_gain = msg.enable;
 
         let buf = BasicNoOperationMessage.as_packet().unwrap();
@@ -101,7 +110,7 @@ impl Session {
         };
 
         let buf = IgnoredListMessage {
-            ignored_list: self.ignored.values().filter_map(|i| {
+            ignored_list: self.ignored_cache.values().filter_map(|i| {
                 match *i {
                     IgnoredInformationsVariant::SessionIgnoredInformations(_) => None,
                     _ => Some(i.clone()),
@@ -123,8 +132,9 @@ impl Session {
 
          let account = self.account.as_ref().unwrap();
 
-         if (account.is_subscriber() && account.social.friends.len() >= 100)
-             || (!account.is_subscriber() && account.social.friends.len() >= 50) {
+         let friends_count = account.social.friends.len();
+         if (account.is_subscriber() && friends_count >= 100)
+             || (!account.is_subscriber() && friends_count >= 50) {
              let buf = FriendAddFailureMessage {
                  reason: 1,
              }.as_packet().unwrap();
@@ -134,8 +144,14 @@ impl Session {
 
          let name = msg.name;
          SERVER.with(|s| {
-             social::add_friend(&s.server, self.base.token, account.id, name,
-                               |session, infos| session.friend_added_success(infos));
+             social::add_relation(
+                 &s.server,
+                 self.base.token,
+                 account.id,
+                 name,
+                 SocialState::Friend,
+                |session, infos| session.friend_added_success(infos)
+            );
         });
          Ok(())
     }
@@ -149,7 +165,7 @@ impl Session {
 
         // do not call account.social.is_friend_with because we can only delete friends
         // which are on the server
-        if !self.friends.contains_key(&msg.account_id) {
+        if !self.friends_cache.contains_key(&msg.account_id) {
             let buf = FriendDeleteResultMessage {
                 success: false,
                 name: String::new()
@@ -158,11 +174,27 @@ impl Session {
             return Ok(());
         }
 
-        let _ = self.account.as_mut().unwrap().social.friends.remove(&msg.account_id);
-        let infos = self.friends.remove(&msg.account_id).unwrap();
+        let account_id = {
+            let account = self.account.as_mut().unwrap();
+            let _ = account.social.friends.remove(&msg.account_id);
+            account.id
+        };
+
+        let infos = self.friends_cache.remove(&msg.account_id).unwrap();
+        let buf = FriendDeleteResultMessage {
+            success: true,
+            name: infos.name().to_string(),
+        }.as_packet().unwrap();
+        write!(SERVER, self.base.token, buf);
+
         SERVER.with(|s| {
-            social::delete_friend(&s.server, self.base.token, self.account.as_ref().unwrap().id,
-                                  msg.account_id, infos.name().to_string());
+            social::delete_relation(
+                &s.server,
+                self.base.token,
+                account_id,
+                msg.account_id,
+                SocialState::Friend,
+            );
         });
         Ok(())
     }
@@ -176,8 +208,9 @@ impl Session {
 
          let account = self.account.as_ref().unwrap();
 
-         if (account.is_subscriber() && account.social.ignored.len() >= 100)
-             || (!account.is_subscriber() && account.social.ignored.len() >= 50) {
+         let ignored_count = account.social.ignored.len();
+         if (account.is_subscriber() && ignored_count >= 100)
+             || (!account.is_subscriber() && ignored_count >= 50) {
              let buf = IgnoredAddFailureMessage {
                  reason: 1,
              }.as_packet().unwrap();
@@ -188,10 +221,16 @@ impl Session {
          let name = msg.name;
          let for_session = msg.session;
          SERVER.with(|s| {
-             social::add_ignored(&s.server, self.base.token, account.id, name,
-                               move |session, infos| {
-                                   session.ignored_added_success(infos, for_session)
-                               });
+             social::add_relation(
+                 &s.server,
+                 self.base.token,
+                 account.id,
+                 name,
+                 SocialState::Ignored,
+                 move |session, infos| {
+                     session.ignored_added_success(infos, for_session)
+                 }
+             );
         });
          Ok(())
     }
@@ -204,7 +243,7 @@ impl Session {
         };
 
         // same as in handle_friend_delete_request
-        if !self.ignored.contains_key(&msg.account_id) {
+        if !self.ignored_cache.contains_key(&msg.account_id) {
             let buf = IgnoredDeleteResultMessage {
                 success: Flag(false),
                 session: Flag(msg.session),
@@ -215,12 +254,26 @@ impl Session {
         }
 
         if !msg.session {
-            let _ = self.account.as_mut().unwrap().social.ignored.remove(&msg.account_id);
+            let account = self.account.as_mut().unwrap();
+            let _ = account.social.ignored.remove(&msg.account_id);
         }
-        let infos = self.ignored.remove(&msg.account_id).unwrap();
+
+        let infos = self.ignored_cache.remove(&msg.account_id).unwrap();
+        let buf = IgnoredDeleteResultMessage {
+            success: Flag(true),
+            session: Flag(msg.session),
+            name: infos.name().to_string(),
+        }.as_packet().unwrap();
+        write!(SERVER, self.base.token, buf);
+
         SERVER.with(|s| {
-            social::delete_ignored(&s.server, self.base.token, self.account.as_ref().unwrap().id,
-                                   msg.account_id, infos.name().to_string(), msg.session);
+            social::delete_relation(
+                &s.server,
+                self.base.token,
+                self.account.as_ref().unwrap().id,
+                msg.account_id,
+                SocialState::Ignored,
+            );
         });
         Ok(())
     }

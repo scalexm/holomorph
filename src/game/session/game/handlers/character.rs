@@ -1,15 +1,16 @@
 use session::game::{Session, GameState};
 use session::game::chunk::{Ref, ChunkImpl};
-use std::io::{self, Cursor};
+use std::io;
 use protocol::{Protocol, VarInt};
 use protocol::messages::game::character::choice::*;
 use protocol::messages::game::inventory::items::*;
 use protocol::messages::game::character::stats::*;
 use protocol::messages::game::context::notification::*;
+use session::game::handlers::error::Error;
 use protocol::variants::{FriendInformationsVariant, IgnoredInformationsVariant};
 use shared::net::{Token, Msg};
-use postgres::{self, Connection};
-use character::{CharacterMinimal, Character};
+use diesel::*;
+use character::{CharacterMinimal, Character, SqlCharacter};
 use std::sync::atomic::{ATOMIC_ISIZE_INIT, AtomicIsize, Ordering};
 use shared::database;
 use server::{self, SERVER};
@@ -19,29 +20,30 @@ use protocol::messages::queues::*;
 pub static QUEUE_SIZE: AtomicIsize = ATOMIC_ISIZE_INIT;
 pub static QUEUE_COUNTER: AtomicIsize = ATOMIC_ISIZE_INIT;
 
-enum Error {
-    Sql(postgres::error::Error),
-    Other,
-}
-
-impl From<postgres::error::Error> for Error {
-    fn from(err: postgres::error::Error) -> Error {
-        Error::Sql(err)
-    }
-}
-
-fn load_character(conn: &mut Connection, tok: Token, base: CharacterMinimal)
+fn load_character(conn: &Connection, tok: Token, base: CharacterMinimal)
                   -> Result<(Character, i32), Error> {
-    let stmt = try!(conn.prepare_cached("SELECT * FROM characters WHERE id = $1"));
-    let rows = try!(stmt.query(&[&base.id()]));
+    use shared::database::schema::characters;
 
-    if rows.len() == 0 {
-        return Err(Error::Other);
+    let ch_id = base.id();
+    let character: Option<SqlCharacter> = try!(
+        characters::table.filter(characters::id.eq(&ch_id))
+                         .first(conn)
+                         .optional()
+    );
+
+    match character {
+        Some(character) => {
+            let map_id = character.map_id;
+            match Character::new(tok, base, character) {
+                Some(character) => Ok((character, map_id)),
+                None => {
+                    error!("invalid cell for character {}", ch_id);
+                    return Err(Error::Other);
+                }
+            }
+        },
+        None => return Err(Error::Other),
     }
-
-    let row = rows.get(0);
-    let map_id: i32 = try!(row.get_opt("map_id"));
-    Ok((try!(Character::from_sql(tok, base, row)), map_id))
 }
 
 impl Session {
@@ -80,8 +82,8 @@ impl Session {
 
         write!(SERVER, self.base.token, buf);
         self.state = GameState::SwitchingContext(map_id, ch);
-        self.friends = friends;
-        self.ignored = ignored;
+        self.friends_cache = friends;
+        self.ignored_cache = ignored;
     }
 }
 
@@ -134,11 +136,17 @@ impl Session {
         let account_id = account.id;
         let social = account.social.clone();
 
-        self.state = GameState::GameQueue(QUEUE_SIZE.fetch_add(1, Ordering::Relaxed) + 1,
-                                          QUEUE_COUNTER.load(Ordering::Relaxed));
+        self.state = GameState::GameQueue(
+            QUEUE_SIZE.fetch_add(1, Ordering::Relaxed) + 1,
+            QUEUE_COUNTER.load(Ordering::Relaxed)
+        );
 
         SERVER.with(|s| database::execute(&s.db, move |conn| {
-            match load_character(conn, token, ch) {
+            let res = conn.transaction(|| {
+                load_character(conn, token, ch)
+            }).map_err(From::from);
+
+            match res {
                 Err(err) => {
                     if let Error::Sql(err) = err {
                         error!("load_character sql error: {}", err);
@@ -148,15 +156,22 @@ impl Session {
 
                 Ok((ch, map_id)) => {
                     let ch_id = ch.minimal().id();
-                    server::character_selection_success(&server,
-                                                        token,
-                                                        account_id,
-                                                        ch_id,
-                                                        social,
+                    server::character_selection_success(
+                        &server,
+                        token,
+                        account_id,
+                        ch_id,
+                        social,
                         move |session, chunk, friends, ignored| {
-                            session.character_selection_success(chunk, ch, map_id,
-                                                                friends, ignored)
-                        });
+                            session.character_selection_success(
+                                chunk,
+                                ch,
+                                map_id,
+                                friends,
+                                ignored
+                            )
+                        }
+                    );
                 }
             }
 

@@ -1,4 +1,5 @@
 extern crate byteorder;
+extern crate diesel;
 
 macro_rules! impl_variant {
     ($name: ident, $($field_name: ident | $field_type: ty),*) => {
@@ -52,6 +53,45 @@ macro_rules! impl_variant {
     };
 }
 
+macro_rules! impl_sql {
+    ($name: ident) => {
+        impl ::diesel::types::FromSql<::diesel::types::Binary> for $name {
+            fn from_sql(bytes: Option<&[u8]>)
+                        -> ::std::result::Result<Self, Box<::std::error::Error>> {
+                let mut buf = ::std::io::Cursor::new(try!(Vec::from_sql(bytes)));
+                $name::deserialize(&mut buf).map_err(|e| Box::new(e) as Box<::std::error::Error>)
+            }
+        }
+
+        impl ::diesel::types::ToSql<::diesel::types::Binary> for $name {
+            fn to_sql<W: ::std::io::Write>(&self, out: &mut W)
+                                           -> ::std::result::Result<::diesel::types::IsNull,
+                                                                    Box<::std::error::Error>> {
+                use diesel::types::{ToSql, Binary};
+                let mut buf = Vec::new();
+                self.serialize(&mut buf).unwrap();
+                ToSql::<Binary>::to_sql(&buf, out)
+            }
+        }
+
+        impl ::diesel::expression::AsExpression<::diesel::types::Binary> for $name {
+            type Expression = ::diesel::expression::bound::Bound<::diesel::types::Binary, Self>;
+
+            fn as_expression(self) -> Self::Expression {
+                ::diesel::expression::bound::Bound::new(self)
+            }
+        }
+
+        impl<'a> ::diesel::expression::AsExpression<::diesel::types::Binary> for &'a $name {
+            type Expression = ::diesel::expression::bound::Bound<::diesel::types::Binary, Self>;
+
+            fn as_expression(self) -> Self::Expression {
+                ::diesel::expression::bound::Bound::new(self)
+            }
+        }
+    }
+}
+
 macro_rules! impl_type {
     ($name: ident, $id: expr) => {
         #[derive(Clone, Debug)]
@@ -70,6 +110,8 @@ macro_rules! impl_type {
                 $id
             }
         }
+
+        impl_sql!($name);
     };
 
     ($name: ident, $id: expr, $($field_name: ident | $field_type: ty),*) => {
@@ -115,6 +157,8 @@ macro_rules! impl_type {
                 $id
             }
         }
+
+        impl_sql!($name);
     };
 }
 

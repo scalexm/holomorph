@@ -45,11 +45,12 @@ impl Row {
     }
 
     pub fn total(&self) -> i16 {
-        (self.fields[&Field::Base]
-            + self.fields[&Field::Additionnal]) as i16
-            + (self.fields[&Field::ObjectsAndMount]
-            + self.fields[&Field::AlignGift]
-            + self.fields[&Field::ContextModif]) as i16
+        (self.fields[&Field::Base] + self.fields[&Field::Additionnal]) as i16
+            + (
+                self.fields[&Field::ObjectsAndMount]
+                + self.fields[&Field::AlignGift]
+                + self.fields[&Field::ContextModif]
+            ) as i16
     }
 
     pub fn add(&mut self, field: Field, val: f64) {

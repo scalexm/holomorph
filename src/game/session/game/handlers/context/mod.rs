@@ -1,15 +1,20 @@
 use session::game::{GameState, Session, CharacterRef};
 use session::game::chunk::{self, Ref};
-use protocol::messages::game::context::{GameContextCreateMessage,
-    GameContextDestroyMessage, GameMapMovementRequestMessage, GameMapMovementCancelMessage,
-    GameMapMovementConfirmMessage, GameContextCreateRequestMessage};
+use protocol::messages::game::context::{
+    GameContextCreateMessage,
+    GameContextDestroyMessage,
+    GameMapMovementRequestMessage,
+    GameMapMovementCancelMessage,
+    GameMapMovementConfirmMessage,
+    GameContextCreateRequestMessage
+};
 use protocol::*;
 use protocol::messages::game::context::roleplay::*;
 use protocol::messages::game::basic::{TextInformationMessage, BasicNoOperationMessage};
 use protocol::messages::game::friend::*;
 use protocol::variants::FriendInformationsVariant;
 use protocol::enums::text_information_type;
-use std::io::{Result, Cursor};
+use std::io::Result;
 use server::SERVER;
 use time;
 use std::mem;
@@ -82,14 +87,19 @@ impl Session {
                 minutes = minutes + "0";
             }
 
-            let mut parameters = vec![(1900 + tm.tm_year).to_string(), (1 + tm.tm_mon).to_string(),
-                tm.tm_mday.to_string(), tm.tm_hour.to_string(), minutes];
+            let mut parameters = vec![
+                (1900 + tm.tm_year).to_string(),
+                (1 + tm.tm_mon).to_string(),
+                tm.tm_mday.to_string(),
+                tm.tm_hour.to_string(),
+                minutes
+            ];
+
             let last_ip = &self.account.as_ref().unwrap().last_ip;
             let diff = *last_ip != self.base.address;
             if diff {
                 parameters.push(last_ip.clone());
             }
-
 
             TextInformationMessage {
                 msg_type: text_information_type::MESSAGE,
@@ -106,7 +116,7 @@ impl Session {
             }
         }
 
-        let friends_count = self.friends.values().filter(|f| {
+        let friends_count = self.friends_cache.values().filter(|f| {
             match **f {
                 FriendInformationsVariant::FriendOnlineInformations(_) => true,
                 _ => false,
@@ -126,7 +136,7 @@ impl Session {
     }
 
     pub fn handle_map_informations_request<'a>(&mut self, chunk: Ref<'a>,
-                                               msg: MapInformationsRequestMessage)
+                                               _: MapInformationsRequestMessage)
                                                -> Result<()> {
         let ch = match self.state {
             GameState::InContext(ref ch) => ch,

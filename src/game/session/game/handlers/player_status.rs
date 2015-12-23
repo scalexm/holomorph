@@ -4,7 +4,7 @@ use protocol::variants::PlayerStatusVariant;
 use protocol::enums::player_status;
 use session::game::{GameState, Session};
 use session::game::chunk::Ref;
-use std::io::{Result, Cursor};
+use std::io::Result;
 use server::{social, SERVER};
 
 #[register_handlers]

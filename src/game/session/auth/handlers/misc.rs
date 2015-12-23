@@ -1,8 +1,8 @@
 use session::auth::Session;
-use session::auth::chunk::{ChunkImpl, Ref};
+use session::auth::chunk::Ref;
 use protocol::*;
 use protocol::holomorph::*;
-use shared::{self, crypt};
+use shared::crypt;
 use std::io::Result;
 use server::{self, SERVER};
 
@@ -26,7 +26,6 @@ impl Session {
     pub fn handle_disconnect_player<'a>(&mut self, _: Ref<'a>, msg: DisconnectPlayerMessage)
                                         -> Result<()> {
         SERVER.with(|s| server::disconnect_player(&s.server, msg.id));
-
         Ok(())
     }
 }

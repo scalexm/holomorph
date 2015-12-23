@@ -1,7 +1,7 @@
-mod social;
+pub mod social;
 
 use protocol::types::game::look::EntityLook;
-use protocol::*;
+use protocol::{Protocol, VarShort, VarInt, VarLong, Flag};
 use protocol::types::game::character::*;
 use protocol::types::game::character::choice::*;
 use protocol::types::game::character::characteristic::*;
@@ -9,67 +9,34 @@ use protocol::types::game::character::alignment::*;
 use protocol::types::game::character::restriction::*;
 use protocol::types::game::context::roleplay::*;
 use protocol::types::game::context::*;
-use std::io::Cursor;
-use postgres::rows::Row;
-use postgres::{self, Transaction};
 use stats::{self, Type};
 use stats::row::Field;
 use shared::net::Token;
+use diesel::*;
+use shared::database::schema::{character_minimals, characters};
 
-#[derive(Clone)]
+#[derive(Clone, Queriable)]
+#[changeset_for(character_minimals)]
 pub struct CharacterMinimal {
     id: i32,
     account_id: i32,
     account_nickname: String,
     level: i16,
     name: String,
-    breed: i8,
+    breed: i16,
     sex: bool,
     look: EntityLook,
     mood_smiley: i16,
 }
 
 impl CharacterMinimal {
-    pub fn from_sql<'a>(row: Row<'a>) -> (i32, Self) {
-        let id = row.get("id");
-        let breed: i16 = row.get("breed");
+    pub fn save(&self, conn: &Connection) -> QueryResult<()> {
+        use diesel::query_builder::update;
 
-        let buf: Vec<u8> = row.get("look");
-        let mut buf = Cursor::new(buf);
-        let look = match EntityLook::deserialize(&mut buf) {
-            Ok(look) => look,
-            Err(_) => {
-                panic!("EntityLook::deserialize failed while constructing character {}", id);
-            }
-        };
-
-        (id, CharacterMinimal {
-            id: id,
-            account_id: row.get("account_id"),
-            account_nickname: row.get("account_nickname"),
-            level: row.get("level"),
-            name: row.get("name"),
-            breed: breed as i8,
-            sex: row.get("sex"),
-            look: look,
-            mood_smiley: row.get("mood_smiley"),
-        })
-    }
-
-    pub fn save<'a>(&self, trans: &Transaction<'a>) -> postgres::Result<()> {
-        let mut look = Vec::new();
-        self.look.serialize(&mut look).unwrap();
-
-        let stmt = try!(trans.prepare_cached("UPDATE character_minimals SET level = $1,
-            name = $2, breed = $3, sex = $4, look = $5, mood_smiley = $6 WHERE id = $7"));
-        let _ = try!(stmt.execute(&[&self.level,
-            &self.name,
-            &(self.breed as i16),
-            &self.sex,
-            &look,
-            &self.mood_smiley,
-            &self.id]));
-
+        let _ = try!(update(
+            character_minimals::table.filter(character_minimals::id.eq(&self.id))
+        ).set(self)
+         .execute(conn));
         Ok(())
     }
 
@@ -105,10 +72,41 @@ impl CharacterMinimal {
                 },
                 entity_look: self.look.clone(),
             },
-            breed: self.breed,
+            breed: self.breed as i8,
             sex: self.sex,
         }
     }
+}
+
+#[derive(Queriable)]
+#[insertable_into(characters)]
+#[changeset_for(characters)]
+pub struct SqlCharacter {
+    id: i32,
+    xp: i64,
+    kamas: i32,
+    stats_points: i16,
+    additionnal_points: i16,
+    spells_points: i16,
+    energy_points: i16,
+
+    base_vitality: i16,
+    base_wisdom: i16,
+    base_strength: i16,
+    base_intelligence: i16,
+    base_chance: i16,
+    base_agility: i16,
+
+    additionnal_vitality: i16,
+    additionnal_wisdom: i16,
+    additionnal_strength: i16,
+    additionnal_intelligence: i16,
+    additionnal_chance: i16,
+    additionnal_agility: i16,
+
+    pub map_id: i32,
+    cell_id: i16,
+    direction: i16,
 }
 
 pub struct Character {
@@ -125,28 +123,12 @@ pub struct Character {
     direction: i8,
 }
 
-#[derive(Debug)]
-struct CellError(i16);
-
-impl ::std::error::Error for CellError {
-    fn description(&self) -> &str {
-        "invalid cell"
-    }
-
-    fn cause(&self) -> Option<&::std::error::Error> {
-        None
-    }
-}
-
-impl ::std::fmt::Display for CellError {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        f.write_fmt(format_args!("invalid cell: {}", self.0))
-    }
-}
-
 impl Character {
-    pub fn from_sql<'a>(session: Token, base: CharacterMinimal, row: Row<'a>)
-                        -> postgres::Result<Character> {
+    pub fn new(session: Token, base: CharacterMinimal, sql: SqlCharacter) -> Option<Self> {
+        if sql.cell_id < 0 || sql.cell_id > 559 {
+            return None;
+        }
+
         let mut stats = stats::List::new();
 
         stats.add(Type::Initiative, Field::Base, 1000);
@@ -155,80 +137,72 @@ impl Character {
         stats.add(Type::MovementPoints, Field::Base, 3);
         stats.add(Type::SummonableCreaturesBoost, Field::Base, 1);
 
-        stats.add(Type::Vitality, Field::Base, try!(row.get_opt("base_vitality")));
-        stats.add(Type::Wisdom, Field::Base, try!(row.get_opt("base_wisdom")));
-        stats.add(Type::Strength, Field::Base, try!(row.get_opt("base_strength")));
-        stats.add(Type::Intelligence, Field::Base, try!(row.get_opt("base_intelligence")));
-        stats.add(Type::Chance, Field::Base, try!(row.get_opt("base_chance")));
-        stats.add(Type::Agility, Field::Base, try!(row.get_opt("base_agility")));
+        stats.add(Type::Vitality, Field::Base, sql.base_vitality);
+        stats.add(Type::Wisdom, Field::Base, sql.base_wisdom);
+        stats.add(Type::Strength, Field::Base, sql.base_strength);
+        stats.add(Type::Intelligence, Field::Base, sql.base_intelligence);
+        stats.add(Type::Chance, Field::Base, sql.base_chance);
+        stats.add(Type::Agility, Field::Base, sql.base_agility);
 
-        stats.add(Type::Vitality, Field::Additionnal,
-                  try!(row.get_opt("additionnal_vitality")));
-        stats.add(Type::Wisdom, Field::Additionnal,
-                  try!(row.get_opt("additionnal_wisdom")));
-        stats.add(Type::Strength, Field::Additionnal,
-                  try!(row.get_opt("additionnal_strength")));
-        stats.add(Type::Intelligence, Field::Additionnal,
-                  try!(row.get_opt("additionnal_intelligence")));
-        stats.add(Type::Chance, Field::Additionnal,
-                  try!(row.get_opt("additionnal_chance")));
-        stats.add(Type::Agility, Field::Additionnal,
-                  try!(row.get_opt("additionnal_agility")));
+        stats.add(Type::Vitality, Field::Additionnal, sql.additionnal_vitality);
+        stats.add(Type::Wisdom, Field::Additionnal, sql.additionnal_wisdom);
+        stats.add(Type::Strength, Field::Additionnal, sql.additionnal_strength);
+        stats.add(Type::Intelligence, Field::Additionnal, sql.additionnal_intelligence);
+        stats.add(Type::Chance, Field::Additionnal, sql.additionnal_chance);
+        stats.add(Type::Agility, Field::Additionnal, sql.additionnal_agility);
 
-        let cell_id: i16 = try!(row.get_opt("cell_id"));
-        if cell_id < 0 || cell_id > 560 {
-            return Err(postgres::error::Error::Conversion(Box::new(CellError(cell_id))));
-        }
-
-        let direction: i16 = try!(row.get_opt("direction"));
-        Ok(Character {
+        Some(Character {
             base: base,
             session: session,
-            xp: try!(row.get_opt("xp")),
-            kamas: try!(row.get_opt("kamas")),
-            stats_points: try!(row.get_opt("stats_points")),
-            additionnal_points: try!(row.get_opt("additionnal_points")),
-            spells_points: try!(row.get_opt("spells_points")),
-            energy_points: try!(row.get_opt("energy_points")),
+            xp: sql.xp,
+            kamas: sql.kamas,
+            stats_points: sql.stats_points,
+            additionnal_points: sql.additionnal_points,
+            spells_points: sql.spells_points,
+            energy_points: sql.energy_points,
             stats: stats,
-            cell_id: cell_id,
-            direction: direction as i8,
+            cell_id: sql.cell_id,
+            direction: sql.direction as i8,
         })
     }
 
-    pub fn save<'a>(&self, trans: &Transaction<'a>, map: i32) -> postgres::Result<()> {
-        let stmt = try!(trans.prepare_cached("UPDATE characters SET base_vitality = $1,
-            base_wisdom = $2, base_strength = $3, base_intelligence = $4, base_chance = $5,
-            base_agility = $6, additionnal_vitality = $7, additionnal_wisdom = $8,
-            additionnal_strength = $9, additionnal_intelligence = $10,
-            additionnal_chance = $11, additionnal_agility = $12, cell_id = $13,
-            map_id = $14, direction = $15, xp = $16, kamas = $17, stats_points = $18,
-            additionnal_points = $19, spells_points = $20, energy_points = $21
-            WHERE id = $22"));
-        let _ = try!(stmt.execute(&[&self.stats.get(Type::Vitality, Field::Base),
-                                    &self.stats.get(Type::Wisdom, Field::Base),
-                                    &self.stats.get(Type::Strength, Field::Base),
-                                    &self.stats.get(Type::Intelligence, Field::Base),
-                                    &self.stats.get(Type::Chance, Field::Base),
-                                    &self.stats.get(Type::Agility, Field::Base),
-                                    &self.stats.get(Type::Vitality, Field::Additionnal),
-                                    &self.stats.get(Type::Wisdom, Field::Additionnal),
-                                    &self.stats.get(Type::Strength, Field::Additionnal),
-                                    &self.stats.get(Type::Intelligence, Field::Additionnal),
-                                    &self.stats.get(Type::Chance, Field::Additionnal),
-                                    &self.stats.get(Type::Agility, Field::Additionnal),
-                                    &self.cell_id,
-                                    &map,
-                                    &(self.direction as i16),
-                                    &self.xp,
-                                    &self.kamas,
-                                    &self.stats_points,
-                                    &self.additionnal_points,
-                                    &self.spells_points,
-                                    &self.energy_points,
-                                    &self.base.id]));
+    pub fn save(&self, conn: &Connection, map: i32) -> QueryResult<()> {
+        use diesel::query_builder::update;
 
-        self.base.save(trans)
+        let sql = SqlCharacter {
+            id: self.base.id,
+            xp: self.xp,
+            kamas: self.kamas,
+            stats_points: self.stats_points,
+            additionnal_points: self.additionnal_points,
+            spells_points: self.spells_points,
+            energy_points: self.energy_points,
+
+            base_vitality: self.stats.get(Type::Vitality, Field::Base),
+            base_wisdom: self.stats.get(Type::Wisdom, Field::Base),
+            base_strength: self.stats.get(Type::Strength, Field::Base),
+            base_intelligence: self.stats.get(Type::Intelligence, Field::Base),
+            base_chance: self.stats.get(Type::Chance, Field::Base),
+            base_agility: self.stats.get(Type::Agility, Field::Base),
+
+            additionnal_vitality: self.stats.get(Type::Vitality, Field::Additionnal),
+            additionnal_wisdom: self.stats.get(Type::Wisdom, Field::Additionnal),
+            additionnal_strength: self.stats.get(Type::Strength, Field::Additionnal),
+            additionnal_intelligence: self.stats.get(Type::Intelligence, Field::Additionnal),
+            additionnal_chance: self.stats.get(Type::Chance, Field::Additionnal),
+            additionnal_agility: self.stats.get(Type::Agility, Field::Additionnal),
+
+            cell_id: self.cell_id,
+            map_id: map,
+            direction: self.direction as i16,
+        };
+
+        try!(update(
+            characters::table.filter(characters::id.eq(&self.base.id))
+        ).set(&sql)
+         .execute(conn));
+
+        self.base.save(conn)
     }
 
     pub fn session(&self) -> Token {

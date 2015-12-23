@@ -7,7 +7,7 @@ use protocol::types::game::data::items::ObjectItem;
 use protocol::messages::game::basic::TextInformationMessage;
 use protocol::enums::{text_information_type, chat_channels_multi};
 use time;
-use std::io::{Result, Cursor};
+use std::io::Result;
 use server::{social, SERVER};
 
 macro_rules! build_message {

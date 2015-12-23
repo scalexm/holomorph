@@ -118,8 +118,11 @@ fn main() {
                           .unwrap_or("auth_config.json".to_string());
     let mut state = start(&args);
 
+    info!("server loaded in {} ms", (time::precise_time_ns() - time_point) / 1000000);
+
     let (shutdown_tx, shutdown_rx) = mpsc::channel();
     thread::spawn(move || {
+        println!("press [Enter] to exit");
         io::stdin().read_line(&mut String::new())
                    .ok()
                    .expect("failed to read line");
@@ -132,8 +135,6 @@ fn main() {
         let _ = io_tx.send(net::Msg::Shutdown);
         *SYNC_SERVER.lock().unwrap() = None;
     });
-
-    info!("server loaded in {} ms", (time::precise_time_ns() - time_point) / 1000000);
 
     let mut io_loop = state.io_loop;
     io_loop.run(&mut state.network_handler).unwrap();

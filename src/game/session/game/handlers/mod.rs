@@ -5,24 +5,26 @@ mod context;
 mod chat;
 mod authorized;
 mod player_status;
+mod error;
 
-use super::{Session, GameState, AccountData, SocialInformations};
-use super::chunk::{ChunkImpl, Ref, SocialState};
+use super::{Session, GameState, AccountData, SocialInformations, SocialState};
+use super::chunk::{ChunkImpl, Ref, SocialUpdateType};
 use character::CharacterMinimal;
-use protocol::*;
+use protocol::{Protocol, VarShort};
 use protocol::messages::handshake::*;
 use protocol::messages::game::approach::*;
 use protocol::messages::queues::*;
 use protocol::messages::game::basic::TextInformationMessage;
 use protocol::enums::text_information_type;
-use std::io::{Result, Cursor};
+use std::io::{self, Result};
 use std::sync::atomic::Ordering;
 use shared::{self, database};
-use postgres::{self, Connection};
+use diesel::*;
 use server::SERVER;
 use character::Character;
 use std::mem;
 use std::collections::HashMap;
+use shared::database::schema::{accounts, social_relations};
 
 impl shared::session::Session<ChunkImpl> for Session {
     fn new(base: shared::session::SessionBase) -> Self {
@@ -43,12 +45,13 @@ impl shared::session::Session<ChunkImpl> for Session {
             last_sales_chat_request: 0,
             last_seek_chat_request: 0,
 
-            friends: HashMap::new(),
-            ignored: HashMap::new(),
+            friends_cache: HashMap::new(),
+            ignored_cache: HashMap::new(),
         }
     }
 
-    fn handle<'a>(&mut self, chunk: Ref<'a>, id: i16, mut data: Cursor<Vec<u8>>) -> Result<()> {
+    fn handle<'a>(&mut self, chunk: Ref<'a>, id: i16, mut data: io::Cursor<Vec<u8>>)
+                  -> Result<()> {
         use protocol::messages::game::friend::{
             FriendsGetListMessage,
             FriendSetWarnOnConnectionMessage,
@@ -93,7 +96,7 @@ impl shared::session::Session<ChunkImpl> for Session {
         let account = mem::replace(&mut self.account, None);
         if let Some(account) = account {
             SERVER.with(|s| database::execute(&s.auth_db, move |conn| {
-                if let Err(err) = Session::save_auth(account, conn) {
+                if let Err(err) = Session::save_auth(conn, account) {
                     error!("error while saving session to auth db: {:?}", err);
                 }
             }));
@@ -156,7 +159,7 @@ impl Session {
     }
 
     pub fn update_social(&mut self, ch: &CharacterMinimal, social: Option<&SocialInformations>,
-                         state: SocialState) {
+                         ty: SocialUpdateType) {
         let account = match self.account.as_ref() {
             Some(account) => account,
             None => return,
@@ -164,11 +167,14 @@ impl Session {
 
         let account_id = ch.account_id();
 
-        if account.social.is_friend_with(account_id) {
-            let _ = self.friends.insert(account_id, ch.as_friend_infos(account.id, social));
+        if account.social.has_relation_with(account_id, SocialState::Friend) {
+            let _ = self.friends_cache.insert(
+                account_id,
+                ch.as_relation_infos(account.id, social, SocialState::Friend).as_friend()
+            );
 
-            match state {
-                SocialState::Online if account.social.warn_on_connection => {
+            match ty {
+                SocialUpdateType::Online if account.social.warn_on_connection => {
                     let buf = TextInformationMessage {
                         msg_type: text_information_type::MESSAGE,
                         msg_id: VarShort(143),
@@ -178,7 +184,7 @@ impl Session {
                     write!(SERVER, self.base.token, buf);
                 },
 
-                SocialState::UpdateWithLevel(lvl) if account.social.warn_on_level_gain => {
+                SocialUpdateType::WithLevel(lvl) if account.social.warn_on_level_gain => {
                     // TODO
                 },
 
@@ -186,36 +192,63 @@ impl Session {
             }
         }
 
-        if account.social.ignores(account_id) {
-            let _ = self.ignored.insert(account_id, ch.as_ignored_infos(social));
+        if account.social.has_relation_with(account_id, SocialState::Ignored) {
+            let _ = self.ignored_cache.insert(
+                account_id,
+                ch.as_relation_infos(account.id, social, SocialState::Ignored).as_ignored()
+            );
         }
     }
+}
 
-    fn save_auth(account: AccountData, conn: &mut Connection) -> postgres::Result<()> {
-        let stmt = try!(conn.prepare_cached("UPDATE accounts SET logged = 0
-            WHERE id = $1"));
-        let _ = try!(stmt.execute(&[&account.id]));
+#[changeset_for(accounts)]
+struct UpdateSqlAccount {
+    already_logged: Option<i16>,
+    last_server: Option<i16>,
+}
 
-        let stmt = try!(conn.prepare_cached("UPDATE friends SET friends = $1,
-            ignored = $2, warn_on_connection = $3, warn_on_level_gain = $4
-            WHERE account_id = $5"));
-        let friends = account.social.friends.iter()
-                                            .map(|&id| id.to_string())
-                                            .collect::<Vec<_>>();
-        let friends = friends.join(",");
-        let ignored = account.social.ignored.iter()
-                                             .map(|&id| id.to_string())
-                                             .collect::<Vec<_>>();
-        let ignored = ignored.join(",");
-        let _ = try!(stmt.execute(&[&friends, &ignored, &account.social.warn_on_connection,
-                                    &account.social.warn_on_level_gain, &account.id]));
+#[derive(Queriable)]
+#[changeset_for(social_relations)]
+struct SqlRelations {
+    friends: Vec<i32>,
+    ignored: Vec<i32>,
+    warn_on_connection: bool,
+    warn_on_level_gain: bool,
+}
 
+impl Session {
+    fn save_auth(conn: &Connection, account: AccountData) -> QueryResult<()> {
+        use diesel::query_builder::update;
+
+        try!(conn.transaction(move || {
+            let _ = try!(
+                update(
+                    accounts::table.filter(accounts::id.eq(&account.id))
+                ).set(&UpdateSqlAccount {
+                    already_logged: Some(0),
+                    last_server: None,
+                }).execute(conn)
+            );
+
+            let _ = try!(
+                update(
+                    social_relations::table.filter(social_relations::id.eq(&account.id))
+                ).set(&SqlRelations {
+                    friends: account.social.friends.into_iter().collect(),
+                    ignored: account.social.ignored.into_iter().collect(),
+                    warn_on_connection: account.social.warn_on_connection,
+                    warn_on_level_gain: account.social.warn_on_level_gain,
+                }).execute(conn)
+            );
+            Ok(())
+        }));
         Ok(())
     }
 
-    fn save_game(&self, conn: &mut Connection, ch: Character, map: i32) -> postgres::Result<()> {
-        let trans = try!(conn.transaction());
-        try!(ch.save(&trans, map));
-        trans.commit()
+    fn save_game(&self, conn: &Connection, ch: Character, map: i32) -> QueryResult<()> {
+        try!(conn.transaction(|| {
+            ch.save(conn, map)
+        }));
+        Ok(())
     }
 }

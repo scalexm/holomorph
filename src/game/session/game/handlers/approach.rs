@@ -1,4 +1,6 @@
 use session::game::{Session, AccountData, GameState, SocialInformations};
+use session::game::handlers::{UpdateSqlAccount, SqlRelations};
+use session::game::handlers::error::Error;
 use session::game::chunk::Ref;
 use protocol::{Protocol, Flag};
 use protocol::messages::game::approach::*;
@@ -8,99 +10,114 @@ use protocol::messages::secure::*;
 use protocol::types::game::character::status::*;
 use protocol::variants::PlayerStatusVariant;
 use protocol::enums::player_status;
-use std::io::{self, Cursor};
+use std::io;
 use shared::net::Msg;
 use std::sync::atomic::{ATOMIC_ISIZE_INIT, AtomicIsize, Ordering};
-use postgres::{self, Connection};
+use diesel::*;
 use shared::database;
 use server::{self, SERVER};
 use time;
 use std::collections::{HashMap};
 use character::CharacterMinimal;
+use shared::database::schema::connections_history;
 
 pub static QUEUE_SIZE: AtomicIsize = ATOMIC_ISIZE_INIT;
 pub static QUEUE_COUNTER: AtomicIsize = ATOMIC_ISIZE_INIT;
 
-enum Error {
-    Sql(postgres::error::Error),
-    Other,
+#[derive(Queriable)]
+struct SqlAccount {
+    id: i32,
+    nickname: String,
+    secret_answer: String,
+    level: i16,
+    subscription_end: i64,
 }
 
-impl From<postgres::error::Error> for Error {
-    fn from(err: postgres::error::Error) -> Error {
-        Error::Sql(err)
-    }
+#[derive(Queriable)]
+#[insertable_into(connections_history)]
+struct HistoryEntry {
+    date: i64,
+    ip: String,
+    account_id: i32,
 }
 
-fn authenticate(conn: &mut Connection, ticket: String, server_id: i16, addr: String)
+fn authenticate(conn: &Connection, ticket: String, server_id: i16, addr: String)
                 -> Result<AccountData, Error> {
-    let trans = try!(conn.transaction());
+    use shared::database::schema::{accounts, social_relations};
+    use diesel::query_builder::{insert, update};
 
-    let stmt = try!(trans.prepare_cached("SELECT id, nickname, secret_answer, level,
-        subscription_end FROM accounts WHERE ticket = $1"));
-    let rows = try!(stmt.query(&[&ticket]));
+    let account: Option<SqlAccount> = try!(
+        accounts::table.filter(accounts::ticket.eq(&ticket))
+                       .select((
+                           accounts::id,
+                           accounts::nickname,
+                           accounts::secret_answer,
+                           accounts::level,
+                           accounts::subscription_end
+                       )).first(conn).optional()
+    );
 
-    if rows.len() == 0 {
-        return Err(Error::Other);
-    }
-
-    let row = rows.get(0);
-    let id: i32 = try!(row.get_opt("id"));
-
-    let stmt = try!(trans.prepare_cached("UPDATE accounts SET logged = $1,
-        last_server = $1 WHERE id = $2"));
-    try!(stmt.execute(&[&server_id, &id]));
-
-    let stmt = try!(trans.prepare_cached("SELECT date, ip FROM connections_history
-        WHERE id = $1 ORDER BY date DESC LIMIT 1"));
-    let rows = try!(stmt.query(&[&id]));
-
-    let (last_connection, last_ip) = if rows.len() == 0 {
-        (0, String::new())
-    } else {
-        let row = rows.get(0);
-        (try!(row.get_opt("date")), try!(row.get_opt("ip")))
+    let account = match account {
+        Some(account) => account,
+        None => return Err(Error::Other),
     };
 
-    let stmt = try!(trans.prepare_cached("INSERT INTO connections_history(id, date, ip)
-        VALUES($1, $2, $3)"));
-     try!(stmt.execute(&[&id, &time::get_time().sec, &addr]));
+    let _ = try!(
+        update(
+            accounts::table.filter(accounts::id.eq(&account.id))
+        ).set(&UpdateSqlAccount {
+            already_logged: Some(server_id),
+            last_server: Some(server_id),
+        }).execute(conn)
+    );
 
-    let stmt = try!(trans.prepare_cached("SELECT friends, ignored, warn_on_connection,
-        warn_on_level_gain FROM friends WHERE account_id = $1"));
-    let rows = try!(stmt.query(&[&id]));
+    let last_conn = try!(
+        connections_history::table.filter(connections_history::account_id.eq(&account.id))
+                                  .order(connections_history::date.desc())
+                                  .select((
+                                      connections_history::date,
+                                      connections_history::ip,
+                                      connections_history::account_id,
+                                  )).first(conn).optional()
+    ).unwrap_or(HistoryEntry { date: 0, ip: String::new(), account_id: 0 });
 
-    let (friends, ignored, woc, wol) = if rows.len() == 0 {
-        error!("account id {} has no friends", id);
-        return Err(Error::Other);
-    } else {
-        let row = rows.get(0);
-        let split = |field: String| field.split(",").filter_map(|s| s.parse().ok()).collect();
-        let friends = split(try!(row.get_opt("friends")));
-        let ignored = split(try!(row.get_opt("ignored")));
+    let _ = try!(insert(&HistoryEntry {
+        date: time::get_time().sec,
+        ip: addr,
+        account_id: account.id,
+    }).into(connections_history::table).execute(conn));
 
-        (friends,
-         ignored,
-         try!(row.get_opt("warn_on_connection")),
-         try!(row.get_opt("warn_on_level_gain")))
+    let social: Option<SqlRelations> = try!(
+        social_relations::table.filter(social_relations::id.eq(&account.id))
+                               .select((
+                                   social_relations::friends,
+                                   social_relations::ignored,
+                                   social_relations::warn_on_connection,
+                                   social_relations::warn_on_level_gain
+                               )).first(conn).optional()
+    );
+
+    let social = match social {
+        Some(social) => social,
+        None => {
+            error!("account id {} has no social relations", account.id);
+            return Err(Error::Other);
+        }
     };
 
-    try!(trans.commit());
-
-    let level: i16 = try!(row.get_opt("level"));
     Ok(AccountData {
-        id: id,
-        nickname: try!(row.get_opt("nickname")),
-        secret_answer: try!(row.get_opt("secret_answer")),
-        level: level as i8,
-        subscription_end: try!(row.get_opt("subscription_end")),
-        last_connection: last_connection,
-        last_ip: last_ip,
+        id: account.id,
+        nickname: account.nickname,
+        secret_answer: account.secret_answer,
+        level: account.level as i8,
+        subscription_end: account.subscription_end,
+        last_connection: last_conn.date,
+        last_ip: last_conn.ip,
         social: SocialInformations {
-            friends: friends,
-            ignored: ignored,
-            warn_on_connection: woc,
-            warn_on_level_gain: wol,
+            friends: social.friends.into_iter().collect(),
+            ignored: social.ignored.into_iter().collect(),
+            warn_on_connection: social.warn_on_connection,
+            warn_on_level_gain: social.warn_on_level_gain,
             status: PlayerStatusVariant::PlayerStatus(PlayerStatus {
                 status_id: player_status::AVAILABLE,
             }),
@@ -179,7 +196,11 @@ impl Session {
             + 1, QUEUE_COUNTER.load(Ordering::Relaxed));
 
         SERVER.with(|s| database::execute(&s.auth_db, move |conn| {
-            match authenticate(conn, ticket, server_id, addr) {
+            let res = conn.transaction(|| {
+                authenticate(conn, ticket, server_id, addr)
+            }).map_err(From::from);
+
+            match res {
                 Err(err) => {
                     if let Error::Sql(err) = err {
                         error!("authenticate sql error: {}", err);
@@ -191,10 +212,14 @@ impl Session {
 
                 Ok(data) => {
                     let id = data.id;
-                    server::identification_success(&server, token, id,
+                    server::identification_success(
+                        &server,
+                        token,
+                        id,
                         move |session, characters| {
                             session.identification_success(data, characters)
-                        });
+                        }
+                    );
                 }
             }
 

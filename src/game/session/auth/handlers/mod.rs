@@ -4,9 +4,9 @@ use super::Session;
 use super::chunk::{ChunkImpl, Ref};
 use protocol::*;
 use protocol::holomorph::*;
-use shared::{self, crypt};
+use shared;
 use std::io::{Result, Cursor};
-use server::{self, SERVER};
+use server::SERVER;
 
 impl shared::session::Session<ChunkImpl> for Session {
     fn new(base: shared::session::SessionBase) -> Self {

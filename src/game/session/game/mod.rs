@@ -23,8 +23,11 @@ use std::collections::{HashMap, HashSet};
 use shared;
 use time;
 use character::{Character, CharacterMinimal};
-use protocol::variants::{FriendInformationsVariant, IgnoredInformationsVariant,
-    PlayerStatusVariant};
+use protocol::variants::{
+    FriendInformationsVariant,
+    IgnoredInformationsVariant,
+    PlayerStatusVariant
+};
 
 pub struct CharacterRef {
     id: i32,
@@ -32,6 +35,7 @@ pub struct CharacterRef {
     movements: Option<Vec<i16>>,
 }
 
+#[derive(Clone, Copy)]
 pub enum SocialState {
     Friend,
     Ignored,
@@ -39,44 +43,40 @@ pub enum SocialState {
 
 #[derive(Clone)]
 pub struct SocialInformations {
-    pub friends: HashSet<i32>,
-    pub ignored: HashSet<i32>,
+    friends: HashSet<i32>,
+    ignored: HashSet<i32>,
     warn_on_connection: bool,
     warn_on_level_gain: bool,
     pub status: PlayerStatusVariant,
 }
 
 impl SocialInformations {
-    pub fn is_friend_with(&self, account_id: i32) -> bool {
-        self.friends.contains(&account_id)
+    pub fn get(&self, state: SocialState) -> &HashSet<i32> {
+        match state {
+            SocialState::Friend => &self.friends,
+            SocialState::Ignored => &self.ignored,
+        }
     }
 
-    pub fn ignores(&self, account_id: i32) -> bool {
-        self.ignored.contains(&account_id)
+    fn get_mut(&mut self, state: SocialState) -> &mut HashSet<i32> {
+        match state {
+            SocialState::Friend => &mut self.friends,
+            SocialState::Ignored => &mut self.ignored,
+        }
+    }
+
+    pub fn has_relation_with(&self, account_id: i32, state: SocialState) -> bool {
+        self.get(state).contains(&account_id)
+    }
+
+    pub fn add_relation(&mut self, account_id: i32, state: SocialState) {
+        let _ = self.get_mut(state).insert(account_id);
+    }
+
+    pub fn remove_relation(&mut self, account_id: i32, state: SocialState) {
+        let _ = self.get_mut(state).remove(&account_id);
     }
 }
-
-/*#[derive(Clone)]
-pub struct SocialInformations {
-    pub friends: HashMap<i32, SocialState>,
-    warn_on_connection: bool,
-    warn_on_level_gain: bool,
-    pub status: PlayerStatusVariant,
-}
-
-impl SocialInformations {
-    fn get_social_state(&self, account_id: i32) -> SocialState {
-
-    }
-
-    pub fn is_friend_with(&self, account_id: i32) -> bool {
-        self.friends.get(&account_id).map(|state| )
-    }
-
-    pub fn ignores(&self, account_id: i32) -> bool {
-        self.ignored.contains(&account_id)
-    }
-}*/
 
 struct AccountData {
     id: i32,
@@ -121,6 +121,6 @@ pub struct Session {
     last_sales_chat_request: i64,
     last_seek_chat_request: i64,
 
-    friends: HashMap<i32, FriendInformationsVariant>,
-    ignored: HashMap<i32, IgnoredInformationsVariant>,
+    friends_cache: HashMap<i32, FriendInformationsVariant>,
+    ignored_cache: HashMap<i32, IgnoredInformationsVariant>,
 }

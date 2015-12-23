@@ -105,10 +105,6 @@ fn authenticate(conn: &Connection, account: String, password: String, addr: Stri
                                .load::<i16>(conn)
     ).map(|serv_id| *character_counts.entry(serv_id).or_insert(0) += 1).count();
 
-    /*for server_id in rows {
-        *character_counts.entry(server_id).or_insert(0) += 1;
-    }*/
-
     Ok((account, character_counts))
 }
 
@@ -212,13 +208,16 @@ impl Session {
         let io_loop = SERVER.with(|s| s.io_loop.clone());
         let server = SERVER.with(|s| s.server.clone());
 
-        self.queue_state = QueueState::Some(QUEUE_SIZE.fetch_add(1, Ordering::Relaxed) + 1,
-                                            QUEUE_COUNTER.load(Ordering::Relaxed));
+        self.queue_state = QueueState::Some(
+            QUEUE_SIZE.fetch_add(1, Ordering::Relaxed) + 1,
+            QUEUE_COUNTER.load(Ordering::Relaxed)
+        );
 
         SERVER.with(|s| database::execute(&s.db, move |conn| {
             let res = conn.transaction(|| {
                 authenticate(conn, username, password, addr)
             }).map_err(From::from);
+
             match res {
                 Err(err) => {
                     let buf = match err {
@@ -231,8 +230,9 @@ impl Session {
                             }.as_packet().unwrap(),
 
                         Error::Reason(reason) =>
-                            IdentificationFailedMessage { reason: reason, }.as_packet()
-                                                                           .unwrap(),
+                            IdentificationFailedMessage {
+                                reason: reason,
+                            }.as_packet().unwrap(),
 
                         Error::Sql(err) => {
                             error!("authenticate sql error: {}", err);
@@ -247,7 +247,11 @@ impl Session {
 
                 Ok((data, counts)) => {
                     let id = data.id;
-                    server::identification_success(&server, token, id, data.already_logged,
+                    server::identification_success(
+                        &server,
+                        token,
+                        id,
+                        data.already_logged,
                         move |session, chunk, already| {
                             session.identification_success(
                                 chunk,
@@ -256,7 +260,8 @@ impl Session {
                                 already,
                                 auto_connect
                             )
-                        });
+                        }
+                    );
                 }
             }
 
