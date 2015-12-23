@@ -66,7 +66,10 @@ impl shared::session::Session<ChunkImpl> for Session {
         use protocol::messages::game::chat::{
             ChatClientMultiMessage,
             ChatClientMultiWithObjectMessage,
+            ChatClientPrivateMessage,
+            ChatClientPrivateWithObjectMessage,
         };
+        use protocol::messages::game::chat::channel::ChannelEnablingMessage;
         use protocol::messages::game::chat::smiley::{
             ChatSmileyRequestMessage,
             MoodSmileyRequestMessage,
@@ -205,6 +208,7 @@ impl Session {
 struct UpdateSqlAccount {
     already_logged: Option<i16>,
     last_server: Option<i16>,
+    channels: Option<Vec<i16>>,
 }
 
 #[derive(Queriable)]
@@ -227,6 +231,7 @@ impl Session {
                 ).set(&UpdateSqlAccount {
                     already_logged: Some(0),
                     last_server: None,
+                    channels: Some(account.channels.into_iter().map(|c| c as i16).collect()),
                 }).execute(conn)
             );
 

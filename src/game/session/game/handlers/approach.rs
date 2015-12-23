@@ -31,6 +31,7 @@ struct SqlAccount {
     secret_answer: String,
     level: i16,
     subscription_end: i64,
+    channels: Vec<i16>,
 }
 
 #[derive(Queriable)]
@@ -53,7 +54,8 @@ fn authenticate(conn: &Connection, ticket: String, server_id: i16, addr: String)
                            accounts::nickname,
                            accounts::secret_answer,
                            accounts::level,
-                           accounts::subscription_end
+                           accounts::subscription_end,
+                           accounts::channels,
                        )).first(conn).optional()
     );
 
@@ -68,6 +70,7 @@ fn authenticate(conn: &Connection, ticket: String, server_id: i16, addr: String)
         ).set(&UpdateSqlAccount {
             already_logged: Some(server_id),
             last_server: Some(server_id),
+            channels: None,
         }).execute(conn)
     );
 
@@ -122,6 +125,7 @@ fn authenticate(conn: &Connection, ticket: String, server_id: i16, addr: String)
                 status_id: player_status::AVAILABLE,
             }),
         },
+        channels: account.channels.into_iter().map(|c| c as u8).collect(),
     })
 }
 

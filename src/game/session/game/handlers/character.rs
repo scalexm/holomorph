@@ -6,6 +6,8 @@ use protocol::messages::game::character::choice::*;
 use protocol::messages::game::inventory::items::*;
 use protocol::messages::game::character::stats::*;
 use protocol::messages::game::context::notification::*;
+use protocol::messages::game::chat::channel::EnabledChannelsMessage;
+use protocol::enums::chat_channels_multi;
 use session::game::handlers::error::Error;
 use protocol::variants::{FriendInformationsVariant, IgnoredInformationsVariant};
 use shared::net::{Token, Msg};
@@ -47,7 +49,7 @@ fn load_character(conn: &Connection, tok: Token, base: CharacterMinimal)
 }
 
 impl Session {
-    fn character_selection_success(&mut self, _: &mut ChunkImpl, ch: Character, map_id: i32,
+    fn character_selection_success(&mut self, _: &mut ChunkImpl, mut ch: Character, map_id: i32,
                                    friends: HashMap<i32, FriendInformationsVariant>,
                                    ignored: HashMap<i32, IgnoredInformationsVariant>) {
         log_info!(self, "selected character id = {}", ch.minimal().id());
@@ -79,6 +81,18 @@ impl Session {
         CharacterStatsListMessage {
             stats: ch.get_character_characteristics(),
         }.as_packet_with_buf(&mut buf).unwrap();
+
+        let has_global_channel = {
+            let account = self.account.as_ref().unwrap();
+            EnabledChannelsMessage {
+                channels: account.channels.iter().cloned().collect(),
+                disallowed: Vec::new(),
+            }.as_packet_with_buf(&mut buf).unwrap();
+
+            account.channels.contains(&(chat_channels_multi::GLOBAL as u8))
+        };
+
+        ch.set_has_global_channel(has_global_channel);
 
         write!(SERVER, self.base.token, buf);
         self.state = GameState::SwitchingContext(map_id, ch);

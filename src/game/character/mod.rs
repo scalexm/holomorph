@@ -121,6 +121,8 @@ pub struct Character {
     stats: stats::List,
     cell_id: i16,
     direction: i8,
+
+    has_global_channel: bool,
 }
 
 impl Character {
@@ -163,7 +165,16 @@ impl Character {
             stats: stats,
             cell_id: sql.cell_id,
             direction: sql.direction as i8,
+            has_global_channel: false,
         })
+    }
+
+    pub fn has_global_channel(&self) -> bool {
+        self.has_global_channel
+    }
+
+    pub fn set_has_global_channel(&mut self, val: bool) {
+        self.has_global_channel = val;
     }
 
     pub fn save(&self, conn: &Connection, map: i32) -> QueryResult<()> {

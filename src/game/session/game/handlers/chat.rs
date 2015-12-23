@@ -1,10 +1,11 @@
 use session::game::{Session, GameState};
 use session::game::chunk::{self, Ref};
 use protocol::*;
+use protocol::messages::game::chat::channel::*;
 use protocol::messages::game::chat::*;
 use protocol::messages::game::chat::smiley::*;
 use protocol::types::game::data::items::ObjectItem;
-use protocol::messages::game::basic::TextInformationMessage;
+use protocol::messages::game::basic::{BasicNoOperationMessage, TextInformationMessage};
 use protocol::enums::{text_information_type, chat_channels_multi};
 use time;
 use std::io::Result;
@@ -29,8 +30,14 @@ impl Session {
                              items: Vec<ObjectItem>) {
         let ch = match self.state {
             GameState::InContext(ref ch) => ch,
-            _ => unreachable!(),
+            _ => return,
         };
+
+        if !self.account.as_ref().unwrap().channels.contains(&(msg.channel as u8)) {
+            let buf = BasicNoOperationMessage.as_packet().unwrap();
+            write!(SERVER, self.base.token, buf);
+            return;
+        }
 
         let map_id = ch.map_id;
 
@@ -53,7 +60,7 @@ impl Session {
         let buf = build_message!(resp, items);
 
         if msg.channel == chat_channels_multi::GLOBAL {
-            chunk.maps.get(&map_id).unwrap().send(buf);
+            chunk.maps.get(&map_id).unwrap().send_only_to(buf, |ch| ch.has_global_channel());
         } else if msg.channel == chat_channels_multi::SALES
             || msg.channel == chat_channels_multi::SEEK {
 
@@ -81,17 +88,62 @@ impl Session {
             chunk.eventually(move |chunk| chunk::send_to_area(chunk, area_id, buf));
         }
     }
+
+    fn send_private_message<'a>(&self, chunk: Ref<'a>, msg: ChatClientPrivateMessage,
+                                items: Vec<ObjectItem>) {
+        let ch = match self.state {
+            GameState::InContext(ref ch) => get_character!(ch, chunk),
+            _ => return,
+        };
+
+        SERVER.with(move |s| {
+            social::send_private_message(
+                &s.server,
+                self.base.token,
+                self.account.as_ref().unwrap().id,
+                ch.minimal().name().to_string(),
+                ch.minimal().id(),
+                msg.receiver,
+                msg.base.content,
+                items
+            )
+        });
+    }
 }
 
 #[register_handlers]
 impl Session {
-    pub fn handle_chat_client_multi<'a>(&mut self, chunk: Ref<'a>, msg: ChatClientMultiMessage)
+    pub fn handle_channel_enabling<'a>(&mut self, mut chunk: Ref<'a>, msg: ChannelEnablingMessage)
                                         -> Result<()> {
-        match self.state {
-            GameState::InContext(_) => (),
+        let ch = match self.state {
+            GameState::InContext(ref ch) => ch,
             _ => return Ok(()),
         };
 
+        let _ = {
+            let account = self.account.as_mut().unwrap();
+            if msg.enable {
+                let _ = account.channels.insert(msg.channel as u8);
+            } else {
+                let _ = account.channels.remove(&(msg.channel as u8));
+            }
+        };
+
+        if msg.channel == chat_channels_multi::GLOBAL {
+            get_mut_character!(ch, chunk).set_has_global_channel(msg.enable);
+        }
+
+        let buf = ChannelEnablingChangeMessage {
+            channel: msg.channel,
+            enable: msg.enable,
+        }.as_packet().unwrap();
+
+        write!(SERVER, self.base.token, buf);
+        Ok(())
+    }
+
+    pub fn handle_chat_client_multi<'a>(&mut self, chunk: Ref<'a>, msg: ChatClientMultiMessage)
+                                        -> Result<()> {
         self.send_chat_message(chunk, msg, Vec::new());
         Ok(())
     }
@@ -99,12 +151,20 @@ impl Session {
     pub fn handle_chat_client_multi_with_object<'a>(&mut self, chunk: Ref<'a>,
                                                     msg: ChatClientMultiWithObjectMessage)
                                                     -> Result<()> {
-        match self.state {
-            GameState::InContext(_) => (),
-            _ => return Ok(()),
-        };
-
         self.send_chat_message(chunk, msg.base, msg.objects);
+        Ok(())
+    }
+
+    pub fn handle_chat_client_private<'a>(&mut self, chunk: Ref<'a>,
+                                          msg: ChatClientPrivateMessage) -> Result<()> {
+        self.send_private_message(chunk, msg, Vec::new());
+        Ok(())
+    }
+
+    pub fn handle_chat_client_private_with_object<'a>(&mut self, chunk: Ref<'a>,
+                                                      msg: ChatClientPrivateWithObjectMessage)
+                                                      -> Result<()> {
+        self.send_private_message(chunk, msg.base, msg.objects);
         Ok(())
     }
 

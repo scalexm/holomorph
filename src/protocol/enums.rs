@@ -62,11 +62,23 @@ pub mod text_information_type {
 }
 
 pub mod player_status {
-    pub const OFFLINE:i8 = 0;
-    pub const UNKNOWN:i8 = 1;
-    pub const AVAILABLE:i8 = 10;
-    pub const IDLE:i8 = 20;
-    pub const AFK:i8 = 21;
-    pub const PRIVATE:i8 = 30;
-    pub const SOLO:i8 = 40;
+    pub const OFFLINE: i8 = 0;
+    pub const UNKNOWN: i8 = 1;
+    pub const AVAILABLE: i8 = 10;
+    pub const IDLE: i8 = 20;
+    pub const AFK: i8 = 21;
+    pub const PRIVATE: i8 = 30;
+    pub const SOLO: i8 = 40;
+}
+
+pub mod chat_error {
+    pub const UNKNOWN: i8 = 0;
+    pub const RECEIVER_NOT_FOUND: i8 = 1;
+    pub const INTERIOR_MONOLOGUE: i8 = 2;
+    pub const NO_GUILD: i8 = 3;
+    pub const NO_PARTY: i8 = 4;
+    pub const ALLIANCE: i8 = 5;
+    pub const INVALID_MAP: i8 = 6;
+    pub const NO_PARTY_ARENA: i8 = 7;
+    pub const NO_TEAM: i8 = 8;
 }

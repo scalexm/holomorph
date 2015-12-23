@@ -177,4 +177,14 @@ impl Map {
             write!(SERVER, ch.session(), buf);
         }
     }
+
+    pub fn send_only_to<F>(&self, buf: Vec<u8>, mut pred: F)
+                           where F: FnMut(&Character) -> bool {
+        for ch in get_characters!(self) {
+            if pred(ch) {
+                let buf = buf.clone();
+                write!(SERVER, ch.session(), buf);
+            }
+        }
+    }
 }

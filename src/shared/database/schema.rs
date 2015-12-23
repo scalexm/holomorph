@@ -26,6 +26,7 @@ table! {
         ban_end -> BigInt,
         ticket -> Text,
         last_server -> SmallInt,
+        channels -> Array<SmallInt>,
     }
 }
 
