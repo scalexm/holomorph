@@ -1,8 +1,4 @@
 language: rust
 sudo: false
 rust:
-  - nightly
-
-os:
-  - linux
-  - osx
+  - nightly-2015-12-30
