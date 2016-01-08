@@ -16,6 +16,7 @@ use diesel::*;
 use shared::database::schema::{character_minimals, characters};
 
 #[derive(Clone, Queriable)]
+#[insertable_into(character_minimals)]
 #[changeset_for(character_minimals)]
 pub struct CharacterMinimal {
     id: i32,

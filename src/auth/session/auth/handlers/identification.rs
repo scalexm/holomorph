@@ -8,7 +8,7 @@ use session::auth::{AccountData, Session, QueueState};
 use session::auth::chunk::{Ref, ChunkImpl};
 use diesel::*;
 use server::{self, SERVER};
-use shared::{database, crypt};
+use shared::{database, crypto};
 use time;
 use std::collections::HashMap;
 use std::sync::atomic::{ATOMIC_ISIZE_INIT, AtomicIsize, Ordering};
@@ -80,7 +80,7 @@ fn authenticate(conn: &Connection, account: String, password: String, addr: Stri
               .first(conn)
     );
 
-    if crypt::md5(&(crypt::md5(&password) + &credentials.salt)) != credentials.password {
+    if crypto::md5(&(crypto::md5(&password) + &credentials.salt)) != credentials.password {
         return Err(Error::Reason(identification_failure_reason::WRONG_CREDENTIALS));
     }
 

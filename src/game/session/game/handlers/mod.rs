@@ -128,7 +128,7 @@ impl shared::session::Session<ChunkImpl> for Session {
 
 impl Session {
     pub fn update_queue(&self) {
-        let (QUEUE_SIZE, QUEUE_COUNTER) = match self.state {
+        let (global_queue_size, global_queue_counter) = match self.state {
             GameState::TicketQueue(..) => {
                 use self::approach::{QUEUE_COUNTER, QUEUE_SIZE};
                 (QUEUE_COUNTER.load(Ordering::Relaxed), QUEUE_SIZE.load(Ordering::Relaxed))
@@ -142,12 +142,12 @@ impl Session {
             _ => return (),
         };
 
-        let (queue_size, queue_counter) = match self.state {
+        let (former_queue_size, former_queue_counter) = match self.state {
             GameState::TicketQueue(qs, qc) | GameState::GameQueue(qs, qc) => (qs, qc),
             _ => unreachable!(),
         };
 
-        let mut pos = queue_size - (QUEUE_COUNTER - queue_counter);
+        let mut pos = former_queue_size - (global_queue_counter - former_queue_counter);
 
         if pos < 0 {
             pos = 0;
@@ -155,7 +155,7 @@ impl Session {
 
         let buf = QueueStatusMessage {
             position: pos as i16,
-            total: QUEUE_SIZE as i16,
+            total: global_queue_size as i16,
         }.as_packet().unwrap();
 
         write!(SERVER, self.base.token, buf);
@@ -187,7 +187,7 @@ impl Session {
                     write!(SERVER, self.base.token, buf);
                 },
 
-                SocialUpdateType::WithLevel(lvl) if account.social.warn_on_level_gain => {
+                SocialUpdateType::WithLevel(_) if account.social.warn_on_level_gain => {
                     // TODO
                 },
 

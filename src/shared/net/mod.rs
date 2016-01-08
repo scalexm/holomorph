@@ -75,8 +75,7 @@ impl<C: 'static> Handler<C> {
                 callback: cb,
             }).ok().unwrap();
 
-            self.new_connection(event_loop, tok, socket, address);
-            Ok(())
+            self.new_connection(event_loop, tok, socket, address)
     }
 
     pub fn add_callback(&mut self, event_loop: &mut EventLoop<C>, address: &str,
@@ -94,21 +93,22 @@ impl<C: 'static> Handler<C> {
         }
     }
 
-    pub fn new(handler: chunk::Sender<C>) -> Self {
+    pub fn new(handler: chunk::Sender<C>, listeners_size: usize) -> Self {
         Handler {
             handler: handler,
-            listeners: Slab::new(10), // we keep 10 tokens for the Listeners
-            connections: Slab::new_starting_at(Token(10), 65535),
+            listeners: Slab::new(listeners_size),
+            connections: Slab::new_starting_at(Token(listeners_size), 65535),
         }
     }
 
     fn new_connection(&mut self, event_loop: &mut EventLoop<C>, tok: Token, socket: TcpStream,
-                      address: SocketAddr) {
+                      address: SocketAddr) -> io::Result<()> {
         let ip = format!("{}", address.ip());
-        let client_tok = self.connections
-                             .insert(Connection::new(socket, tok))
-                             .ok()
-                             .unwrap();
+        let client_tok = try!(
+            self.connections
+                .insert(Connection::new(socket, tok))
+                .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "too much connections"))
+        );
 
         let cb = self.listeners[tok].callback;
         chunk::send(&self.handler, move |handler| {
@@ -120,7 +120,7 @@ impl<C: 'static> Handler<C> {
             client_tok,
             EventSet::readable(),
             PollOpt::level()
-        ).unwrap();
+        )
     }
 
     fn handle_server_event(&mut self, event_loop: &mut EventLoop<C>, tok: Token,
@@ -128,11 +128,13 @@ impl<C: 'static> Handler<C> {
         assert!(events.is_readable());
 
         if let Some((sock, addr)) = try!(self.listeners[tok].socket.as_ref().unwrap().accept()) {
-            self.new_connection(
-                event_loop,
-                tok,
-                sock,
-                addr
+            try!(
+                self.new_connection(
+                    event_loop,
+                    tok,
+                    sock,
+                    addr
+                )
             );
         }
         Ok(())
@@ -151,12 +153,14 @@ impl<C: 'static> Handler<C> {
 
         if events.is_writable() {
             if try!(self.connections[tok].writable()) {
-                event_loop.reregister(
-                    self.connections[tok].socket(),
-                    tok,
-                    EventSet::readable(),
-                    PollOpt::level()
-                ).unwrap();
+                try!(
+                    event_loop.reregister(
+                        self.connections[tok].socket(),
+                        tok,
+                        EventSet::readable(),
+                        PollOpt::level()
+                    )
+                );
             }
         }
 

@@ -3,7 +3,7 @@ use session::game::Session;
 use session::game::chunk::Ref;
 use protocol::Protocol;
 use protocol::holomorph::*;
-use shared::crypt;
+use shared::crypto;
 use server::{self, SERVER};
 
 impl Session {
@@ -23,7 +23,7 @@ impl Session {
         let md5_key = match SERVER.with(|s| {
             s.game_servers
              .get(&msg.id)
-             .map(|gs| crypt::md5(&gs.key()))
+             .map(|gs| crypto::md5(&gs.key()))
          }) {
             Some(key) => key,
             None => {
@@ -32,7 +32,7 @@ impl Session {
             }
         };
 
-        if crypt::md5(&(md5_key + &self.salt)) != msg.key {
+        if crypto::md5(&(md5_key + &self.salt)) != msg.key {
             close!(SERVER, self.base.token);
             return Ok(());
         }

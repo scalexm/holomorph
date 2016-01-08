@@ -1,9 +1,9 @@
-use crypto::digest::Digest;
-use crypto::md5::Md5;
-use crypto::aes;
-use crypto::buffer::{RefReadBuffer, RefWriteBuffer, BufferResult, WriteBuffer, ReadBuffer};
-use crypto::symmetriccipher::{Encryptor, SymmetricCipherError};
-use crypto::blockmodes::NoPadding;
+use rust_crypto::digest::Digest;
+use rust_crypto::md5::Md5;
+use rust_crypto::aes;
+use rust_crypto::buffer::{RefReadBuffer, RefWriteBuffer, BufferResult, WriteBuffer, ReadBuffer};
+use rust_crypto::symmetriccipher::{Encryptor, SymmetricCipherError};
+use rust_crypto::blockmodes::NoPadding;
 
 pub fn md5(s: &str) -> String {
     let mut md5 = Md5::new();

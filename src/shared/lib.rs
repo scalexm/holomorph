@@ -5,7 +5,7 @@
 #[macro_use] extern crate diesel;
 extern crate mio;
 extern crate rustc_serialize;
-extern crate crypto;
+extern crate crypto as rust_crypto;
 extern crate eventual;
 extern crate time;
 extern crate protocol;
@@ -16,7 +16,7 @@ pub mod database;
 pub mod config;
 pub mod session;
 pub mod server;
-pub mod crypt;
+pub mod crypto;
 
 /* helper macros for less verbosity */
 #[macro_export]

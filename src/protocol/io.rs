@@ -96,7 +96,7 @@ pub trait ReadExt: ReadBytesExt {
     }
 
     fn read_var_u64(&mut self) -> Result<u64> {
-        read_var!(self, u64, 64)
+        self.read_var_i64().map(|val| val as u64)
     }
 
     fn read_string(&mut self) -> Result<String> {

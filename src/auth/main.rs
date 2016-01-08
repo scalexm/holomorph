@@ -85,7 +85,7 @@ fn start(args: &str) -> ProgramState {
     let tx = chunk::run(game::chunk::new(), &mut join_handles);
     server::set_game_chunk(&server_data.server, tx);
 
-    let mut network_handler = net::Handler::new(server_data.server.clone());
+    let mut network_handler = net::Handler::new(server_data.server.clone(), 2);
 
     network_handler.add_callback(
         &mut io_loop,

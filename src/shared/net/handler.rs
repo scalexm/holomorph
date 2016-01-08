@@ -20,14 +20,17 @@ impl<C: 'static> mio::Handler for Handler<C> {
             _ => {
                 if let Err(_) = self.handle_client_event(event_loop, tok, events) {
                     // if an error occurs, we disconnect the session (typically: EOF)
-                    event_loop.deregister(self.connections[tok].socket()).unwrap();
+                    if let Err(err) = event_loop.deregister(self.connections[tok].socket()) {
+                        error!("ready: deregister failed {:?}", err);
+                        return;
+                    }
 
                     let cb = self.listeners[self.connections[tok].listener()].callback;
                     chunk::send(&self.handler, move |handler| {
                         cb(handler, SessionEvent::Disconnect(tok))
                     });
 
-                    let _ = self.connections.remove(tok).unwrap();
+                    let _ = self.connections.remove(tok);
                 }
             }
         }
@@ -49,12 +52,14 @@ impl<C: 'static> mio::Handler for Handler<C> {
                 let _ = self.connections.get_mut(tok).map(|conn| {
                     conn.push(buf, close);
 
-                    event_loop.reregister(
+                    if let Err(err) = event_loop.reregister(
                         conn.socket(),
                         tok,
                         EventSet::readable() | EventSet::writable(),
                         PollOpt::level()
-                    ).unwrap();
+                    ) {
+                        error!("notify: reregister failed {:?}", err);
+                    }
                 });
             }
 

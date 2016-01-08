@@ -6,7 +6,7 @@ use protocol::variants::PlayerStatusVariant;
 use protocol::*;
 use protocol::messages::game::friend::*;
 use session::game::chunk::SocialUpdateType;
-use session::game::{self, Session, SocialState};
+use session::game::{self, SocialState};
 use protocol::types::game::data::items::ObjectItem;
 use character::CharacterMinimal;
 use character::social::RelationInformations;

@@ -1,6 +1,5 @@
 use session::game::{Session, GameState};
 use session::game::chunk::{self, Ref};
-use protocol::*;
 use protocol::messages::authorized::*;
 use std::io::Result;
 use server::SERVER;
