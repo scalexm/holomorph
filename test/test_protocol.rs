@@ -15,6 +15,7 @@ fn test_protocol() {
         account_creation: 64.,
         subscription_elapsed_duration: 74.,
         subscription_end_date: 84.,
+        havenbag_available_room: 0,
     };
 
     let mut buf = Vec::new();

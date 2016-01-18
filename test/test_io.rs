@@ -25,6 +25,7 @@ fn test_io() {
     buf.write_var_i64(-1_234_567_890).unwrap();
     buf.write_var_i64(-12_456_456_456_465_464).unwrap();
     buf.write_var_u64(12_456_456_456_465_464).unwrap();
+    buf.write_var_i64(1).unwrap();
 
     let mut buf = Cursor::new(buf);
     assert_eq!("salut", &buf.read_string().unwrap());
@@ -48,4 +49,5 @@ fn test_io() {
     assert_eq!(-1_234_567_890, buf.read_var_i64().unwrap());
     assert_eq!(-12_456_456_456_465_464, buf.read_var_i64().unwrap());
     assert_eq!(12_456_456_456_465_464, buf.read_var_u64().unwrap());
+    assert_eq!(1, buf.read_var_i64().unwrap());
 }

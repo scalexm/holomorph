@@ -3,7 +3,7 @@ use std::io::Result;
 use protocol::*;
  use types::game::character::characteristic::CharacterCharacteristicsInformations;
 impl_type!(CharacterExperienceGainMessage, 6321, experience_character| VarLong, experience_mount| VarLong, experience_guild| VarLong, experience_incarnation| VarLong);
-impl_type!(CharacterLevelUpInformationMessage, 6076, base| CharacterLevelUpMessage, name| String, id| VarInt);
+impl_type!(CharacterLevelUpInformationMessage, 6076, base| CharacterLevelUpMessage, name| String, id| VarLong);
 impl_type!(CharacterLevelUpMessage, 5670, new_level| i8);
 impl_type!(CharacterStatsListMessage, 500, stats| CharacterCharacteristicsInformations);
 impl_type!(FighterStatsListMessage, 6322, stats| CharacterCharacteristicsInformations);

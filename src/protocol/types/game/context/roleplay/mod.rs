@@ -2,6 +2,7 @@ pub mod treasure_hunt;
 pub mod quest;
 pub mod party;
 pub mod job;
+pub mod fight;
 use std::io::{Read, Write};
 use std::io::Result;
 use protocol::*;
@@ -10,7 +11,7 @@ impl_type!(AllianceInformations, 417, base| BasicNamedAllianceInformations, alli
 impl_type!(AlternativeMonstersInGroupLightInformations, 394, player_count| i32, monsters| Vec<MonsterInGroupLightInformations>);
 impl_type!(AtlasPointsInformations, 175, type_| i8, coords| Vec<MapCoordinatesExtended>);
 impl_type!(BasicAllianceInformations, 419, base| AbstractSocialGroupInfos, alliance_id| VarInt, alliance_tag| String);
-impl_type!(BasicGuildInformations, 365, base| AbstractSocialGroupInfos, guild_id| VarInt, guild_name| String);
+impl_type!(BasicGuildInformations, 365, base| AbstractSocialGroupInfos, guild_id| VarInt, guild_name| String, guild_level| i8);
 impl_type!(BasicNamedAllianceInformations, 418, base| BasicAllianceInformations, alliance_name| String);
 impl_type!(GameRolePlayActorInformations, 141, base| GameContextActorInformations);
 impl_type!(GameRolePlayCharacterInformations, 36, base| GameRolePlayHumanoidInformations, alignment_infos| ActorAlignmentInformations);
@@ -28,7 +29,7 @@ impl_type!(GameRolePlayPrismInformations, 161, base| GameRolePlayActorInformatio
 impl_type!(GameRolePlayTreasureHintInformations, 471, base| GameRolePlayActorInformations, npc_id| VarShort);
 impl_type!(GroupMonsterStaticInformations, 140, main_creature_light_infos| MonsterInGroupLightInformations, underlings| Vec<MonsterInGroupInformations>);
 impl_type!(GroupMonsterStaticInformationsWithAlternatives, 396, base| GroupMonsterStaticInformations, alternatives| Vec<AlternativeMonstersInGroupLightInformations>);
-impl_type!(GuildInAllianceInformations, 420, base| GuildInformations, guild_level| i8, nb_members| i8, enabled| bool);
+impl_type!(GuildInAllianceInformations, 420, base| GuildInformations, nb_members| i8, enabled| bool);
 impl_type!(GuildInformations, 127, base| BasicGuildInformations, guild_emblem| GuildEmblem);
 impl_type!(HumanInformations, 157, restrictions| ActorRestrictionsInformations, sex| bool, options| Vec<HumanOptionVariant>);
 impl_type!(HumanOption, 406);
@@ -38,7 +39,9 @@ impl_type!(HumanOptionFollowers, 410, base| HumanOption, following_characters_lo
 impl_type!(HumanOptionGuild, 409, base| HumanOption, guild_informations| GuildInformations);
 impl_type!(HumanOptionObjectUse, 449, base| HumanOption, delay_type_id| i8, delay_end_time| f64, object_gid| VarShort);
 impl_type!(HumanOptionOrnament, 411, base| HumanOption, ornament_id| VarShort);
+impl_type!(HumanOptionSkillUse, 495, base| HumanOption, element_id| VarInt, skill_id| VarShort, skill_end_time| f64);
 impl_type!(HumanOptionTitle, 408, base| HumanOption, title_id| VarShort, title_param| String);
+impl_type!(MonsterBoosts, 497, id| VarInt, xp_boost| VarShort, drop_boost| VarShort);
 impl_type!(MonsterInGroupInformations, 144, base| MonsterInGroupLightInformations, look| EntityLook);
 impl_type!(MonsterInGroupLightInformations, 395, creature_generic_id| i32, grade| i8);
 impl_type!(ObjectItemInRolePlay, 198, cell_id| VarShort, object_gid| VarShort);

@@ -47,7 +47,7 @@ impl CharacterMinimal {
         } else {
             IgnoredInformationsVariant::IgnoredOnlineInformations(IgnoredOnlineInformations {
                 base: infos,
-                player_id: VarInt(self.id),
+                player_id: VarLong(self.id),
                 player_name: self.name.clone(),
                 breed: self.breed as i8,
                 sex: self.sex,
@@ -77,7 +77,7 @@ impl CharacterMinimal {
             Some(social) => {
                 FriendInformationsVariant::FriendOnlineInformations(FriendOnlineInformations {
                     base: infos,
-                    player_id: VarInt(self.id),
+                    player_id: VarLong(self.id),
                     player_name: self.name.clone(),
                     level: if is_friend_with { self.level as i8 } else { 0 },
                     alignment_side: 0,
@@ -87,6 +87,7 @@ impl CharacterMinimal {
                         base: AbstractSocialGroupInfos,
                         guild_id: VarInt(0),
                         guild_name: String::new(),
+                        guild_level: 0,
                     },
                     mood_smiley_id: VarShort(if is_friend_with { self.mood_smiley } else { 0 }),
                     status: social.status.clone(),

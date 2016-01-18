@@ -117,7 +117,7 @@ pub fn delete_relation(sender: &Sender, tok: Token, account_id: i32, r_id: i32, 
     })
 }
 
-pub fn update_player_status(sender: &Sender, account_id: i32, ch_id: i32,
+pub fn update_player_status(sender: &Sender, account_id: i32, ch_id: i64,
                             status: PlayerStatusVariant) {
     chunk::send(sender, move |server| {
         server.session_socials.get_mut(&account_id).unwrap().status = status;
@@ -128,7 +128,7 @@ pub fn update_player_status(sender: &Sender, account_id: i32, ch_id: i32,
     })
 }
 
-pub fn update_mood(sender: &Sender, ch_id: i32, mood: i16) {
+pub fn update_mood(sender: &Sender, ch_id: i64, mood: i16) {
     chunk::send(sender, move |server| {
         server.characters.get_mut(&ch_id).unwrap().set_mood_smiley(mood);
         server.update_social(server.characters.get(&ch_id).unwrap(), SocialUpdateType::Default);
@@ -164,7 +164,7 @@ macro_rules! build_copy_message {
 }
 
 pub fn send_private_message(sender: &Sender, tok: Token, sender_id: i32, sender_name: String,
-                            sender_ch_id: i32, receiver: String, content: String,
+                            sender_ch_id: i64, receiver: String, content: String,
                             items: Vec<ObjectItem>) {
     chunk::send(sender, move |server| {
         if let Some(r_id) = server.search_for_player(&receiver) {
@@ -238,14 +238,14 @@ pub fn send_private_message(sender: &Sender, tok: Token, sender_id: i32, sender_
 
                 let msg = ChatServerMessage {
                     base: msg_abstract.clone(),
-                    sender_id: sender_ch_id,
+                    sender_id: sender_ch_id as f64,
                     sender_name: sender_name,
                     sender_account_id: sender_id,
                 };
 
                 let msg_copy = ChatServerCopyMessage {
                     base: msg_abstract,
-                    receiver_id: VarInt(r_ch_id),
+                    receiver_id: VarLong(r_ch_id),
                     receiver_name: r_name.to_string(),
                 };
 

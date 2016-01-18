@@ -120,7 +120,7 @@ table! {
 
 table! {
     character_minimals {
-        id -> Serial,
+        id -> BigSerial,
         account_id -> Integer,
         account_nickname -> Text,
         level -> SmallInt,
@@ -134,7 +134,7 @@ table! {
 
 table! {
     characters {
-        id -> Serial,
+        id -> BigSerial,
         xp -> BigInt,
         kamas -> Integer,
         stats_points -> SmallInt,

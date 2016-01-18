@@ -29,7 +29,7 @@ impl Session {
 
         let buf = PlayerStatusUpdateMessage {
             account_id: account.id,
-            player_id: VarInt(ch.id),
+            player_id: VarLong(ch.id),
             status: status.clone(),
         }.as_packet().unwrap();
         write!(SERVER, self.base.token, buf);

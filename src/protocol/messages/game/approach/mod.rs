@@ -2,7 +2,7 @@ use std::io::{Read, Write};
 use std::io::Result;
 use protocol::*;
  use variants::ServerSessionConstantVariant;
-impl_type!(AccountCapabilitiesMessage, 6216, tutorial_available| Flag, can_create_new_character| Flag, account_id| i32, breeds_visible| i16, breeds_available| i16, status| i8);
+impl_type!(AccountCapabilitiesMessage, 6216, tutorial_available| Flag, can_create_new_character| Flag, account_id| i32, breeds_visible| VarInt, breeds_available| VarInt, status| i8);
 impl_type!(AccountLoggingKickedMessage, 6029, days| VarShort, hours| i8, minutes| i8);
 impl_type!(AlreadyConnectedMessage, 109);
 impl_type!(AuthenticationTicketAcceptedMessage, 111);

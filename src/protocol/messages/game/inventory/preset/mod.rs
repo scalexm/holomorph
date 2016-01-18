@@ -7,6 +7,8 @@ impl_type!(IdolsPresetDeleteResultMessage, 6605, preset_id| i8, code| i8);
 impl_type!(IdolsPresetSaveMessage, 6603, preset_id| i8, symbol_id| i8);
 impl_type!(IdolsPresetSaveResultMessage, 6604, preset_id| i8, code| i8);
 impl_type!(IdolsPresetUpdateMessage, 6606, idols_preset| IdolsPreset);
+impl_type!(IdolsPresetUseMessage, 6615, preset_id| i8, party| bool);
+impl_type!(IdolsPresetUseResultMessage, 6614, preset_id| i8, code| i8, missing_idols| Vec<VarShort>);
 impl_type!(InventoryPresetDeleteMessage, 6169, preset_id| i8);
 impl_type!(InventoryPresetDeleteResultMessage, 6173, preset_id| i8, code| i8);
 impl_type!(InventoryPresetItemUpdateErrorMessage, 6211, code| i8);

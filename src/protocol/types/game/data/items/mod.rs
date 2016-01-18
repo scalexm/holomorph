@@ -8,6 +8,7 @@ impl_type!(GoldItem, 123, base| Item, sum| VarInt);
 impl_type!(Item, 7);
 impl_type!(ObjectItem, 37, base| Item, position| i8, object_gid| VarShort, effects| Vec<ObjectEffectVariant>, object_uid| VarInt, quantity| VarInt);
 impl_type!(ObjectItemGenericQuantity, 483, base| Item, object_gid| VarShort, quantity| VarInt);
+impl_type!(ObjectItemGenericQuantityPrice, 494, base| ObjectItemGenericQuantity, price| VarInt);
 impl_type!(ObjectItemInformationWithQuantity, 387, base| ObjectItemMinimalInformation, quantity| VarInt);
 impl_type!(ObjectItemMinimalInformation, 124, base| Item, object_gid| VarShort, effects| Vec<ObjectEffectVariant>);
 impl_type!(ObjectItemNotInContainer, 134, base| Item, object_gid| VarShort, effects| Vec<ObjectEffectVariant>, object_uid| VarInt, quantity| VarInt);

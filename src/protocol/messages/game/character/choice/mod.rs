@@ -9,7 +9,7 @@ impl_type!(CharacterSelectedErrorMessage, 5836);
 impl_type!(CharacterSelectedForceMessage, 6068, id| i32);
 impl_type!(CharacterSelectedForceReadyMessage, 6072);
 impl_type!(CharacterSelectedSuccessMessage, 153, infos| CharacterBaseInformations, is_collecting_stats| bool);
-impl_type!(CharacterSelectionMessage, 152, id| i32);
+impl_type!(CharacterSelectionMessage, 152, id| VarLong);
 impl_type!(CharacterSelectionWithRemodelMessage, 6549, base| CharacterSelectionMessage, remodel| RemodelingInformation);
 impl_type!(CharactersListErrorMessage, 5545);
 impl_type!(CharactersListMessage, 151, base| BasicCharactersListMessage, has_startup_actions| bool);

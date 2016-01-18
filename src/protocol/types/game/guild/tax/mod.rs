@@ -9,4 +9,5 @@ impl_type!(TaxCollectorFightersInformation, 169, collector_id| i32, ally_charact
 impl_type!(TaxCollectorGuildInformations, 446, base| TaxCollectorComplementaryInformations, guild| BasicGuildInformations);
 impl_type!(TaxCollectorInformations, 167, unique_id| i32, firt_name_id| VarShort, last_name_id| VarShort, additional_infos| AdditionalTaxCollectorInformations, world_x| i16, world_y| i16, sub_area_id| VarShort, state| i8, look| EntityLook, complements| Vec<TaxCollectorComplementaryInformationsVariant>);
 impl_type!(TaxCollectorLootInformations, 372, base| TaxCollectorComplementaryInformations, kamas| VarInt, experience| VarLong, pods| VarInt, items_value| VarInt);
+impl_type!(TaxCollectorMovement, 493, movement_type| i8, basic_infos| TaxCollectorBasicInformations, player_id| VarLong, player_name| String);
 impl_type!(TaxCollectorWaitingForHelpInformations, 447, base| TaxCollectorComplementaryInformations, waiting_for_help_info| ProtectedEntityWaitingForHelpInfo);

@@ -6,7 +6,7 @@ impl_type!(AchievementDetailedListMessage, 6358, started_achievements| Vec<Achie
 impl_type!(AchievementDetailedListRequestMessage, 6357, category_id| VarShort);
 impl_type!(AchievementDetailsMessage, 6378, achievement| Achievement);
 impl_type!(AchievementDetailsRequestMessage, 6380, achievement_id| VarShort);
-impl_type!(AchievementFinishedInformationMessage, 6381, base| AchievementFinishedMessage, name| String, player_id| VarInt);
+impl_type!(AchievementFinishedInformationMessage, 6381, base| AchievementFinishedMessage, name| String, player_id| VarLong);
 impl_type!(AchievementFinishedMessage, 6208, id| VarShort, finishedlevel| i8);
 impl_type!(AchievementListMessage, 6205, finished_achievements_ids| Vec<VarShort>, rewardable_achievements| Vec<AchievementRewardable>);
 impl_type!(AchievementRewardErrorMessage, 6375, achievement_id| i16);

@@ -14,7 +14,7 @@ pub enum Actor {
 }
 
 impl Actor {
-    pub fn id(&self) -> i32 {
+    pub fn id(&self) -> i64 {
         match *self {
             Actor::Character(ref ch) => ch.minimal().id(),
             _ => unreachable!(),
@@ -67,7 +67,7 @@ impl Actor {
 pub struct Map {
     id: i32,
     area_id: i16,
-    actors: HashMap<i32, Actor>, // a Map owns its actors
+    actors: HashMap<i64, Actor>, // a Map owns its actors
 }
 
 macro_rules! get_characters {
@@ -104,11 +104,11 @@ impl Map {
         self.area_id
     }
 
-    pub fn get_actor(&self, id: i32) -> Option<&Actor> {
+    pub fn get_actor(&self, id: i64) -> Option<&Actor> {
         self.actors.get(&id)
     }
 
-    pub fn get_mut_actor(&mut self, id: i32) -> Option<&mut Actor> {
+    pub fn get_mut_actor(&mut self, id: i64) -> Option<&mut Actor> {
         self.actors.get_mut(&id)
     }
 
@@ -122,11 +122,11 @@ impl Map {
         let _ = self.actors.insert(id, actor);
     }
 
-    pub fn remove_actor(&mut self, id: i32) -> Option<Actor> {
+    pub fn remove_actor(&mut self, id: i64) -> Option<Actor> {
         let actor = self.actors.remove(&id);
         if let Some(ref actor) = actor {
             let buf = GameContextRemoveElementMessage {
-                id: actor.id(),
+                id: actor.id() as f64,
             }.as_packet().unwrap();
 
             self.send(buf);
@@ -134,33 +134,33 @@ impl Map {
         actor
     }
 
-    pub fn start_move_actor(&self, id: i32, movs: Vec<i16>) {
+    pub fn start_move_actor(&self, id: i64, movs: Vec<i16>) {
         if !self.actors.contains_key(&id) {
             return ();
         }
 
         let buf = GameMapMovementMessage {
             key_movements: movs,
-            actor_id: id,
+            actor_id: id as f64,
         }.as_packet().unwrap();
 
         self.send(buf);
     }
 
-    pub fn end_move_actor(&self, id: i32) {
+    pub fn end_move_actor(&self, id: i64) {
         if !self.actors.contains_key(&id) {
             return ();
         }
 
         let buf = GameMapMovementMessage {
             key_movements: Vec::new(),
-            actor_id: id,
+            actor_id: id as f64,
         }.as_packet().unwrap();
 
         self.send(buf);
     }
 
-    pub fn teleport(&mut self, id: i32, cell: i16) -> bool {
+    pub fn teleport(&mut self, id: i64, cell: i16) -> bool {
         match self.remove_actor(id) {
             Some(mut actor) => {
                 actor.set_cell_id(cell);

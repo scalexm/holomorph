@@ -43,7 +43,7 @@ impl_type!(ObjectsQuantityMessage, 6206, objects_uid_and_qty| Vec<ObjectItemQuan
 impl_type!(ObjectUseMessage, 3019, object_uid| VarInt);
 impl_type!(ObjectUseMultipleMessage, 6234, base| ObjectUseMessage, quantity| VarInt);
 impl_type!(ObjectUseOnCellMessage, 3013, base| ObjectUseMessage, cells| VarShort);
-impl_type!(ObjectUseOnCharacterMessage, 3003, base| ObjectUseMessage, character_id| VarInt);
+impl_type!(ObjectUseOnCharacterMessage, 3003, base| ObjectUseMessage, character_id| VarLong);
 impl_type!(ObtainedItemMessage, 6519, generic_id| VarShort, base_quantity| VarInt);
 impl_type!(ObtainedItemWithBonusMessage, 6520, base| ObtainedItemMessage, bonus_quantity| VarInt);
 impl_type!(SetUpdateMessage, 5503, set_id| VarShort, set_objects| Vec<VarShort>, set_effects| Vec<ObjectEffectVariant>);

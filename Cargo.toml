@@ -17,6 +17,7 @@ diesel_codegen = { git = "https://github.com/sgrif/diesel", default-features = f
 quasi = { version = "^0.3.11", default-features = false }
 quasi_macros = { version = "^0.3.11" }
 eventual = { git = "https://github.com/carllerche/eventual" }
+openssl = "*"
 
 [profile.release]
 debug = true

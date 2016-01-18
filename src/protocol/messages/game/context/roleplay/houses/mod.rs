@@ -7,7 +7,7 @@ impl_type!(AccountHouseMessage, 6315, houses| Vec<AccountHouseInformations>);
 impl_type!(HouseBuyRequestMessage, 5738, proposed_price| VarInt);
 impl_type!(HouseBuyResultMessage, 5735, house_id| VarInt, bought| bool, real_price| VarInt);
 impl_type!(HouseKickIndoorMerchantRequestMessage, 5661, cell_id| VarShort);
-impl_type!(HouseKickRequestMessage, 5698, id| VarInt);
+impl_type!(HouseKickRequestMessage, 5698, id| VarLong);
 impl_type!(HouseLockFromInsideRequestMessage, 5885, base| LockableChangeCodeMessage);
 impl_type!(HousePropertiesMessage, 5734, properties| HouseInformationsVariant);
 impl_type!(HouseSellFromInsideRequestMessage, 5884, base| HouseSellRequestMessage);

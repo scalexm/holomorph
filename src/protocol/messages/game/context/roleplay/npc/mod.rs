@@ -4,7 +4,7 @@ use protocol::*;
  use types::game::context::roleplay::quest::GameRolePlayNpcQuestFlag; use types::game::context::roleplay::BasicGuildInformations; use types::game::context::roleplay::BasicNamedAllianceInformations;
 impl_type!(AlliancePrismDialogQuestionMessage, 6448);
 impl_type!(AllianceTaxCollectorDialogQuestionExtendedMessage, 6445, base| TaxCollectorDialogQuestionExtendedMessage, alliance| BasicNamedAllianceInformations);
-impl_type!(EntityTalkMessage, 6110, entity_id| i32, text_id| VarShort, parameters| Vec<String>);
+impl_type!(EntityTalkMessage, 6110, entity_id| f64, text_id| VarShort, parameters| Vec<String>);
 impl_type!(MapNpcsQuestStatusUpdateMessage, 5642, map_id| i32, npcs_ids_with_quest| Vec<i32>, quest_flags| Vec<GameRolePlayNpcQuestFlag>, npcs_ids_without_quest| Vec<i32>);
 impl_type!(NpcDialogCreationMessage, 5618, map_id| i32, npc_id| i32);
 impl_type!(NpcDialogQuestionMessage, 5617, message_id| VarShort, dialog_params| Vec<String>, visible_replies| Vec<VarShort>);

@@ -1,7 +1,6 @@
 use std::io;
-use protocol::{Protocol, VarIntVec, VarShort, Flag};
+use protocol::{Protocol, VarShort, Flag};
 use protocol::messages::connection::*;
-use protocol::messages::security::*;
 use protocol::messages::queues::*;
 use protocol::enums::{server_status, identification_failure_reason};
 use session::auth::{AccountData, Session, QueueState};
@@ -12,6 +11,7 @@ use shared::{database, crypto};
 use time;
 use std::collections::HashMap;
 use std::sync::atomic::{ATOMIC_ISIZE_INIT, AtomicIsize, Ordering};
+use openssl::crypto::pkey::{EncryptionPadding, PKey};
 
 pub static QUEUE_SIZE: AtomicIsize = ATOMIC_ISIZE_INIT;
 pub static QUEUE_COUNTER: AtomicIsize = ATOMIC_ISIZE_INIT;
@@ -145,6 +145,7 @@ impl Session {
                 true => data.subscription_end * 1000,
                 false => 0,
             } as f64,
+            havenbag_available_room: 0,
         }.as_packet_with_buf(&mut buf).unwrap();
 
         write!(SERVER, self.base.token, buf);
@@ -187,20 +188,45 @@ impl Session {
             return Ok(());
         }
 
-        if !self.custom_identification {
-            self.custom_identification = true;
-            let buf = RawDataMessage {
-                content: VarIntVec(SERVER.with(|s| (*s.patch).clone())),
-            }.as_packet().unwrap();
+        let mut key = PKey::new();
+        let raw_priv_key = SERVER.with(|s| (*s.priv_key).clone());
+        key.load_priv(&raw_priv_key[0..]);
 
-            write!(SERVER, self.base.token, buf);
+        if msg.credentials.0.len() != 256 {
             return Ok(());
         }
 
-        let mut credentials = io::Cursor::new(msg.credentials.0);
-        let username = try!(credentials.read_string());
-        let password = try!(credentials.read_string());
-        try!(credentials.read_to_end(&mut self.aes_key));
+        let mut credentials = io::Cursor::new(
+            key.decrypt_with_padding(&msg.credentials.0[0..], EncryptionPadding::PKCS1v15)
+        );
+
+        let mut salt = vec![0; self.salt.len()];
+        try!(credentials.read_exact(&mut salt));
+
+        self.aes_key = vec![0; 32];
+        try!(credentials.read_exact(&mut self.aes_key));
+
+        if msg.use_certificate.0 {
+            let _ = try!(credentials.read_i32());
+            let mut certificate = vec![0; 32];
+            try!(credentials.read_exact(&mut certificate));
+        }
+
+        let len = try!(credentials.read_i8());
+        let mut username = vec![0; len as usize];
+        try!(credentials.read_exact(&mut username));
+        let username = match String::from_utf8(username) {
+            Ok(username) => username,
+            Err(_) => return Ok(()),
+        };
+
+        let mut password = Vec::new();
+        try!(credentials.read_to_end(&mut password));
+        let password = match String::from_utf8(password) {
+            Ok(password) => password,
+            Err(_) => return Ok(()),
+        };
+
         let auto_connect = msg.autoconnect.0;
 
         let token = self.base.token;

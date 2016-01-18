@@ -13,7 +13,7 @@ impl_type!(ChatClientMultiWithObjectMessage, 862, base| ChatClientMultiMessage, 
 impl_type!(ChatClientPrivateMessage, 851, base| ChatAbstractClientMessage, receiver| String);
 impl_type!(ChatClientPrivateWithObjectMessage, 852, base| ChatClientPrivateMessage, objects| Vec<ObjectItem>);
 impl_type!(ChatErrorMessage, 870, reason| i8);
-impl_type!(ChatServerCopyMessage, 882, base| ChatAbstractServerMessage, receiver_id| VarInt, receiver_name| String);
+impl_type!(ChatServerCopyMessage, 882, base| ChatAbstractServerMessage, receiver_id| VarLong, receiver_name| String);
 impl_type!(ChatServerCopyWithObjectMessage, 884, base| ChatServerCopyMessage, objects| Vec<ObjectItem>);
-impl_type!(ChatServerMessage, 881, base| ChatAbstractServerMessage, sender_id| i32, sender_name| String, sender_account_id| i32);
+impl_type!(ChatServerMessage, 881, base| ChatAbstractServerMessage, sender_id| f64, sender_name| String, sender_account_id| i32);
 impl_type!(ChatServerWithObjectMessage, 883, base| ChatServerMessage, objects| Vec<ObjectItem>);

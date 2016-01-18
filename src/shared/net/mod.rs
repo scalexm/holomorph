@@ -5,7 +5,7 @@ use mio::{self, EventSet, PollOpt};
 use mio::tcp::{TcpStream, TcpListener};
 use mio::util::Slab;
 use std::net::SocketAddr;
-use std::io::{self, Cursor};
+use std::io;
 use net::connection::Connection;
 use chunk;
 
@@ -20,7 +20,7 @@ pub enum Msg {
 
 pub enum SessionEvent {
     Connect(Token, String), // String is for IP address
-    Packet(Token, u16, Cursor<Vec<u8>>),
+    Packet(Token, u16, Vec<u8>),
     Disconnect(Token),
 }
 
@@ -107,7 +107,7 @@ impl<C: 'static> Handler<C> {
         let client_tok = try!(
             self.connections
                 .insert(Connection::new(socket, tok))
-                .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "too much connections"))
+                .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "too many connections"))
         );
 
         let cb = self.listeners[tok].callback;
@@ -143,16 +143,16 @@ impl<C: 'static> Handler<C> {
     fn handle_client_event(&mut self, event_loop: &mut EventLoop<C>, tok: Token,
                            events: EventSet) -> io::Result<()> {
         if events.is_readable() {
-            if let Some(packet) = try!(self.connections[tok].readable()) {
+            if let Some(packet) = try!(self.connections[tok].read()) {
                 let cb = self.listeners[self.connections[tok].listener()].callback;
                 chunk::send(&self.handler, move |handler| {
-                    cb(handler, SessionEvent::Packet(tok, packet.0, packet.1));
+                    cb(handler, SessionEvent::Packet(tok, packet.id, packet.data));
                 });
             }
         }
 
         if events.is_writable() {
-            if try!(self.connections[tok].writable()) {
+            if try!(self.connections[tok].write()) {
                 try!(
                     event_loop.reregister(
                         self.connections[tok].socket(),

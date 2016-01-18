@@ -11,7 +11,7 @@ impl_type!(IdentificationFailedBannedMessage, 6174, base| IdentificationFailedMe
 impl_type!(IdentificationFailedForBadVersionMessage, 21, base| IdentificationFailedMessage, required_version| Version);
 impl_type!(IdentificationFailedMessage, 20, reason| i8);
 impl_type!(IdentificationMessage, 4, autoconnect| Flag, use_certificate| Flag, use_login_token| Flag, version| VersionExtended, lang| String, credentials| VarIntVec<u8>, server_id| i16, session_optional_salt| VarLong, failed_attempts| Vec<VarShort>);
-impl_type!(IdentificationSuccessMessage, 22, has_rights| Flag, was_already_connected| Flag, login| String, nickname| String, account_id| i32, community_id| i8, secret_question| String, account_creation| f64, subscription_elapsed_duration| f64, subscription_end_date| f64);
+impl_type!(IdentificationSuccessMessage, 22, has_rights| Flag, was_already_connected| Flag, login| String, nickname| String, account_id| i32, community_id| i8, secret_question| String, account_creation| f64, subscription_elapsed_duration| f64, subscription_end_date| f64, havenbag_available_room| i8);
 impl_type!(IdentificationSuccessWithLoginTokenMessage, 6209, base| IdentificationSuccessMessage, login_token| String);
 impl_type!(SelectedServerDataExtendedMessage, 6469, base| SelectedServerDataMessage, server_ids| Vec<VarShort>);
 impl_type!(SelectedServerDataMessage, 42, server_id| VarShort, address| String, port| i16, can_create_new_character| bool, ticket| VarIntVec<u8>);

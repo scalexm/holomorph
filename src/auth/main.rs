@@ -11,6 +11,7 @@ extern crate eventual;
 extern crate rustc_serialize;
 extern crate rand;
 extern crate protocol;
+extern crate openssl;
 
 mod session;
 mod config;
@@ -29,13 +30,7 @@ use session::{auth, game};
 use server::SYNC_SERVER;
 use std::collections::LinkedList;
 use std::sync::mpsc;
-
-// for loading dofus public key and authentification patch
-fn load(path: &str) -> Vec<u8> {
-    let mut data = Vec::new();
-    File::open(path).unwrap().read_to_end(&mut data).unwrap();
-    data
-}
+use openssl::crypto::pkey::{EncryptionPadding, PKey};
 
 struct ProgramState {
     io_loop: EventLoop<server::Server>,
@@ -52,10 +47,16 @@ fn start(args: &str) -> ProgramState {
         &cnf.database_uri,
         &mut join_handles
     );
-    let key = load(&cnf.key_path);
-    let patch = load(&cnf.patch_path);
 
     let mut io_loop = EventLoop::new().unwrap();
+
+    let mut sign_key_raw = Vec::new();
+    File::open(&cnf.key_path).unwrap().read_to_end(&mut sign_key_raw).unwrap();
+    let mut sign_key = PKey::new();
+    sign_key.load_priv(&sign_key_raw[0..]);
+
+    let mut key = PKey::new();
+    key.gen(2048);
 
     let server_data = {
         let mut conn = database::connect(&cnf.database_uri);
@@ -65,8 +66,11 @@ fn start(args: &str) -> ProgramState {
             server,
             io_loop.channel(),
             db,
-            key,
-            patch,
+            sign_key.private_encrypt_with_padding(
+                &key.save_pub()[0..],
+                EncryptionPadding::PKCS1v15
+            ),
+            key.save_priv(),
             cnf
         );
 

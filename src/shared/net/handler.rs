@@ -10,7 +10,7 @@ impl<C: 'static> mio::Handler for Handler<C> {
     fn ready(&mut self, event_loop: &mut EventLoop<C>, tok: Token, events: EventSet) {
         match tok {
             // one of our listeners
-            Token(t) if t < 10 => {
+            Token(t) if t < self.listeners.count() => {
                 if let Err(err) = self.handle_server_event(event_loop, tok, events) {
                     error!("accept failed: {}", err);
                 }
@@ -50,7 +50,7 @@ impl<C: 'static> mio::Handler for Handler<C> {
 
             Msg::Write(tok, buf) | Msg::WriteAndClose(tok, buf) => {
                 let _ = self.connections.get_mut(tok).map(|conn| {
-                    conn.push(buf, close);
+                    conn.push_packet(buf, close);
 
                     if let Err(err) = event_loop.reregister(
                         conn.socket(),

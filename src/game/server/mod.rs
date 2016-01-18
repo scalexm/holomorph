@@ -25,15 +25,15 @@ pub struct Server {
                                      auth::Session, auth::chunk::ChunkImpl>,
 
     // an in-game session can be identified by its character id
-    session_characters: HashBiMap<i32, Token>,
+    session_characters: HashBiMap<i64, Token>,
     // and also by its account id
     session_accounts: HashBiMap<i32, Token>,
     session_socials: HashMap<i32, SocialInformations>,
 
-    characters: HashMap<i32, CharacterMinimal>,
-    character_nicknames: HashMap<String, i32>,
-    character_names: HashMap<String, i32>,
-    character_accounts: HashMap<i32, i32>,
+    characters: HashMap<i64, CharacterMinimal>,
+    character_nicknames: HashMap<String, i64>,
+    character_names: HashMap<String, i64>,
+    character_accounts: HashMap<i32, i64>,
     chunk_areas: HashMap<i16, usize>,
 }
 
@@ -116,7 +116,7 @@ pub fn teleport<F>(sender: &Sender, tok: Token, area_id: i16, job: F)
 
 pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32, job: F)
                                  where F: FnOnce(&mut game::Session,
-                                                 HashMap<i32, CharacterMinimal>)
+                                                 HashMap<i64, CharacterMinimal>)
                                  + Send + 'static {
     chunk::send(sender, move |server| {
         if server.base.session_ids.contains_key(&id) {
@@ -156,7 +156,7 @@ macro_rules! load_social {
     };
 }
 
-pub fn character_selection_success<F>(sender: &Sender, tok: Token, account_id: i32, ch_id: i32,
+pub fn character_selection_success<F>(sender: &Sender, tok: Token, account_id: i32, ch_id: i64,
                                       social: SocialInformations, job: F)
                                       where F: FnOnce(&mut game::Session,
                                                       &mut game::chunk::ChunkImpl,

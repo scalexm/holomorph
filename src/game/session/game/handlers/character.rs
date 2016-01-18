@@ -29,6 +29,29 @@ fn load_character(conn: &Connection, tok: Token, base: CharacterMinimal)
     let ch_id = base.id();
     let character: Option<SqlCharacter> = try!(
         characters::table.filter(characters::id.eq(&ch_id))
+                         .select((
+                             characters::xp,
+                             characters::kamas,
+                             characters::stats_points,
+                             characters::additionnal_points,
+                             characters::spells_points,
+                             characters::energy_points,
+                             characters::base_vitality,
+                             characters::base_wisdom,
+                             characters::base_strength,
+                             characters::base_intelligence,
+                             characters::base_chance,
+                             characters::base_agility,
+                             characters::additionnal_vitality,
+                             characters::additionnal_wisdom,
+                             characters::additionnal_strength,
+                             characters::additionnal_intelligence,
+                             characters::additionnal_chance,
+                             characters::additionnal_agility,
+                             characters::map_id,
+                             characters::cell_id,
+                             characters::direction,
+                         ))
                          .first(conn)
                          .optional()
     );
@@ -131,7 +154,7 @@ impl Session {
                 _ => return Ok(()),
             };
 
-            match characters.remove(&msg.id) {
+            match characters.remove(&msg.id.0) {
                 Some(ch) => ch,
                 None => {
                     let buf = CharacterSelectedErrorMessage.as_packet().unwrap();

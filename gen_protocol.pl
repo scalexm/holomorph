@@ -60,12 +60,15 @@ sub get_qualified_name($content) {
 
 # find the corresponding use directive for a dofus class
 sub get_use($content, $type, $dirname) {
-    $content ~~ / 'package com.ankamagames.dofus.network.' (\w+)
-        '.game.context' /;
-    my $protocol = $0;
+    my $protocol;
+    if $content ~~ / 'package com.ankamagames.dofus.network.messages' / {
+        $protocol = 'messages';
+    } else {
+        $protocol = 'types';
+    }
 
-    if $content ~~ / 'dofus.network.$protocol' [\w || \.]+
-        ".$dirname.$type;" / {
+    if $content ~~ / "dofus.network.$protocol." [\w || \.]+
+        ".$dirname.$type" / {
         return '';
     }
 
@@ -85,11 +88,17 @@ sub get_use($content, $type, $dirname) {
 
 sub read_file($path, $use is rw, $output is rw) {
     my $content = slurp $path;
+    my $class;
+    my $base_class;
 
-    $content ~~ / 'public class ' $<class> = (\w+)
-        ' extends ' $<base_class> = (\w+) /;
-    my $class = $<class>;
-    my $base_class = $<base_class>;
+    if $content ~~ / 'public class ' $<class> = (\w+)
+        ' extends ' $<base_class> = (\w+) / {
+        $class = $<class>;
+        $base_class = $<base_class>;
+    } else {
+        $content ~~ / 'public class ' $<class> = (\w+) ' implements' /;
+        $class = $<class>;
+    }
 
     $content ~~ / 'protocolId:uint = ' $<id> = (\d+) /;
     my $id = $<id>;
@@ -164,18 +173,22 @@ sub read_file($path, $use is rw, $output is rw) {
             }
 
             # vector of dofus class
-            when / '(this.' (\w+) '[_' \w+ '_] as ' (\w+) ').serializeAs' / {
+            when / '(this.' (\w+) '[_' \w+ '_] as ' ([\w || \.]+) ').serializeAs_' / {
                 $name = $0;
-                $type = "{$next_vec_type}Vec<$1>";
-                $use = $use (|) get_use($content, $1,
+                my $qualified = split '.', $1;
+                my $real_type = $qualified[*-1];
+                $type = "{$next_vec_type}Vec<$real_type>";
+                $use = $use (|) get_use($content, $qualified,
                     $path.dirname.IO.basename);
             }
 
             # vector of polymorphic dofus class
-            when / '(this.' (\w+) '[_' \w+ '_] as ' (\w+) ').s' / {
+            when / '(this.' (\w+) '[_' \w+ '_] as ' ([\w || \.]+) ').s' / {
                 $name = $0;
-                $type = "{$next_vec_type}Vec<{$1}Variant>";
-                $use = $use (|) "use variants::{$1}Variant;";
+                my $qualified = split '.', $1;
+                my $real_type = $qualified[*-1];
+                $type = "{$next_vec_type}Vec<{$real_type}Variant>";
+                $use = $use (|) "use variants::{$real_type}Variant;";
             }
 
             default { }

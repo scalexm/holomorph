@@ -8,7 +8,18 @@ use types::game::character::choice::*;
 use types::game::approach::*;
 use types::game::idol::*;
 use types::game::shortcut::*;
-use types::game::context::*;
+use types::game::context::{
+    TaxCollectorStaticExtendedInformations,
+    TaxCollectorStaticInformations,
+    IdentifiedEntityDispositionInformations,
+    GameRolePlayTaxCollectorInformations,
+    FightEntityDispositionInformations,
+    EntityDispositionInformations,
+    GameContextActorInformations,
+    MapCoordinatesExtended,
+    MapCoordinatesAndId,
+    MapCoordinates,
+};
 use types::game::guild::tax::*;
 use types::game::social::*;
 use types::game::context::roleplay::*;
@@ -25,6 +36,7 @@ use types::game::context::roleplay::party::*;
 use types::game::mount::*;
 use types::game::actions::fight::*;
 use types::game::data::items::effects::*;
+use types::common::basic::*;
 
 impl_variant!(
     InteractiveElementSkillVariant,
@@ -425,4 +437,14 @@ impl_variant!(
     GameFightFighterMonsterLightInformations| GameFightFighterMonsterLightInformations,
     GameFightFighterTaxCollectorLightInformations| GameFightFighterTaxCollectorLightInformations,
     GameFightFighterCompanionLightInformations| GameFightFighterCompanionLightInformations
+);
+
+impl_variant!(
+    StatisticDataVariant,
+    StatisticData| StatisticData,
+    StatisticDataBoolean| StatisticDataBoolean,
+    StatisticDataByte| StatisticDataByte,
+    StatisticDataInt| StatisticDataInt,
+    StatisticDataShort| StatisticDataShort,
+    StatisticDataString| StatisticDataString
 );

@@ -5,11 +5,24 @@ use protocol::io::ReadExt;
 use std::collections::VecDeque;
 
 struct Buffer(Vec<u8>, usize);
-pub struct Packet(pub u16, pub Cursor<Vec<u8>>);
 
 impl Buffer {
     fn new(len: usize) -> Self {
         Buffer(vec![0; len], 0)
+    }
+}
+
+pub struct Packet {
+    pub id: u16,
+    pub data: Vec<u8>,
+}
+
+impl Packet {
+    fn new(id: u16, data: Vec<u8>) -> Self {
+        Packet {
+            id: id,
+            data: data,
+        }
     }
 }
 
@@ -48,8 +61,11 @@ impl Connection {
         &self.socket
     }
 
-    pub fn readable(&mut self) -> Result<Option<Packet>> {
-        let Buffer(mut buf, pos) = self.read_buffer.take().unwrap();
+    pub fn read(&mut self) -> Result<Option<Packet>> {
+        let Buffer(mut buf, pos) = match self.read_buffer.take() {
+            Some(buf) => buf,
+            None => return Err(Error::new(ErrorKind::Other, "EOF")),
+        };
 
         let s = match try!(self.socket.try_read(&mut buf[pos..])) {
             None | Some(0) => return Err(Error::new(ErrorKind::Other, "EOF")),
@@ -61,18 +77,19 @@ impl Connection {
             return Ok(None);
         }
 
-        let mut buf = Cursor::new(buf);
         match self.state {
             State::WaitingForHeader => {
+                let mut buf = Cursor::new(buf);
                 let header = try!(buf.read_u16());
                 let id = header >> 2;
                 let nbytes = header & 3;
 
+                // if there is no data (header-only packet)
                 if nbytes == 0 {
                     self.state = State::WaitingForHeader;
                     self.read_buffer = Some(Buffer::new(2));
 
-                    return Ok(Some(Packet(id, Cursor::new(Vec::new()))));
+                    return Ok(Some(Packet::new(id, Vec::new())));
                 }
 
                 self.state = State::WaitingForLen(id);
@@ -81,6 +98,7 @@ impl Connection {
 
             State::WaitingForLen(id) => {
                 let mut len = 0u32;
+                let mut buf = Cursor::new(buf);
                 for _ in 0..buf.get_ref().len() {
                     len = (len << 8) + (try!(buf.read_u8()) as u32);
                 }
@@ -91,14 +109,14 @@ impl Connection {
             State::WaitingForData(id) => {
                 self.state = State::WaitingForHeader;
                 self.read_buffer = Some(Buffer::new(2));
-                return Ok(Some(Packet(id, buf)));
+                return Ok(Some(Packet::new(id, buf)));
             }
         }
 
         Ok(None)
     }
 
-    pub fn writable(&mut self) -> Result<bool> {
+    pub fn write(&mut self) -> Result<bool> {
         if self.write_buffer.is_empty() {
             return Ok(true)
         }
@@ -127,7 +145,7 @@ impl Connection {
         Ok(true)
     }
 
-    pub fn push(&mut self, buffer: Vec<u8>, close: bool) {
+    pub fn push_packet(&mut self, buffer: Vec<u8>, close: bool) {
         self.close_on_next_write = close;
         self.write_buffer.push_front(Buffer(buffer, 0));
     }

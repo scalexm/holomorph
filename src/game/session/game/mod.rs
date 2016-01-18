@@ -30,7 +30,7 @@ use protocol::variants::{
 };
 
 pub struct CharacterRef {
-    id: i32,
+    id: i64,
     map_id: i32,
     movements: Option<Vec<i16>>,
 }
@@ -99,7 +99,7 @@ impl AccountData {
 enum GameState {
     None,
     TicketQueue(isize, isize),
-    CharacterSelection(HashMap<i32, CharacterMinimal>), // at this point, self.account is some
+    CharacterSelection(HashMap<i64, CharacterMinimal>), // at this point, self.account is some
     GameQueue(isize, isize),
     SwitchingContext(i32, Character),
     InContext(CharacterRef),

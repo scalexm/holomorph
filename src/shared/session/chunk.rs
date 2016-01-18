@@ -6,6 +6,7 @@ use std::boxed::FnBox;
 use std::ops::{Deref, DerefMut};
 use protocol;
 use time;
+use std::io::Cursor;
 
 pub struct Chunk<T: Session<U>, U> {
     pub sessions: HashMap<Token, T>,
@@ -105,6 +106,7 @@ impl<T: Session<U>, U> Chunk<T, U> {
 
             SessionEvent::Packet(tok, id, data) => {
                 if let Some(session) = self.sessions.get_mut(&tok) {
+                    let data = Cursor::new(data);
                     let time_point = time::precise_time_ns();
                     debug!(
                         "received {}: {}",

@@ -13,6 +13,10 @@ impl Session {
             _ => return Ok(()),
         };
 
+        if ch.movements.is_some() {
+            return Ok(());
+        }
+
         let map_id: i32 = match msg.base.content.split(" ").last().map(|id| id.parse()) {
             Some(Ok(map_id)) => map_id,
             _ => return Ok(()),

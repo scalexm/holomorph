@@ -42,7 +42,7 @@ pub struct Session {
     base: shared::session::SessionBase,
     account: Option<AccountData>,
     queue_state: QueueState,
-    custom_identification: bool,
+    salt: String,
     aes_key: Vec<u8>,
     character_counts: HashMap<i16, i8>,
 }

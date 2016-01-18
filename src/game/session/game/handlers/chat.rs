@@ -51,7 +51,7 @@ impl Session {
                     timestamp: time::get_time().sec as i32,
                     fingerprint: String::new(),
                 },
-                sender_id: ch.minimal().id(),
+                sender_id: ch.minimal().id() as f64,
                 sender_name: ch.minimal().name().to_string(),
                 sender_account_id: self.account.as_ref().unwrap().id,
             }
@@ -176,7 +176,7 @@ impl Session {
         };
 
         let buf = ChatSmileyMessage {
-            entity_id: ch.id,
+            entity_id: ch.id as f64,
             smiley_id: msg.smiley_id,
             account_id: self.account.as_ref().unwrap().id,
         }.as_packet().unwrap();

@@ -8,7 +8,7 @@ use protocol::types::game::character::characteristic::*;
 use protocol::types::game::character::alignment::*;
 use protocol::types::game::character::restriction::*;
 use protocol::types::game::context::roleplay::*;
-use protocol::types::game::context::*;
+use protocol::types::game::context::{EntityDispositionInformations, GameContextActorInformations};
 use stats::{self, Type};
 use stats::row::Field;
 use shared::net::Token;
@@ -19,7 +19,7 @@ use shared::database::schema::{character_minimals, characters};
 #[insertable_into(character_minimals)]
 #[changeset_for(character_minimals)]
 pub struct CharacterMinimal {
-    id: i32,
+    id: i64,
     account_id: i32,
     account_nickname: String,
     level: i16,
@@ -45,7 +45,7 @@ impl CharacterMinimal {
         self.mood_smiley = mood;
     }
 
-    pub fn id(&self) -> i32 {
+    pub fn id(&self) -> i64 {
         self.id
     }
 
@@ -66,7 +66,7 @@ impl CharacterMinimal {
             base: CharacterMinimalPlusLookInformations {
                 base: CharacterMinimalInformations {
                     base: AbstractCharacterInformation {
-                        id: VarInt(self.id),
+                        id: VarLong(self.id),
                     },
                     level: self.level as i8,
                     name: self.name.clone(),
@@ -83,7 +83,6 @@ impl CharacterMinimal {
 #[insertable_into(characters)]
 #[changeset_for(characters)]
 pub struct SqlCharacter {
-    id: i32,
     xp: i64,
     kamas: i32,
     stats_points: i16,
@@ -182,7 +181,6 @@ impl Character {
         use diesel::query_builder::update;
 
         let sql = SqlCharacter {
-            id: self.base.id,
             xp: self.xp,
             kamas: self.kamas,
             stats_points: self.stats_points,
@@ -258,7 +256,7 @@ impl Character {
             alignment_side: 0,
             alignment_value: 0,
             alignment_grade: 0,
-            character_power: VarInt(0),
+            character_power: 0.,
         }
     }
 
@@ -268,7 +266,7 @@ impl Character {
                 base: GameRolePlayNamedActorInformations {
                     base: GameRolePlayActorInformations {
                         base: GameContextActorInformations {
-                            contextual_id: self.base.id,
+                            contextual_id: self.base.id as f64,
                             look: self.base.look.clone(),
                             disposition: EntityDispositionInformations {
                                 cell_id: self.cell_id,
@@ -433,6 +431,8 @@ impl Character {
                 self.stats.as_base_characteristic(Type::PvpAirElementReduction),
             pvp_fire_element_reduction:
                 self.stats.as_base_characteristic(Type::PvpFireElementReduction),
+            rune_bonus_percent:
+                self.stats.as_base_characteristic(Type::RuneBonusPercent),
             spell_modifications: Vec::new(),
             probation_time: 0,
         }

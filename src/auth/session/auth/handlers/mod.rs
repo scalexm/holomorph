@@ -15,6 +15,7 @@ use server::SERVER;
 use protocol::enums::server_status;
 use shared::{self, database};
 use std::collections::HashMap;
+use rand::{self, Rng};
 
 impl shared::session::Session<ChunkImpl> for Session {
     fn new(base: shared::session::SessionBase) -> Self {
@@ -25,9 +26,11 @@ impl shared::session::Session<ChunkImpl> for Session {
             current_version: 1658,
         }.as_packet_with_buf(&mut buf).unwrap();
 
+        let salt = rand::thread_rng().gen_ascii_chars().take(32).collect::<String>();
+
         HelloConnectMessage {
-            salt: "salut".to_string(),
-            key: VarIntVec(SERVER.with(|s| (*s.key).clone())),
+            salt: salt.clone(),
+            key: VarIntVec(SERVER.with(|s| (*s.signed_pub_key).clone())),
         }.as_packet_with_buf(&mut buf).unwrap();
 
         write!(SERVER, base.token, buf);
@@ -36,7 +39,7 @@ impl shared::session::Session<ChunkImpl> for Session {
             base: base,
             account: None,
             queue_state: QueueState::None,
-            custom_identification: false,
+            salt: salt,
             aes_key: Vec::new(),
             character_counts: HashMap::new(),
         }

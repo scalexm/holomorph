@@ -31,21 +31,21 @@ pub struct AuthServerData {
     pub server: server::Sender,
     pub io_loop: net::Sender,
     pub db: database::Sender,
-    pub key: Arc<Vec<u8>>,
-    pub patch: Arc<Vec<u8>>,
+    pub signed_pub_key: Arc<Vec<u8>>,
+    pub priv_key: Arc<Vec<u8>>,
     pub cnf: Arc<Config>,
     pub game_servers: Arc<HashMap<i16, GameServerData>>,
 }
 
 impl AuthServerData {
-    pub fn new(server: server::Sender, io_loop: net::Sender, db: database::Sender, key: Vec<u8>,
-               patch: Vec<u8>, cnf: Config) -> Self {
+    pub fn new(server: server::Sender, io_loop: net::Sender, db: database::Sender,
+               signed_pub_key: Vec<u8>, priv_key: Vec<u8>, cnf: Config) -> Self {
             AuthServerData {
                 server: server,
                 io_loop: io_loop,
                 db: db,
-                key: Arc::new(key),
-                patch: Arc::new(patch),
+                signed_pub_key: Arc::new(signed_pub_key),
+                priv_key: Arc::new(priv_key),
                 cnf: Arc::new(cnf),
                 game_servers: Arc::new(HashMap::new()),
             }

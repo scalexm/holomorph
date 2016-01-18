@@ -2,7 +2,7 @@ use session::game::{Session, AccountData, GameState, SocialInformations};
 use session::game::handlers::{UpdateSqlAccount, SqlRelations};
 use session::game::handlers::error::Error;
 use session::game::chunk::Ref;
-use protocol::{Protocol, Flag};
+use protocol::{Protocol, Flag, VarInt};
 use protocol::messages::game::approach::*;
 use protocol::messages::queues::*;
 use protocol::messages::game::basic::*;
@@ -131,7 +131,7 @@ fn authenticate(conn: &Connection, ticket: String, server_id: i16, addr: String)
 
 impl Session {
     fn identification_success(&mut self, data: AccountData,
-                             characters: HashMap<i32, CharacterMinimal>) {
+                             characters: HashMap<i64, CharacterMinimal>) {
         log_info!(self, "game connection: ip = {}", self.base.address);
 
         let mut buf = QueueStatusMessage {
@@ -164,8 +164,8 @@ impl Session {
             tutorial_available: Flag(false),
             can_create_new_character: Flag(characters.len() < 5),
             account_id: data.id,
-            breeds_visible: -1,
-            breeds_available: -1,
+            breeds_visible: VarInt(-1),
+            breeds_available: VarInt(-1),
             status: player_status::IDLE,
         }.as_packet_with_buf(&mut buf).unwrap();
 

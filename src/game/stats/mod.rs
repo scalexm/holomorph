@@ -64,6 +64,7 @@ pub enum Type {
     PvpWaterElementReduction,
     PvpAirElementReduction,
     PvpFireElementReduction,
+    RuneBonusPercent,
 }
 
 macro_rules! fill_stats {
@@ -135,7 +136,8 @@ lazy_static! {
         PvpEarthElementReduction,
         PvpWaterElementReduction,
         PvpAirElementReduction,
-        PvpFireElementReduction
+        PvpFireElementReduction,
+        RuneBonusPercent
     );
 }
 
