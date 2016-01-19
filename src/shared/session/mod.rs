@@ -77,7 +77,6 @@ impl SessionBase {
     }
 
     pub fn save_logs(&self, conn: &Connection, account_id: i32) -> QueryResult<()> {
-        use diesel::query_builder::insert;
         try!(conn.transaction(|| {
             let logs = self.logs.borrow();
             let rows: Vec<_> = logs.iter()

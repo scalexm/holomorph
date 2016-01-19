@@ -5,7 +5,7 @@ use shared;
 use std::collections::HashMap;
 use time;
 
-#[derive(Queriable)]
+#[derive(Queryable)]
 struct AccountData {
     id: i32,
     account: String,

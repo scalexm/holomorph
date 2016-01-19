@@ -12,7 +12,6 @@ use server::SERVER;
 pub struct Error(i8, i8);
 
 fn update_ticket(conn: &Connection, id: i32, ticket: &str) -> QueryResult<()> {
-    use diesel::query_builder::update;
     use shared::database::schema::accounts;
 
     update(

@@ -37,7 +37,7 @@ impl From<result::TransactionError<Error>> for Error {
     }
 }
 
-#[derive(Queriable)]
+#[derive(Queryable)]
 struct Credentials {
     password: String,
     salt: String,

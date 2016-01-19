@@ -211,7 +211,7 @@ struct UpdateSqlAccount {
     channels: Option<Vec<i16>>,
 }
 
-#[derive(Queriable)]
+#[derive(Queryable)]
 #[changeset_for(social_relations)]
 struct SqlRelations {
     friends: Vec<i32>,
@@ -222,8 +222,6 @@ struct SqlRelations {
 
 impl Session {
     fn save_auth(conn: &Connection, account: AccountData) -> QueryResult<()> {
-        use diesel::query_builder::update;
-
         try!(conn.transaction(move || {
             let _ = try!(
                 update(

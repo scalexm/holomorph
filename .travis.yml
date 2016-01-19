@@ -1,4 +1,4 @@
 language: rust
 sudo: false
 rust:
-  - nightly-2016-01-04
+  - nightly

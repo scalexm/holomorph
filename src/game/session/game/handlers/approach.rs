@@ -24,7 +24,7 @@ use shared::database::schema::connections_history;
 pub static QUEUE_SIZE: AtomicIsize = ATOMIC_ISIZE_INIT;
 pub static QUEUE_COUNTER: AtomicIsize = ATOMIC_ISIZE_INIT;
 
-#[derive(Queriable)]
+#[derive(Queryable)]
 struct SqlAccount {
     id: i32,
     nickname: String,
@@ -34,7 +34,7 @@ struct SqlAccount {
     channels: Vec<i16>,
 }
 
-#[derive(Queriable)]
+#[derive(Queryable)]
 #[insertable_into(connections_history)]
 struct HistoryEntry {
     date: i64,
@@ -45,7 +45,6 @@ struct HistoryEntry {
 fn authenticate(conn: &Connection, ticket: String, server_id: i16, addr: String)
                 -> Result<AccountData, Error> {
     use shared::database::schema::{accounts, social_relations};
-    use diesel::query_builder::{insert, update};
 
     let account: Option<SqlAccount> = try!(
         accounts::table.filter(accounts::ticket.eq(&ticket))

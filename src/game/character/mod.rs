@@ -15,7 +15,7 @@ use shared::net::Token;
 use diesel::*;
 use shared::database::schema::{character_minimals, characters};
 
-#[derive(Clone, Queriable)]
+#[derive(Clone, Queryable)]
 #[insertable_into(character_minimals)]
 #[changeset_for(character_minimals)]
 pub struct CharacterMinimal {
@@ -32,8 +32,6 @@ pub struct CharacterMinimal {
 
 impl CharacterMinimal {
     pub fn save(&self, conn: &Connection) -> QueryResult<()> {
-        use diesel::query_builder::update;
-
         let _ = try!(update(
             character_minimals::table.filter(character_minimals::id.eq(&self.id))
         ).set(self)
@@ -79,7 +77,7 @@ impl CharacterMinimal {
     }
 }
 
-#[derive(Queriable)]
+#[derive(Queryable)]
 #[insertable_into(characters)]
 #[changeset_for(characters)]
 pub struct SqlCharacter {
@@ -178,8 +176,6 @@ impl Character {
     }
 
     pub fn save(&self, conn: &Connection, map: i32) -> QueryResult<()> {
-        use diesel::query_builder::update;
-
         let sql = SqlCharacter {
             xp: self.xp,
             kamas: self.kamas,

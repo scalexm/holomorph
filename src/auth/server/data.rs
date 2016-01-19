@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use diesel::*;
 use server;
 
-#[derive(Queriable)]
+#[derive(Queryable)]
 pub struct GameServerData {
     id: i16,
     key: String,

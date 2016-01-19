@@ -14,8 +14,8 @@ shared = { path = "src/shared" }
 protocol = { path = "src/protocol" }
 diesel = { git = "https://github.com/sgrif/diesel", features = ["large-tables"] }
 diesel_codegen = { git = "https://github.com/sgrif/diesel", default-features = false, features = ["nightly"] }
-quasi = { version = "^0.3.11", default-features = false }
-quasi_macros = { version = "^0.3.11" }
+quasi = { version = "^0.4.0", default-features = false }
+quasi_macros = { version = "^0.4.0" }
 eventual = { git = "https://github.com/carllerche/eventual" }
 openssl = "*"
 

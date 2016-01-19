@@ -19,7 +19,7 @@ use std::collections::HashMap;
 
 lazy_static! { pub static ref GRID: Vec<(i8, i8)> = init_grid(); }*/
 
-#[derive(Queriable)]
+#[derive(Queryable)]
 pub struct MapData {
     id: i32,
     pos_x: i16,
@@ -111,7 +111,7 @@ impl MapData {
     }
 }
 
-#[derive(Queriable)]
+#[derive(Queryable)]
 pub struct SubAreaData {
     id: i16,
     area_id: i16,
@@ -134,7 +134,7 @@ impl SubAreaData {
     }
 }
 
-#[derive(Queriable)]
+#[derive(Queryable)]
 pub struct AreaData {
     id: i16,
     priority: i16,
