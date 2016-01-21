@@ -17,10 +17,10 @@ macro_rules! build_message {
             ChatServerWithObjectMessage {
                 base: $msg,
                 objects: $items,
-            }.as_packet().unwrap()
+            }.unwrap()
         }
         else {
-            $msg.as_packet().unwrap()
+            $msg.unwrap()
         }
     };
 }
@@ -34,7 +34,7 @@ impl Session {
         };
 
         if !self.account.as_ref().unwrap().channels.contains(&(msg.channel as u8)) {
-            let buf = BasicNoOperationMessage.as_packet().unwrap();
+            let buf = BasicNoOperationMessage.unwrap();
             write!(SERVER, self.base.token, buf);
             return;
         }
@@ -77,7 +77,7 @@ impl Session {
                     msg_type: text_information_type::MESSAGE,
                     msg_id: VarShort(115),
                     parameters: vec![(*last_request + 60 - now).to_string()],
-                }.as_packet().unwrap();
+                }.unwrap();
                 write!(SERVER, self.base.token, buf);
                 return ();
             }
@@ -136,7 +136,7 @@ impl Session {
         let buf = ChannelEnablingChangeMessage {
             channel: msg.channel,
             enable: msg.enable,
-        }.as_packet().unwrap();
+        }.unwrap();
 
         write!(SERVER, self.base.token, buf);
         Ok(())
@@ -179,7 +179,7 @@ impl Session {
             entity_id: ch.id as f64,
             smiley_id: msg.smiley_id,
             account_id: self.account.as_ref().unwrap().id,
-        }.as_packet().unwrap();
+        }.unwrap();
         chunk.maps.get(&ch.map_id).unwrap().send(buf);
 
         Ok(())
@@ -199,7 +199,7 @@ impl Session {
         let buf = MoodSmileyResultMessage {
             result_code: 0,
             smiley_id: msg.smiley_id,
-        }.as_packet().unwrap();
+        }.unwrap();
         write!(SERVER, self.base.token, buf);
         Ok(())
     }

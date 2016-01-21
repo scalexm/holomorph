@@ -1,4 +1,5 @@
 mod map;
+mod breed;
 
 use std::sync::Arc;
 use config::Config;
@@ -6,6 +7,7 @@ use shared::{net, database};
 use diesel::*;
 use character::CharacterMinimal;
 use self::map::*;
+use self::breed::*;
 use std::collections::{HashMap, LinkedList};
 use server::{self, Server};
 use std::sync::mpsc;
@@ -20,6 +22,8 @@ pub struct GameServerData {
     pub maps: Arc<HashMap<i32, MapData>>,
     pub sub_areas: Arc<HashMap<i16, SubAreaData>>,
     pub areas: Arc<HashMap<i16, AreaData>>,
+    pub breeds: Arc<HashMap<i16, BreedData>>,
+    pub heads: Arc<HashMap<i16, HeadData>>,
     shutdown: mpsc::Sender<()>,
 }
 
@@ -35,12 +39,21 @@ impl GameServerData {
             maps: Arc::new(HashMap::new()),
             sub_areas: Arc::new(HashMap::new()),
             areas: Arc::new(HashMap::new()),
+            breeds: Arc::new(HashMap::new()),
+            heads: Arc::new(HashMap::new()),
             shutdown: shutdown,
         }
     }
 
     pub fn load(&mut self, conn: &Connection) {
-        use shared::database::schema::{areas, sub_areas, maps, map_positions};
+        use shared::database::schema::{
+            areas,
+            sub_areas,
+            maps,
+            map_positions,
+            breeds,
+            breed_heads
+        };
 
         self.areas = Arc::new(
             areas::table.load::<AreaData>(conn)
@@ -91,6 +104,28 @@ impl GameServerData {
                        .collect()
         );
         info!("loaded {} maps", self.maps.len());
+
+        self.breeds = Arc::new(
+            breeds::table.select((
+                breeds::id,
+                breeds::male_look,
+                breeds::female_look,
+                breeds::spawn_map
+            ))
+            .load::<BreedData>(conn)
+            .unwrap()
+            .map(|b| (b.id(), b))
+            .collect()
+        );
+        info!("loaded {} breeds", self.breeds.len());
+
+        self.heads = Arc::new(
+            breed_heads::table.load::<HeadData>(conn)
+                              .unwrap()
+                              .map(|h| (h.id(), h))
+                              .collect()
+        );
+        info!("loaded {} breed heads", self.heads.len());
     }
 
     pub fn shutdown(&self) {

@@ -6,14 +6,6 @@ use std::boxed::FnBox;
 use std::thread::{self, JoinHandle};
 use std::collections::LinkedList;
 
-// same as Connection::connect but panics on failure
-pub fn connect(uri: &str) -> Connection {
-    match Connection::establish(uri) {
-        Ok(conn) => conn,
-        Err(err) => panic!("database connection failed: {}", err),
-    }
-}
-
 pub type Thunk = Box<FnBox(&Connection) + Send + 'static>;
 pub type Sender = mpsc::Sender<Thunk>;
 
@@ -30,7 +22,7 @@ pub fn spawn_threads(threads: usize, uri: &str, joins: &mut LinkedList<JoinHandl
         let uri = uri.to_string();
 
         joins.push_back(thread::spawn(move || {
-            let conn = connect(&uri);
+            let conn = Connection::establish(&uri).unwrap();
             loop {
                 // we acquire the lock only for receiving, not for executing a job
                 let msg = {

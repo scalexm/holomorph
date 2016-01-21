@@ -97,7 +97,7 @@ pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32,
         if let Some(tok) = server.game_session_ids.get(&already_logged) {
             let buf = DisconnectPlayerMessage {
                 id: id,
-            }.as_packet().unwrap();
+            }.unwrap();
             write!(SERVER, *tok, buf);
         }
 

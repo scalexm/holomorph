@@ -1,5 +1,6 @@
 use std::io::{Read, Write, Result};
 use io::{ReadExt, WriteExt};
+use std::fmt::Debug;
 
 #[derive(Clone, Debug)]
 pub struct VarInt(pub i32);
@@ -42,7 +43,7 @@ fn set_flag(flag: u8, offset: u8, value: bool) -> u8 {
     }
 }
 
-pub trait Protocol: Sized {
+pub trait Protocol: Sized + Debug {
     fn deserialize<R: Read>(&mut R) -> Result<Self>;
     fn serialize<W: Write>(&self, &mut W) -> Result<()>;
 
@@ -63,16 +64,30 @@ pub trait Protocol: Sized {
         self.serialize(wtr)
     }
 
-    fn as_packet_with_buf(&self, packet: &mut Vec<u8>) -> Result<()> {
-        let mut buf = Vec::new();
-        try!(self.serialize(&mut buf));
-        packet.write_packet(Self::id() as u16, &buf)
+    fn as_packet(&self, buf: &mut Vec<u8>) -> Result<()> {
+        let mut packet = Vec::new();
+        try!(self.serialize(&mut packet));
+        buf.write_packet(Self::id() as u16, &packet)
     }
 
-    fn as_packet(&self) -> Result<Vec<u8>> {
-        let mut packet = Vec::new();
-        try!(self.as_packet_with_buf(&mut packet));
-        Ok(packet)
+    fn unwrap_with_buf(&self, buf: &mut Vec<u8>) {
+        match self.as_packet(buf) {
+            Ok(()) => (),
+            Err(err) => {
+                panic!(
+                    "serialization failed: {:?}\npacket_id: {}\ncontent: {:?}",
+                    err,
+                    Self::id(),
+                    self
+                )
+            }
+        }
+    }
+
+    fn unwrap(&self) -> Vec<u8> {
+        let mut buf = Vec::new();
+        self.unwrap_with_buf(&mut buf);
+        buf
     }
 }
 
@@ -129,18 +144,17 @@ impl Protocol for Flag {
 
     fn _serialize<W: Write>(&self, wtr: &mut W, flag: &mut Option<u8>, offset: &mut u8)
                             -> Result<()> {
+        let mut byte = flag.unwrap_or(0);
 
-            let mut byte = flag.unwrap_or(0);
+        if *offset == 8 {
+            try!(wtr.write_u8(byte));
+            *offset = 0;
+        }
 
-            if *offset == 8 {
-                try!(wtr.write_u8(byte));
-                *offset = 0;
-            }
-
-            byte = set_flag(byte, *offset, self.0);
-            *offset += 1;
-            *flag = Some(byte);
-            Ok(())
+        byte = set_flag(byte, *offset, self.0);
+        *offset += 1;
+        *flag = Some(byte);
+        Ok(())
     }
 
     fn id() -> i16 {

@@ -79,7 +79,7 @@ pub fn teleport_character(chunk: &mut Chunk, mut ch: Character, map_id: i32, cel
         let buf = CurrentMapMessage {
             map_id: map_id,
             map_key: "bite".to_string(),
-        }.as_packet().unwrap();
+        }.unwrap();
 
         write!(SERVER, tok, buf);
         return ();

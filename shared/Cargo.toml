@@ -12,7 +12,7 @@ rand = "*"
 log = "*"
 diesel = { git = "https://github.com/sgrif/diesel" }
 diesel_codegen = { git = "https://github.com/sgrif/diesel", default-features = false, features = ["nightly"] }
-protocol = { path = "../protocol" }
+protocol = { path = "../protocol", features = ["diesel"] }
 
 [dependencies.eventual]
 git = "https://github.com/carllerche/eventual"
@@ -22,4 +22,4 @@ debug = true
 
 [lib]
 name = "shared"
-path = "lib.rs"
+path = "src/lib.rs"

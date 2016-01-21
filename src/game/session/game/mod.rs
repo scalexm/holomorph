@@ -88,6 +88,8 @@ struct AccountData {
     last_ip: String,
     social: SocialInformations,
     channels: HashSet<u8>,
+    characters_count: i8,
+    max_characters_count: i8,
 }
 
 impl AccountData {

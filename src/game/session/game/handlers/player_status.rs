@@ -16,7 +16,7 @@ impl Session {
 
         if let PlayerStatusVariant::PlayerStatusExtended(ref mut status) = status {
             if status.base.status_id != player_status::AFK || status.message.len() > 200 {
-                let buf = PlayerStatusUpdateErrorMessage.as_packet().unwrap();
+                let buf = PlayerStatusUpdateErrorMessage.unwrap();
                 write!(SERVER, self.base.token, buf);
                 return;
             }
@@ -31,7 +31,7 @@ impl Session {
             account_id: account.id,
             player_id: VarLong(ch.id),
             status: status.clone(),
-        }.as_packet().unwrap();
+        }.unwrap();
         write!(SERVER, self.base.token, buf);
 
         SERVER.with(|s| social::update_player_status(&s.server, account.id, ch.id, status));

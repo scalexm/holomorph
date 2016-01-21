@@ -53,27 +53,27 @@ impl Session {
             chunk::teleport_character(chunk, ch, map_id, cell_id)
         });
 
-        let mut buf = GameContextDestroyMessage.as_packet().unwrap();
+        let mut buf = GameContextDestroyMessage.unwrap();
 
         GameContextCreateMessage {
             context: 1,
-        }.as_packet_with_buf(&mut buf).unwrap();
+        }.unwrap_with_buf(&mut buf);
 
         let account = self.account.as_ref().unwrap();
 
         FriendWarnOnConnectionStateMessage {
             enable: account.social.warn_on_connection,
-        }.as_packet_with_buf(&mut buf).unwrap();
+        }.unwrap_with_buf(&mut buf);
 
         FriendWarnOnLevelGainStateMessage {
             enable: account.social.warn_on_level_gain,
-        }.as_packet_with_buf(&mut buf).unwrap();
+        }.unwrap_with_buf(&mut buf);
 
         TextInformationMessage {
             msg_type: text_information_type::ERROR,
             msg_id: VarShort(89),
             parameters: Vec::new(),
-        }.as_packet_with_buf(&mut buf).unwrap();
+        }.unwrap_with_buf(&mut buf);
 
         let last_connection = self.account.as_ref().unwrap().last_connection;
         if last_connection != 0 {
@@ -105,14 +105,14 @@ impl Session {
                 msg_type: text_information_type::MESSAGE,
                 msg_id: VarShort(if diff { 152 } else { 193 }),
                 parameters: parameters,
-            }.as_packet_with_buf(&mut buf).unwrap();
+            }.unwrap_with_buf(&mut buf);
 
             if diff {
                 TextInformationMessage {
                     msg_type: text_information_type::MESSAGE,
                     msg_id: VarShort(153),
                     parameters: vec![self.base.address.clone()],
-                }.as_packet_with_buf(&mut buf).unwrap();
+                }.unwrap_with_buf(&mut buf);
             }
         }
 
@@ -128,7 +128,7 @@ impl Session {
                 msg_type: text_information_type::MESSAGE,
                 msg_id: VarShort(197),
                 parameters: vec![friends_count.to_string()],
-            }.as_packet_with_buf(&mut buf).unwrap();
+            }.unwrap_with_buf(&mut buf);
         }
 
         write!(SERVER, self.base.token, buf);
@@ -144,10 +144,7 @@ impl Session {
         };
 
         let map = chunk.maps.get(&ch.map_id).unwrap();
-        let buf = map
-            .get_complementary_informations()
-            .as_packet()
-            .unwrap();
+        let buf = map.get_complementary_informations().unwrap();
 
         write!(SERVER, self.base.token, buf);
 
@@ -193,7 +190,7 @@ impl Session {
         ch.set_cell_id(new_cell);
         ch.set_direction(new_dir);
 
-        write!(SERVER, self.base.token, BasicNoOperationMessage.as_packet().unwrap());
+        write!(SERVER, self.base.token, BasicNoOperationMessage.unwrap());
 
         Ok(())
     }

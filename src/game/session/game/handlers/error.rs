@@ -1,4 +1,5 @@
 use diesel::*;
+use std::error::Error as StdError;
 
 pub enum Error {
     Sql(result::Error),
@@ -8,6 +9,12 @@ pub enum Error {
 impl From<result::Error> for Error {
     fn from(err: result::Error) -> Error {
         Error::Sql(err)
+    }
+}
+
+impl From<result::ConnectionError> for Error {
+    fn from(err: result::ConnectionError) -> Error {
+        Error::Sql(result::Error::DatabaseError(err.description().to_string()))
     }
 }
 

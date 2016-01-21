@@ -31,9 +31,9 @@ impl shared::session::Session<ChunkImpl> for Session {
         let mut buf = ProtocolRequired {
             required_version: 1658,
             current_version: 1658,
-        }.as_packet().unwrap();
+        }.unwrap();
 
-        HelloGameMessage.as_packet_with_buf(&mut buf).unwrap();
+        HelloGameMessage.unwrap_with_buf(&mut buf);
 
         write!(SERVER, base.token, buf);
 
@@ -77,6 +77,9 @@ impl shared::session::Session<ChunkImpl> for Session {
         use protocol::messages::game::character::choice::{
             CharactersListRequestMessage,
             CharacterSelectionMessage,
+        };
+        use protocol::messages::game::character::creation::{
+            CharacterCreationRequestMessage,
         };
         use protocol::messages::authorized::{
             AdminQuietCommandMessage,
@@ -156,7 +159,7 @@ impl Session {
         let buf = QueueStatusMessage {
             position: pos as i16,
             total: global_queue_size as i16,
-        }.as_packet().unwrap();
+        }.unwrap();
 
         write!(SERVER, self.base.token, buf);
     }
@@ -183,7 +186,7 @@ impl Session {
                         msg_id: VarShort(143),
                         parameters: vec![ch.name().to_string(), ch.account_nickname().to_string(),
                                          account_id.to_string()],
-                    }.as_packet().unwrap();
+                    }.unwrap();
                     write!(SERVER, self.base.token, buf);
                 },
 

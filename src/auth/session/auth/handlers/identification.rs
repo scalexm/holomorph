@@ -45,7 +45,7 @@ struct Credentials {
 
 fn authenticate(conn: &Connection, account: String, password: String, addr: String)
                 -> Result<(AccountData, HashMap<i16, i8>), Error> {
-    use shared::database::schema::{accounts, ip_bans, character_counts};
+    use shared::database::schema::{accounts, ip_bans, character_counts, lower};
 
     let ip_ban: Option<i32> = try!(
         ip_bans::table.filter(ip_bans::ip.eq(&addr))
@@ -58,7 +58,8 @@ fn authenticate(conn: &Connection, account: String, password: String, addr: Stri
         return Err(Error::Reason(identification_failure_reason::WRONG_CREDENTIALS));
     }
 
-    let filter = accounts::table.filter(accounts::account.eq(&account));
+    let lower_account = account.to_lowercase();
+    let filter = accounts::table.filter(lower(accounts::account).eq(&lower_account));
 
     let ban_end: i64 = match try!(filter.select(accounts::ban_end)
                                         .first(conn)
@@ -129,7 +130,7 @@ impl Session {
         let mut buf = LoginQueueStatusMessage {
             position: 0,
             total: 0,
-        }.as_packet().unwrap();
+        }.unwrap();
 
         IdentificationSuccessMessage {
             has_rights: Flag(data.level > 0),
@@ -146,7 +147,7 @@ impl Session {
                 false => 0,
             } as f64,
             havenbag_available_room: 0,
-        }.as_packet_with_buf(&mut buf).unwrap();
+        }.unwrap_with_buf(&mut buf);
 
         write!(SERVER, self.base.token, buf);
 
@@ -170,7 +171,7 @@ impl Session {
             servers: servers,
             already_connected_to_server_id: VarShort(data.already_logged),
             can_create_new_character: true,
-        }.as_packet().unwrap();
+        }.unwrap();
 
         write!(SERVER, self.base.token, buf);
     }
@@ -253,18 +254,18 @@ impl Session {
                                     reason: identification_failure_reason::BANNED,
                                 },
                                 ban_end_date: (ban_end * 1000) as f64,
-                            }.as_packet().unwrap(),
+                            }.unwrap(),
 
                         Error::Reason(reason) =>
                             IdentificationFailedMessage {
                                 reason: reason,
-                            }.as_packet().unwrap(),
+                            }.unwrap(),
 
                         Error::Sql(err) => {
                             error!("authenticate sql error: {}", err);
                             IdentificationFailedMessage {
                                 reason: identification_failure_reason::UNKNOWN_AUTH_ERROR,
-                            }.as_packet().unwrap()
+                            }.unwrap()
                         }
                     };
 

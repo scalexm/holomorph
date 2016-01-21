@@ -31,6 +31,7 @@ use std::collections::{HashSet, LinkedList};
 use session::{auth, game};
 use std::cmp::Ordering;
 use std::sync::mpsc;
+use diesel::Connection;
 
 struct ProgramState {
     io_loop: EventLoop<server::Server>,
@@ -60,7 +61,7 @@ fn start(args: &str) -> ProgramState {
 
     let (shutdown_tx, shutdown_rx) = mpsc::channel();
     let server_data = {
-        let conn = database::connect(&cnf.database_uri);
+        let conn = Connection::establish(&cnf.database_uri).unwrap();
         let mut server = server::Server::new();
         server.load(&conn);
 

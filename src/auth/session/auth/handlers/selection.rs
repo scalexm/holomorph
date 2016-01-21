@@ -68,7 +68,7 @@ impl Session {
             port: status.2,
             can_create_new_character: true,
             ticket: VarIntVec(result),
-        }.as_packet().unwrap();
+        }.unwrap();
 
         write!(SERVER, self.base.token, buf);
 
@@ -91,7 +91,7 @@ impl Session {
                         server_id: VarShort(server_id),
                         error: server_connection_error::NO_REASON,
                         server_status: status,
-                    }.as_packet().unwrap();
+                    }.unwrap();
                     let _ = io_loop.send(Msg::Write(tok, buf));
                 }
             }
@@ -116,7 +116,7 @@ impl Session {
                 server_id: VarShort(server_id),
                 error: err.0,
                 server_status: err.1,
-            }.as_packet().unwrap();
+            }.unwrap();
             write!(SERVER, self.base.token, buf);
         }
 

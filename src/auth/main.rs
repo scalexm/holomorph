@@ -31,6 +31,7 @@ use server::SYNC_SERVER;
 use std::collections::LinkedList;
 use std::sync::mpsc;
 use openssl::crypto::pkey::{EncryptionPadding, PKey};
+use diesel::Connection;
 
 struct ProgramState {
     io_loop: EventLoop<server::Server>,
@@ -59,7 +60,7 @@ fn start(args: &str) -> ProgramState {
     key.gen(2048);
 
     let server_data = {
-        let mut conn = database::connect(&cnf.database_uri);
+        let mut conn = Connection::establish(&cnf.database_uri).unwrap();
         let server = chunk::run(server::Server::new(), &mut join_handles);
 
         let mut server_data = AuthServerData::new(

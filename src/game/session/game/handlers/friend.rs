@@ -16,7 +16,7 @@ impl Session {
         let (f_id, infos) = (infos.0, infos.1.as_friend());
         let buf = FriendAddedMessage {
             friend_added: infos.clone(),
-        }.as_packet().unwrap();
+        }.unwrap();
         write!(SERVER, self.base.token, buf);
 
         let account = self.account.as_mut().unwrap();
@@ -30,7 +30,7 @@ impl Session {
         let buf = IgnoredAddedMessage {
             ignore_added: infos.clone(),
             session: for_session,
-        }.as_packet().unwrap();
+        }.unwrap();
         write!(SERVER, self.base.token, buf);
 
         if !for_session {
@@ -61,7 +61,7 @@ impl Session {
 
         let buf = FriendsListMessage {
             friends_list: self.friends_cache.values().cloned().collect(),
-        }.as_packet().unwrap();
+        }.unwrap();
 
         write!(SERVER, self.base.token, buf);
 
@@ -79,7 +79,7 @@ impl Session {
         let account = self.account.as_mut().unwrap();
         account.social.warn_on_connection = msg.enable;
 
-        let buf = BasicNoOperationMessage.as_packet().unwrap();
+        let buf = BasicNoOperationMessage.unwrap();
         write!(SERVER, self.base.token, buf);
 
         Ok(())
@@ -96,7 +96,7 @@ impl Session {
         let account = self.account.as_mut().unwrap();
         account.social.warn_on_level_gain = msg.enable;
 
-        let buf = BasicNoOperationMessage.as_packet().unwrap();
+        let buf = BasicNoOperationMessage.unwrap();
         write!(SERVER, self.base.token, buf);
 
         Ok(())
@@ -116,7 +116,7 @@ impl Session {
                     _ => Some(i.clone()),
                 }
             }).collect(),
-        }.as_packet().unwrap();
+        }.unwrap();
 
         write!(SERVER, self.base.token, buf);
 
@@ -137,7 +137,7 @@ impl Session {
              || (!account.is_subscriber() && friends_count >= 50) {
              let buf = FriendAddFailureMessage {
                  reason: 1,
-             }.as_packet().unwrap();
+             }.unwrap();
              write!(SERVER, self.base.token, buf);
              return Ok(());
          }
@@ -169,7 +169,7 @@ impl Session {
             let buf = FriendDeleteResultMessage {
                 success: false,
                 name: String::new()
-            }.as_packet().unwrap();
+            }.unwrap();
             write!(SERVER, self.base.token, buf);
             return Ok(());
         }
@@ -184,7 +184,7 @@ impl Session {
         let buf = FriendDeleteResultMessage {
             success: true,
             name: infos.name().to_string(),
-        }.as_packet().unwrap();
+        }.unwrap();
         write!(SERVER, self.base.token, buf);
 
         SERVER.with(|s| {
@@ -213,7 +213,7 @@ impl Session {
              || (!account.is_subscriber() && ignored_count >= 50) {
              let buf = IgnoredAddFailureMessage {
                  reason: 1,
-             }.as_packet().unwrap();
+             }.unwrap();
              write!(SERVER, self.base.token, buf);
              return Ok(());
          }
@@ -248,7 +248,7 @@ impl Session {
                 success: Flag(false),
                 session: Flag(msg.session),
                 name: String::new()
-            }.as_packet().unwrap();
+            }.unwrap();
             write!(SERVER, self.base.token, buf);
             return Ok(());
         }
@@ -263,7 +263,7 @@ impl Session {
             success: Flag(true),
             session: Flag(msg.session),
             name: infos.name().to_string(),
-        }.as_packet().unwrap();
+        }.unwrap();
         write!(SERVER, self.base.token, buf);
 
         SERVER.with(|s| {

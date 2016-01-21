@@ -52,11 +52,11 @@ macro_rules! failure {
             SocialState::Friend =>
                 FriendAddFailureMessage {
                     reason: $reason
-                }.as_packet().unwrap(),
+                }.unwrap(),
             SocialState::Ignored =>
                 IgnoredAddFailureMessage {
                     reason: $reason
-                }.as_packet().unwrap(),
+                }.unwrap(),
         }
     };
 }
@@ -141,10 +141,10 @@ macro_rules! build_message {
             ChatServerWithObjectMessage {
                 base: $msg,
                 objects: $items,
-            }.as_packet().unwrap()
+            }.unwrap()
         }
         else {
-            $msg.as_packet().unwrap()
+            $msg.unwrap()
         }
     };
 }
@@ -155,10 +155,10 @@ macro_rules! build_copy_message {
             ChatServerCopyWithObjectMessage {
                 base: $msg,
                 objects: $items,
-            }.as_packet_with_buf(&mut $buf).unwrap()
+            }.unwrap_with_buf(&mut $buf)
         }
         else {
-            $msg.as_packet_with_buf(&mut $buf).unwrap()
+            $msg.unwrap_with_buf(&mut $buf)
         }
     };
 }
@@ -171,7 +171,7 @@ pub fn send_private_message(sender: &Sender, tok: Token, sender_id: i32, sender_
             if r_id == sender_id {
                 let buf = ChatErrorMessage {
                     reason: chat_error::INTERIOR_MONOLOGUE,
-                }.as_packet().unwrap();
+                }.unwrap();
                 write!(SERVER, tok, buf);
                 return;
             }
@@ -188,7 +188,7 @@ pub fn send_private_message(sender: &Sender, tok: Token, sender_id: i32, sender_
                         msg_type: text_information_type::ERROR,
                         msg_id: VarShort(381),
                         parameters: vec![r_name.to_string()],
-                    }.as_packet().unwrap();
+                    }.unwrap();
                     write!(SERVER, tok, buf);
                     return;
                 }
@@ -198,7 +198,7 @@ pub fn send_private_message(sender: &Sender, tok: Token, sender_id: i32, sender_
                         msg_type: text_information_type::ERROR,
                         msg_id: VarShort(367),
                         parameters: vec![r_name.to_string()],
-                    }.as_packet().unwrap();
+                    }.unwrap();
                     write!(SERVER, tok, buf);
                     return;
                 }
@@ -210,7 +210,7 @@ pub fn send_private_message(sender: &Sender, tok: Token, sender_id: i32, sender_
                         msg_type: text_information_type::ERROR,
                         msg_id: VarShort(366),
                         parameters: vec![r_name.to_string()],
-                    }.as_packet().unwrap();
+                    }.unwrap();
                     write!(SERVER, tok, buf);
                     return;
                 }
@@ -266,7 +266,7 @@ pub fn send_private_message(sender: &Sender, tok: Token, sender_id: i32, sender_
                         msg_type: text_information_type::ERROR,
                         msg_id: VarShort(msg_id),
                         parameters: params,
-                    }.as_packet_with_buf(&mut s_buf).unwrap();
+                    }.unwrap_with_buf(&mut s_buf);
                 }
 
                 write!(SERVER, tok, s_buf);
@@ -276,7 +276,7 @@ pub fn send_private_message(sender: &Sender, tok: Token, sender_id: i32, sender_
 
         let buf = ChatErrorMessage {
             reason: chat_error::RECEIVER_NOT_FOUND,
-        }.as_packet().unwrap();
+        }.unwrap();
         write!(SERVER, tok, buf);
     })
 }

@@ -15,7 +15,7 @@ impl shared::session::Session<ChunkImpl> for Session {
 
         let buf = HelloMessage {
             salt: salt.clone(),
-        }.as_packet().unwrap();
+        }.unwrap();
 
         write!(SERVER, base.token, buf);
 

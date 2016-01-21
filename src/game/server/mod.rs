@@ -120,7 +120,7 @@ pub fn identification_success<F>(sender: &Sender, tok: Token, id: i32, job: F)
                                  + Send + 'static {
     chunk::send(sender, move |server| {
         if server.base.session_ids.contains_key(&id) {
-            let buf = AlreadyConnectedMessage.as_packet().unwrap();
+            let buf = AlreadyConnectedMessage.unwrap();
             write_and_close!(SERVER, tok, buf);
             return;
         }
@@ -190,10 +190,33 @@ pub fn character_selection_success<F>(sender: &Sender, tok: Token, account_id: i
     });
 }
 
+pub fn session_callback<F>(sender: &Sender, tok: Token, job: F)
+                           where F: FnOnce(&mut game::Session, &mut game::chunk::ChunkImpl)
+                           + Send + 'static {
+    chunk::send(sender, move |server| {
+        server.base.session_callback(tok, move |session, mut chunk| {
+            job(session, &mut *chunk)
+        })
+    })
+}
+
 pub fn disconnect_player(sender: &Sender, id: i32) {
     chunk::send(sender, move |server| {
         if let Some(tok) = server.base.session_ids.get(&id) {
             close!(SERVER, *tok);
         }
     });
+}
+
+pub fn insert_character_minimal(sender: &Sender, ch: CharacterMinimal) {
+    chunk::send(sender, move |server| {
+        let id = ch.id();
+        let name = ch.name().to_string();
+        let account_nickname = ch.account_nickname().to_string();
+        let account_id = ch.account_id();
+        let _ = server.characters.insert(id, ch);
+        let _ = server.character_names.insert(name, id);
+        let _ = server.character_nicknames.insert(account_nickname, id);
+        let _ = server.character_accounts.insert(account_id, id);
+    })
 }

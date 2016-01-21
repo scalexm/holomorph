@@ -31,6 +31,21 @@ pub struct CharacterMinimal {
 }
 
 impl CharacterMinimal {
+    pub fn new(id: i64, account_id: i32, account_nickname: String, level: i16, name: String,
+               breed: i16, sex: bool, look: EntityLook) -> Self {
+        CharacterMinimal {
+            id: id,
+            account_id: account_id,
+            account_nickname: account_nickname,
+            level: level,
+            name: name,
+            breed: breed,
+            sex: sex,
+            look: look,
+            mood_smiley: 0,
+        }
+    }
+
     pub fn save(&self, conn: &Connection) -> QueryResult<()> {
         let _ = try!(update(
             character_minimals::table.filter(character_minimals::id.eq(&self.id))
@@ -81,6 +96,7 @@ impl CharacterMinimal {
 #[insertable_into(characters)]
 #[changeset_for(characters)]
 pub struct SqlCharacter {
+    id: Option<i64>,
     xp: i64,
     kamas: i32,
     stats_points: i16,
@@ -105,6 +121,42 @@ pub struct SqlCharacter {
     pub map_id: i32,
     cell_id: i16,
     direction: i16,
+}
+
+impl SqlCharacter {
+    pub fn id(&self) -> i64 {
+        self.id.clone().unwrap()
+    }
+
+    pub fn default(map: i32) -> Self {
+        SqlCharacter {
+            id: None,
+            xp: 0,
+            kamas: 0,
+            stats_points: 0,
+            additionnal_points: 0,
+            spells_points: 0,
+            energy_points: 0,
+
+            base_vitality: 0,
+            base_wisdom: 0,
+            base_strength: 0,
+            base_intelligence: 0,
+            base_chance: 0,
+            base_agility: 0,
+
+            additionnal_vitality: 0,
+            additionnal_wisdom: 0,
+            additionnal_strength: 0,
+            additionnal_intelligence: 0,
+            additionnal_chance: 0,
+            additionnal_agility: 0,
+
+            map_id: map,
+            cell_id: 328,
+            direction: 3,
+        }
+    }
 }
 
 pub struct Character {
@@ -177,6 +229,7 @@ impl Character {
 
     pub fn save(&self, conn: &Connection, map: i32) -> QueryResult<()> {
         let sql = SqlCharacter {
+            id: None,
             xp: self.xp,
             kamas: self.kamas,
             stats_points: self.stats_points,

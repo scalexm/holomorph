@@ -17,7 +17,7 @@ impl Session {
             state: 3,
             ip: SERVER.with(|s| s.cnf.bind_ip.clone()),
             port: SERVER.with(|s| s.cnf.bind_port),
-        }.as_packet().unwrap();
+        }.unwrap();
 
         write!(SERVER, self.base.token, buf);
         Ok(())

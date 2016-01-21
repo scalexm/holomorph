@@ -1,4 +1,7 @@
 use diesel::*;
+use diesel::types::Text;
+
+sql_function!(lower, lower_t, (x: Text) -> Text);
 
 table! {
     logs {
@@ -27,6 +30,7 @@ table! {
         ticket -> Text,
         last_server -> SmallInt,
         channels -> Array<SmallInt>,
+        max_characters_count -> SmallInt,
     }
 }
 
@@ -134,7 +138,7 @@ table! {
 
 table! {
     characters {
-        id -> BigSerial,
+        id -> Nullable<BigSerial>,
         xp -> BigInt,
         kamas -> Integer,
         stats_points -> SmallInt,
@@ -178,5 +182,23 @@ table! {
         warn_on_level_gain -> Bool,
         friends -> Array<Integer>,
         ignored -> Array<Integer>,
+    }
+}
+
+table! {
+    breeds {
+        id -> SmallSerial,
+        male_look -> Binary,
+        female_look -> Binary,
+        spawn_map -> Integer,
+    }
+}
+
+table! {
+    breed_heads {
+        id -> SmallSerial,
+        breed_id -> SmallInt,
+        skin -> SmallInt,
+        gender -> Bool,
     }
 }

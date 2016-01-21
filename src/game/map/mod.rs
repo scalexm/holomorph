@@ -116,7 +116,7 @@ impl Map {
         let id = actor.id();
         let buf = GameRolePlayShowActorMessage {
             informations: actor.as_actor(),
-        }.as_packet().unwrap();
+        }.unwrap();
 
         self.send(buf);
         let _ = self.actors.insert(id, actor);
@@ -127,7 +127,7 @@ impl Map {
         if let Some(ref actor) = actor {
             let buf = GameContextRemoveElementMessage {
                 id: actor.id() as f64,
-            }.as_packet().unwrap();
+            }.unwrap();
 
             self.send(buf);
         }
@@ -142,7 +142,7 @@ impl Map {
         let buf = GameMapMovementMessage {
             key_movements: movs,
             actor_id: id as f64,
-        }.as_packet().unwrap();
+        }.unwrap();
 
         self.send(buf);
     }
@@ -155,7 +155,7 @@ impl Map {
         let buf = GameMapMovementMessage {
             key_movements: Vec::new(),
             actor_id: id as f64,
-        }.as_packet().unwrap();
+        }.unwrap();
 
         self.send(buf);
     }

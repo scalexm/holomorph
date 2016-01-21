@@ -1,5 +1,5 @@
 extern crate byteorder;
-extern crate diesel;
+#[cfg(feature = "diesel")] extern crate diesel;
 
 macro_rules! impl_variant {
     ($name: ident, $($field_name: ident | $field_type: ty),*) => {
@@ -55,6 +55,7 @@ macro_rules! impl_variant {
 
 macro_rules! impl_sql {
     ($name: ident) => {
+        #[cfg(feature = "diesel")]
         impl ::diesel::types::FromSql<::diesel::types::Binary> for $name {
             fn from_sql(bytes: Option<&[u8]>)
                         -> ::std::result::Result<Self, Box<::std::error::Error>> {
@@ -63,6 +64,7 @@ macro_rules! impl_sql {
             }
         }
 
+        #[cfg(feature = "diesel")]
         impl ::diesel::types::ToSql<::diesel::types::Binary> for $name {
             fn to_sql<W: ::std::io::Write>(&self, out: &mut W)
                                            -> ::std::result::Result<::diesel::types::IsNull,
@@ -74,6 +76,7 @@ macro_rules! impl_sql {
             }
         }
 
+        #[cfg(feature = "diesel")]
         impl ::diesel::expression::AsExpression<::diesel::types::Binary> for $name {
             type Expression = ::diesel::expression::bound::Bound<::diesel::types::Binary, Self>;
 
@@ -82,6 +85,7 @@ macro_rules! impl_sql {
             }
         }
 
+        #[cfg(feature = "diesel")]
         impl<'a> ::diesel::expression::AsExpression<::diesel::types::Binary> for &'a $name {
             type Expression = ::diesel::expression::bound::Bound<::diesel::types::Binary, Self>;
 

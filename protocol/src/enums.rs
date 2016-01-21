@@ -82,3 +82,14 @@ pub mod chat_error {
     pub const NO_PARTY_ARENA: i8 = 7;
     pub const NO_TEAM: i8 = 8;
 }
+
+pub mod character_creation_result {
+    pub const OK: i8 = 0;
+    pub const ERR_NO_REASON: i8 = 1;
+    pub const ERR_INVALID_NAME: i8 = 2;
+    pub const ERR_NAME_ALREADY_EXISTS: i8 = 3;
+    pub const ERR_TOO_MANY_CHARACTERS: i8 = 4;
+    pub const ERR_NOT_ALLOWED: i8 = 5;
+    pub const ERR_NEW_PLAYER_NOT_ALLOWED: i8 = 6;
+    pub const ERR_RESTRICTED_ZONE: i8 = 7;
+}

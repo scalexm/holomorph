@@ -19,7 +19,7 @@ use server::{self, SERVER};
 use time;
 use std::collections::{HashMap};
 use character::CharacterMinimal;
-use shared::database::schema::connections_history;
+use shared::database::schema::{social_relations, connections_history};
 
 pub static QUEUE_SIZE: AtomicIsize = ATOMIC_ISIZE_INIT;
 pub static QUEUE_COUNTER: AtomicIsize = ATOMIC_ISIZE_INIT;
@@ -32,6 +32,7 @@ struct SqlAccount {
     level: i16,
     subscription_end: i64,
     channels: Vec<i16>,
+    max_characters_count: i16,
 }
 
 #[derive(Queryable)]
@@ -42,9 +43,15 @@ struct HistoryEntry {
     account_id: i32,
 }
 
+#[insertable_into(social_relations)]
+struct InsertSocial(
+    #[column_name="id"]
+    i32,
+);
+
 fn authenticate(conn: &Connection, ticket: String, server_id: i16, addr: String)
                 -> Result<AccountData, Error> {
-    use shared::database::schema::{accounts, social_relations};
+    use shared::database::schema::{accounts, character_counts};
 
     let account: Option<SqlAccount> = try!(
         accounts::table.filter(accounts::ticket.eq(&ticket))
@@ -55,6 +62,7 @@ fn authenticate(conn: &Connection, ticket: String, server_id: i16, addr: String)
                            accounts::level,
                            accounts::subscription_end,
                            accounts::channels,
+                           accounts::max_characters_count,
                        )).first(conn).optional()
     );
 
@@ -71,6 +79,12 @@ fn authenticate(conn: &Connection, ticket: String, server_id: i16, addr: String)
             last_server: Some(server_id),
             channels: None,
         }).execute(conn)
+    );
+
+    let characters_count = try!(
+        character_counts::table.filter(character_counts::account_id.eq(&account.id))
+                               .select_sql::<types::BigInt>("COUNT(*)")
+                               .first::<i64>(conn)
     );
 
     let last_conn = try!(
@@ -102,8 +116,13 @@ fn authenticate(conn: &Connection, ticket: String, server_id: i16, addr: String)
     let social = match social {
         Some(social) => social,
         None => {
-            error!("account id {} has no social relations", account.id);
-            return Err(Error::Other);
+            try!(insert(&InsertSocial(account.id)).into(social_relations::table).execute(conn));
+            SqlRelations {
+                friends: Vec::new(),
+                ignored: Vec::new(),
+                warn_on_connection: false,
+                warn_on_level_gain: false,
+            }
         }
     };
 
@@ -125,6 +144,8 @@ fn authenticate(conn: &Connection, ticket: String, server_id: i16, addr: String)
             }),
         },
         channels: account.channels.into_iter().map(|c| c as u8).collect(),
+        characters_count: characters_count as i8,
+        max_characters_count: account.max_characters_count as i8,
     })
 }
 
@@ -136,42 +157,42 @@ impl Session {
         let mut buf = QueueStatusMessage {
             position: 0,
             total: 0,
-        }.as_packet().unwrap();
+        }.unwrap();
 
-        AuthenticationTicketAcceptedMessage.as_packet_with_buf(&mut buf).unwrap();
+        AuthenticationTicketAcceptedMessage.unwrap_with_buf(&mut buf);
 
         BasicTimeMessage {
             timestamp: (time::get_time().sec * 1000) as f64,
             timezone_offset: (time::now().tm_utcoff / 60) as i16,
-        }.as_packet_with_buf(&mut buf).unwrap();
+        }.unwrap_with_buf(&mut buf);
 
         ServerSettingsMessage {
             lang: "fr".to_string(),
             community: 0,
             game_type: 0,
-        }.as_packet_with_buf(&mut buf).unwrap();
+        }.unwrap_with_buf(&mut buf);
 
         ServerOptionalFeaturesMessage {
             features: Vec::new(),
-        }.as_packet_with_buf(&mut buf).unwrap();
+        }.unwrap_with_buf(&mut buf);
 
         ServerSessionConstantsMessage {
             variables: Vec::new(),
-        }.as_packet_with_buf(&mut buf).unwrap();
+        }.unwrap_with_buf(&mut buf);
 
         AccountCapabilitiesMessage {
             tutorial_available: Flag(false),
-            can_create_new_character: Flag(characters.len() < 5),
+            can_create_new_character: Flag(data.characters_count < data.max_characters_count),
             account_id: data.id,
-            breeds_visible: VarInt(-1),
-            breeds_available: VarInt(-1),
+            breeds_visible: VarInt(131071),
+            breeds_available: VarInt(131071),
             status: player_status::IDLE,
-        }.as_packet_with_buf(&mut buf).unwrap();
+        }.unwrap_with_buf(&mut buf);
 
         TrustStatusMessage { // AnkamaShield
             trusted: Flag(true),
             certified: Flag(true),
-        }.as_packet_with_buf(&mut buf).unwrap();
+        }.unwrap_with_buf(&mut buf);
 
         write!(SERVER, self.base.token, buf);
 
@@ -209,7 +230,7 @@ impl Session {
                         error!("authenticate sql error: {}", err);
                     }
 
-                    let buf = AuthenticationTicketRefusedMessage.as_packet().unwrap();
+                    let buf = AuthenticationTicketRefusedMessage.unwrap();
                     let _ = io_loop.send(Msg::WriteAndClose(token, buf));
                 }
 

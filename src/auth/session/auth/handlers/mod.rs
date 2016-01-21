@@ -19,19 +19,17 @@ use rand::{self, Rng};
 
 impl shared::session::Session<ChunkImpl> for Session {
     fn new(base: shared::session::SessionBase) -> Self {
-        let mut buf = Vec::new();
-
-        ProtocolRequired {
+        let mut buf = ProtocolRequired {
             required_version: 1658,
             current_version: 1658,
-        }.as_packet_with_buf(&mut buf).unwrap();
+        }.unwrap();
 
         let salt = rand::thread_rng().gen_ascii_chars().take(32).collect::<String>();
 
         HelloConnectMessage {
             salt: salt.clone(),
             key: VarIntVec(SERVER.with(|s| (*s.signed_pub_key).clone())),
-        }.as_packet_with_buf(&mut buf).unwrap();
+        }.unwrap_with_buf(&mut buf);
 
         write!(SERVER, base.token, buf);
 
@@ -74,7 +72,7 @@ impl Session {
             let buf = LoginQueueStatusMessage {
                 position: pos as i16,
                 total: QUEUE_SIZE.load(Ordering::Relaxed) as i16,
-            }.as_packet().unwrap();
+            }.unwrap();
 
             write!(SERVER, self.base.token, buf);
         }
@@ -115,7 +113,7 @@ impl Session {
 
             let buf = ServerStatusUpdateMessage {
                 server: self.get_server_informations(server, status),
-            }.as_packet().unwrap();
+            }.unwrap();
 
             write!(SERVER, self.base.token, buf);
         });
