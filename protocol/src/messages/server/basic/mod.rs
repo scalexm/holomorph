@@ -1,5 +1,10 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(SystemMessageDisplayMessage, 189, hang_up| bool, msg_id| VarShort, parameters| Vec<String>);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 189)]
+pub struct SystemMessageDisplayMessage<'a> {
+    pub hang_up: bool,
+    #[protocol(var)]
+    pub msg_id: u16,
+    pub parameters: std::borrow::Cow<'a, [&'a str]>,
+}

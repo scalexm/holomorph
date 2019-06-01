@@ -1,10 +1,60 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(TeleportBuddiesAnswerMessage, 6294, accept| bool);
-impl_type!(TeleportBuddiesMessage, 6289, dungeon_id| VarShort);
-impl_type!(TeleportBuddiesRequestedMessage, 6302, dungeon_id| VarShort, inviter_id| VarLong, invalid_buddies_ids| Vec<VarLong>);
-impl_type!(TeleportToBuddyAnswerMessage, 6293, dungeon_id| VarShort, buddy_id| VarLong, accept| bool);
-impl_type!(TeleportToBuddyCloseMessage, 6303, dungeon_id| VarShort, buddy_id| VarLong);
-impl_type!(TeleportToBuddyOfferMessage, 6287, dungeon_id| VarShort, buddy_id| VarLong, time_left| VarInt);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6293)]
+pub struct TeleportToBuddyAnswerMessage<'a> {
+    #[protocol(var)]
+    pub dungeon_id: u16,
+    #[protocol(var)]
+    pub buddy_id: u64,
+    pub accept: bool,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6302)]
+pub struct TeleportBuddiesRequestedMessage<'a> {
+    #[protocol(var)]
+    pub dungeon_id: u16,
+    #[protocol(var)]
+    pub inviter_id: u64,
+    #[protocol(var_contents)]
+    pub invalid_buddies_ids: std::borrow::Cow<'a, [u64]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6287)]
+pub struct TeleportToBuddyOfferMessage<'a> {
+    #[protocol(var)]
+    pub dungeon_id: u16,
+    #[protocol(var)]
+    pub buddy_id: u64,
+    #[protocol(var)]
+    pub time_left: u32,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6303)]
+pub struct TeleportToBuddyCloseMessage<'a> {
+    #[protocol(var)]
+    pub dungeon_id: u16,
+    #[protocol(var)]
+    pub buddy_id: u64,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6289)]
+pub struct TeleportBuddiesMessage<'a> {
+    #[protocol(var)]
+    pub dungeon_id: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6294)]
+pub struct TeleportBuddiesAnswerMessage<'a> {
+    pub accept: bool,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

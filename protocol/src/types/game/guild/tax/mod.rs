@@ -1,13 +1,100 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
- use types::game::look::EntityLook; use variants::CharacterMinimalPlusLookInformationsVariant; use types::game::context::roleplay::BasicGuildInformations; use variants::TaxCollectorComplementaryInformationsVariant; use types::game::fight::ProtectedEntityWaitingForHelpInfo;
-impl_type!(AdditionalTaxCollectorInformations, 165, collector_caller_name| String, date| i32);
-impl_type!(TaxCollectorBasicInformations, 96, first_name_id| VarShort, last_name_id| VarShort, world_x| i16, world_y| i16, map_id| i32, sub_area_id| VarShort);
-impl_type!(TaxCollectorComplementaryInformations, 448);
-impl_type!(TaxCollectorFightersInformation, 169, collector_id| i32, ally_characters_informations| Vec<CharacterMinimalPlusLookInformationsVariant>, enemy_characters_informations| Vec<CharacterMinimalPlusLookInformationsVariant>);
-impl_type!(TaxCollectorGuildInformations, 446, base| TaxCollectorComplementaryInformations, guild| BasicGuildInformations);
-impl_type!(TaxCollectorInformations, 167, unique_id| i32, firt_name_id| VarShort, last_name_id| VarShort, additional_infos| AdditionalTaxCollectorInformations, world_x| i16, world_y| i16, sub_area_id| VarShort, state| i8, look| EntityLook, complements| Vec<TaxCollectorComplementaryInformationsVariant>);
-impl_type!(TaxCollectorLootInformations, 372, base| TaxCollectorComplementaryInformations, kamas| VarInt, experience| VarLong, pods| VarInt, items_value| VarInt);
-impl_type!(TaxCollectorMovement, 493, movement_type| i8, basic_infos| TaxCollectorBasicInformations, player_id| VarLong, player_name| String);
-impl_type!(TaxCollectorWaitingForHelpInformations, 447, base| TaxCollectorComplementaryInformations, waiting_for_help_info| ProtectedEntityWaitingForHelpInfo);
+use crate::types::game::context::roleplay::BasicGuildInformations;
+use crate::types::game::fight::ProtectedEntityWaitingForHelpInfo;
+use crate::types::game::look::EntityLook;
+use crate::variants::CharacterMinimalPlusLookInformationsVariant;
+use crate::variants::TaxCollectorComplementaryInformationsVariant;
+use protocol_derive::{Decode, Encode};
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 165)]
+pub struct AdditionalTaxCollectorInformations<'a> {
+    pub collector_caller_name: &'a str,
+    pub date: u32,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 493)]
+pub struct TaxCollectorMovement<'a> {
+    pub movement_type: u8,
+    pub basic_infos: TaxCollectorBasicInformations<'a>,
+    #[protocol(var)]
+    pub player_id: u64,
+    pub player_name: &'a str,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 169)]
+pub struct TaxCollectorFightersInformation<'a> {
+    pub collector_id: f64,
+    pub ally_characters_informations:
+        std::borrow::Cow<'a, [CharacterMinimalPlusLookInformationsVariant<'a>]>,
+    pub enemy_characters_informations:
+        std::borrow::Cow<'a, [CharacterMinimalPlusLookInformationsVariant<'a>]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 448)]
+pub struct TaxCollectorComplementaryInformations<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 372)]
+pub struct TaxCollectorLootInformations<'a> {
+    pub base: TaxCollectorComplementaryInformations<'a>,
+    #[protocol(var)]
+    pub kamas: u64,
+    #[protocol(var)]
+    pub experience: u64,
+    #[protocol(var)]
+    pub pods: u32,
+    #[protocol(var)]
+    pub items_value: u64,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 167)]
+pub struct TaxCollectorInformations<'a> {
+    pub unique_id: f64,
+    #[protocol(var)]
+    pub firt_name_id: u16,
+    #[protocol(var)]
+    pub last_name_id: u16,
+    pub additional_infos: AdditionalTaxCollectorInformations<'a>,
+    pub world_x: i16,
+    pub world_y: i16,
+    #[protocol(var)]
+    pub sub_area_id: u16,
+    pub state: u8,
+    pub look: EntityLook<'a>,
+    pub complements: std::borrow::Cow<'a, [TaxCollectorComplementaryInformationsVariant<'a>]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 447)]
+pub struct TaxCollectorWaitingForHelpInformations<'a> {
+    pub base: TaxCollectorComplementaryInformations<'a>,
+    pub waiting_for_help_info: ProtectedEntityWaitingForHelpInfo<'a>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 446)]
+pub struct TaxCollectorGuildInformations<'a> {
+    pub base: TaxCollectorComplementaryInformations<'a>,
+    pub guild: BasicGuildInformations<'a>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 96)]
+pub struct TaxCollectorBasicInformations<'a> {
+    #[protocol(var)]
+    pub first_name_id: u16,
+    #[protocol(var)]
+    pub last_name_id: u16,
+    pub world_x: i16,
+    pub world_y: i16,
+    pub map_id: f64,
+    #[protocol(var)]
+    pub sub_area_id: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

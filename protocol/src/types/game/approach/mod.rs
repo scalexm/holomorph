@@ -1,8 +1,30 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(ServerSessionConstant, 430, id| VarShort);
-impl_type!(ServerSessionConstantInteger, 433, base| ServerSessionConstant, value| i32);
-impl_type!(ServerSessionConstantLong, 429, base| ServerSessionConstant, value| f64);
-impl_type!(ServerSessionConstantString, 436, base| ServerSessionConstant, value| String);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 429)]
+pub struct ServerSessionConstantLong<'a> {
+    pub base: ServerSessionConstant<'a>,
+    pub value: f64,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 436)]
+pub struct ServerSessionConstantString<'a> {
+    pub base: ServerSessionConstant<'a>,
+    pub value: &'a str,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 430)]
+pub struct ServerSessionConstant<'a> {
+    #[protocol(var)]
+    pub id: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 433)]
+pub struct ServerSessionConstantInteger<'a> {
+    pub base: ServerSessionConstant<'a>,
+    pub value: i32,
+}

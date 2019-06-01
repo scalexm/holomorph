@@ -1,6 +1,17 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(ComicReadingBeginMessage, 6536, comic_id| VarShort);
-impl_type!(DocumentReadingBeginMessage, 5675, document_id| VarShort);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5675)]
+pub struct DocumentReadingBeginMessage<'a> {
+    #[protocol(var)]
+    pub document_id: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6536)]
+pub struct ComicReadingBeginMessage<'a> {
+    #[protocol(var)]
+    pub comic_id: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

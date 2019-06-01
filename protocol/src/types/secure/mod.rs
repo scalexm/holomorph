@@ -1,5 +1,8 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(TrustCertificate, 377, id| i32, hash| String);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 377)]
+pub struct TrustCertificate<'a> {
+    pub id: u32,
+    pub hash: &'a str,
+}

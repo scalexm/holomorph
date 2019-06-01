@@ -1,5 +1,9 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(SubscriptionUpdateMessage, 6616, timestamp| f64);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6740)]
+pub struct AccountInformationsUpdateMessage<'a> {
+    pub subscription_end_date: f64,
+    pub unlimited_restat_end_date: f64,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

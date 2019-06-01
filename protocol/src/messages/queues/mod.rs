@@ -1,6 +1,17 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(LoginQueueStatusMessage, 10, position| i16, total| i16);
-impl_type!(QueueStatusMessage, 6100, position| i16, total| i16);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6100)]
+pub struct QueueStatusMessage<'a> {
+    pub position: u16,
+    pub total: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 10)]
+pub struct LoginQueueStatusMessage<'a> {
+    pub position: u16,
+    pub total: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

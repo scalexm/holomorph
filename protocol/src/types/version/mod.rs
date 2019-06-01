@@ -1,6 +1,21 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(Version, 11, major| i8, minor| i8, release| i8, revision| i32, patch| i8, build_type| i8);
-impl_type!(VersionExtended, 393, base| Version, install| i8, technology| i8);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 393)]
+pub struct VersionExtended<'a> {
+    pub base: Version<'a>,
+    pub install: u8,
+    pub technology: u8,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 11)]
+pub struct Version<'a> {
+    pub major: u8,
+    pub minor: u8,
+    pub release: u8,
+    pub revision: u32,
+    pub patch: u8,
+    pub build_type: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

@@ -1,13 +1,105 @@
-pub mod companion;
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
- use types::game::look::EntityLook; use types::game::character::choice::CharacterBaseInformations; use types::game::context::roleplay::party::companion::PartyCompanionBaseInformations; use variants::PlayerStatusVariant; use types::game::context::roleplay::party::companion::PartyCompanionMemberInformations;
-impl_type!(DungeonPartyFinderPlayer, 373, player_id| VarLong, player_name| String, breed| i8, sex| bool, level| i8);
-impl_type!(NamedPartyTeam, 469, team_id| i8, party_name| String);
-impl_type!(NamedPartyTeamWithOutcome, 470, team| NamedPartyTeam, outcome| VarShort);
-impl_type!(PartyGuestInformations, 374, guest_id| VarLong, host_id| VarLong, name| String, guest_look| EntityLook, breed| i8, sex| bool, status| PlayerStatusVariant, companions| Vec<PartyCompanionBaseInformations>);
-impl_type!(PartyInvitationMemberInformations, 376, base| CharacterBaseInformations, world_x| i16, world_y| i16, map_id| i32, sub_area_id| VarShort, companions| Vec<PartyCompanionBaseInformations>);
-impl_type!(PartyMemberArenaInformations, 391, base| PartyMemberInformations, rank| VarShort);
-impl_type!(PartyMemberGeoPosition, 378, member_id| i32, world_x| i16, world_y| i16, map_id| i32, sub_area_id| VarShort);
-impl_type!(PartyMemberInformations, 90, base| CharacterBaseInformations, life_points| VarInt, max_life_points| VarInt, prospecting| VarShort, regen_rate| i8, initiative| VarShort, alignment_side| i8, world_x| i16, world_y| i16, map_id| i32, sub_area_id| VarShort, status| PlayerStatusVariant, companions| Vec<PartyCompanionMemberInformations>);
+pub mod entity;
+
+use crate::types::game::character::choice::CharacterBaseInformations;
+use crate::types::game::context::roleplay::party::entity::PartyEntityBaseInformation;
+use crate::types::game::look::EntityLook;
+use crate::variants::PartyEntityBaseInformationVariant;
+use crate::variants::PlayerStatusVariant;
+use protocol_derive::{Decode, Encode};
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 469)]
+pub struct NamedPartyTeam<'a> {
+    pub team_id: u8,
+    pub party_name: &'a str,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 470)]
+pub struct NamedPartyTeamWithOutcome<'a> {
+    pub team: NamedPartyTeam<'a>,
+    #[protocol(var)]
+    pub outcome: u16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 376)]
+pub struct PartyInvitationMemberInformations<'a> {
+    pub base: CharacterBaseInformations<'a>,
+    pub world_x: i16,
+    pub world_y: i16,
+    pub map_id: f64,
+    #[protocol(var)]
+    pub sub_area_id: u16,
+    pub entities: std::borrow::Cow<'a, [PartyEntityBaseInformation<'a>]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 378)]
+pub struct PartyMemberGeoPosition<'a> {
+    pub member_id: u32,
+    pub world_x: i16,
+    pub world_y: i16,
+    pub map_id: f64,
+    #[protocol(var)]
+    pub sub_area_id: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 90)]
+pub struct PartyMemberInformations<'a> {
+    pub base: CharacterBaseInformations<'a>,
+    #[protocol(var)]
+    pub life_points: u32,
+    #[protocol(var)]
+    pub max_life_points: u32,
+    #[protocol(var)]
+    pub prospecting: u16,
+    pub regen_rate: u8,
+    #[protocol(var)]
+    pub initiative: u16,
+    pub alignment_side: i8,
+    pub world_x: i16,
+    pub world_y: i16,
+    pub map_id: f64,
+    #[protocol(var)]
+    pub sub_area_id: u16,
+    pub status: PlayerStatusVariant<'a>,
+    pub entities: std::borrow::Cow<'a, [PartyEntityBaseInformationVariant<'a>]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 391)]
+pub struct PartyMemberArenaInformations<'a> {
+    pub base: PartyMemberInformations<'a>,
+    #[protocol(var)]
+    pub rank: u16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 374)]
+pub struct PartyGuestInformations<'a> {
+    #[protocol(var)]
+    pub guest_id: u64,
+    #[protocol(var)]
+    pub host_id: u64,
+    pub name: &'a str,
+    pub guest_look: EntityLook<'a>,
+    pub breed: i8,
+    pub sex: bool,
+    pub status: PlayerStatusVariant<'a>,
+    pub entities: std::borrow::Cow<'a, [PartyEntityBaseInformation<'a>]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 373)]
+pub struct DungeonPartyFinderPlayer<'a> {
+    #[protocol(var)]
+    pub player_id: u64,
+    pub player_name: &'a str,
+    pub breed: i8,
+    pub sex: bool,
+    #[protocol(var)]
+    pub level: u16,
+}

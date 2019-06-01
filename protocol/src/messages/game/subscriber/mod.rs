@@ -1,6 +1,15 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(SubscriptionLimitationMessage, 5542, reason| i8);
-impl_type!(SubscriptionZoneMessage, 5573, active| bool);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5573)]
+pub struct SubscriptionZoneMessage<'a> {
+    pub active: bool,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5542)]
+pub struct SubscriptionLimitationMessage<'a> {
+    pub reason: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

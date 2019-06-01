@@ -1,9 +1,38 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use crate::types::game::interactive::zaap::TeleportDestination;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(TeleportDestinationsListMessage, 5960, teleporter_type| i8, map_ids| Vec<i32>, sub_area_ids| Vec<VarShort>, costs| Vec<VarShort>, dest_teleporter_type| Vec<u8>);
-impl_type!(TeleportRequestMessage, 5961, teleporter_type| i8, map_id| i32);
-impl_type!(ZaapListMessage, 1604, base| TeleportDestinationsListMessage, spawn_map_id| i32);
-impl_type!(ZaapRespawnSaveRequestMessage, 6572);
-impl_type!(ZaapRespawnUpdatedMessage, 6571, map_id| i32);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6830)]
+pub struct ZaapDestinationsMessage<'a> {
+    pub base: TeleportDestinationsMessage<'a>,
+    pub spawn_map_id: f64,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6572)]
+pub struct ZaapRespawnSaveRequestMessage<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6571)]
+pub struct ZaapRespawnUpdatedMessage<'a> {
+    pub map_id: f64,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6829)]
+pub struct TeleportDestinationsMessage<'a> {
+    pub type_: u8,
+    pub destinations: std::borrow::Cow<'a, [TeleportDestination<'a>]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5961)]
+pub struct TeleportRequestMessage<'a> {
+    pub source_type: u8,
+    pub destination_type: u8,
+    pub map_id: f64,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

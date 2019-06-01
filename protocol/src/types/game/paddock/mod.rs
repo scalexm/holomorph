@@ -1,12 +1,83 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
-use types::game::context::roleplay::GuildInformations;  use types::game::mount::ItemDurability; use types::game::context::roleplay::ObjectItemInRolePlay;
-impl_type!(MountInformationsForPaddock, 184, model_id| i8, name| String, owner_name| String);
-impl_type!(PaddockAbandonnedInformations, 133, base| PaddockBuyableInformations, guild_id| i32);
-impl_type!(PaddockBuyableInformations, 130, base| PaddockInformations, price| VarInt, locked| bool);
-impl_type!(PaddockContentInformations, 183, base| PaddockInformations, paddock_id| i32, world_x| i16, world_y| i16, map_id| i32, sub_area_id| VarShort, abandonned| bool, mounts_informations| Vec<MountInformationsForPaddock>);
-impl_type!(PaddockInformations, 132, max_outdoor_mount| VarShort, max_items| VarShort);
-impl_type!(PaddockInformationsForSell, 222, guild_owner| String, world_x| i16, world_y| i16, sub_area_id| VarShort, nb_mount| i8, nb_object| i8, price| VarInt);
-impl_type!(PaddockItem, 185, base| ObjectItemInRolePlay, durability| ItemDurability);
-impl_type!(PaddockPrivateInformations, 131, base| PaddockAbandonnedInformations, guild_info| GuildInformations);
+use crate::types::game::context::roleplay::GuildInformations;
+use crate::types::game::context::roleplay::ObjectItemInRolePlay;
+use crate::types::game::mount::ItemDurability;
+use crate::variants::PaddockBuyableInformationsVariant;
+use protocol_derive::{Decode, Encode};
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 185)]
+pub struct PaddockItem<'a> {
+    pub base: ObjectItemInRolePlay<'a>,
+    pub durability: ItemDurability<'a>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 509)]
+pub struct PaddockInstancesInformations<'a> {
+    pub base: PaddockInformations<'a>,
+    pub paddocks: std::borrow::Cow<'a, [PaddockBuyableInformationsVariant<'a>]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 222)]
+pub struct PaddockInformationsForSell<'a> {
+    pub guild_owner: &'a str,
+    pub world_x: i16,
+    pub world_y: i16,
+    #[protocol(var)]
+    pub sub_area_id: u16,
+    pub nb_mount: i8,
+    pub nb_object: i8,
+    #[protocol(var)]
+    pub price: u64,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 508)]
+pub struct PaddockGuildedInformations<'a> {
+    pub base: PaddockBuyableInformations<'a>,
+    pub deserted: bool,
+    pub guild_info: GuildInformations<'a>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 132)]
+pub struct PaddockInformations<'a> {
+    #[protocol(var)]
+    pub max_outdoor_mount: u16,
+    #[protocol(var)]
+    pub max_items: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 184)]
+pub struct MountInformationsForPaddock<'a> {
+    #[protocol(var)]
+    pub model_id: u16,
+    pub name: &'a str,
+    pub owner_name: &'a str,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 183)]
+pub struct PaddockContentInformations<'a> {
+    pub base: PaddockInformations<'a>,
+    pub paddock_id: f64,
+    pub world_x: i16,
+    pub world_y: i16,
+    pub map_id: f64,
+    #[protocol(var)]
+    pub sub_area_id: u16,
+    pub abandonned: bool,
+    pub mounts_informations: std::borrow::Cow<'a, [MountInformationsForPaddock<'a>]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 130)]
+pub struct PaddockBuyableInformations<'a> {
+    #[protocol(var)]
+    pub price: u64,
+    pub locked: bool,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

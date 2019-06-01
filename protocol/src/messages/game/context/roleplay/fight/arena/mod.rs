@@ -1,14 +1,104 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
-use types::game::context::roleplay::fight::arena::ArenaRankInfos; 
-impl_type!(GameRolePlayArenaFightAnswerMessage, 6279, fight_id| i32, accept| bool);
-impl_type!(GameRolePlayArenaFighterStatusMessage, 6281, fight_id| i32, player_id| i32, accepted| bool);
-impl_type!(GameRolePlayArenaFightPropositionMessage, 6276, fight_id| i32, allies_id| Vec<f64>, duration| VarShort);
-impl_type!(GameRolePlayArenaRegisterMessage, 6280, battle_mode| i32);
-impl_type!(GameRolePlayArenaRegistrationStatusMessage, 6284, registered| bool, step| i8, battle_mode| i32);
-impl_type!(GameRolePlayArenaSwitchToFightServerMessage, 6575, address| String, port| i16, ticket| VarIntVec<u8>);
-impl_type!(GameRolePlayArenaSwitchToGameServerMessage, 6574, valid_token| bool, ticket| VarIntVec<u8>, home_server_id| i16);
-impl_type!(GameRolePlayArenaUnregisterMessage, 6282);
-impl_type!(GameRolePlayArenaUpdatePlayerInfosMessage, 6301, solo| ArenaRankInfos);
-impl_type!(GameRolePlayArenaUpdatePlayerInfosWithTeamMessage, 6640, base| GameRolePlayArenaUpdatePlayerInfosMessage, team| ArenaRankInfos);
+use crate::types::game::context::roleplay::fight::arena::ArenaRankInfos;
+use crate::types::game::context::roleplay::fight::arena::LeagueFriendInformations;
+use protocol_derive::{Decode, Encode};
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6282)]
+pub struct GameRolePlayArenaUnregisterMessage<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6785)]
+pub struct GameRolePlayArenaLeagueRewardsMessage<'a> {
+    #[protocol(var)]
+    pub season_id: u16,
+    #[protocol(var)]
+    pub league_id: u16,
+    pub ladder_position: i32,
+    pub end_season_reward: bool,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6574)]
+pub struct GameRolePlayArenaSwitchToGameServerMessage<'a> {
+    pub valid_token: bool,
+    #[protocol(var)]
+    pub ticket: &'a [i8],
+    pub home_server_id: i16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6280)]
+pub struct GameRolePlayArenaRegisterMessage<'a> {
+    pub battle_mode: u32,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6276)]
+pub struct GameRolePlayArenaFightPropositionMessage<'a> {
+    #[protocol(var)]
+    pub fight_id: u16,
+    pub allies_id: std::borrow::Cow<'a, [f64]>,
+    #[protocol(var)]
+    pub duration: u16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6575)]
+pub struct GameRolePlayArenaSwitchToFightServerMessage<'a> {
+    pub address: &'a str,
+    pub ports: std::borrow::Cow<'a, [u16]>,
+    #[protocol(var)]
+    pub ticket: &'a [i8],
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6728)]
+pub struct GameRolePlayArenaUpdatePlayerInfosAllQueuesMessage<'a> {
+    pub base: GameRolePlayArenaUpdatePlayerInfosMessage<'a>,
+    pub team: ArenaRankInfos<'a>,
+    pub duel: ArenaRankInfos<'a>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6284)]
+pub struct GameRolePlayArenaRegistrationStatusMessage<'a> {
+    pub registered: bool,
+    pub step: u8,
+    pub battle_mode: u32,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6281)]
+pub struct GameRolePlayArenaFighterStatusMessage<'a> {
+    #[protocol(var)]
+    pub fight_id: u16,
+    pub player_id: f64,
+    pub accepted: bool,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6279)]
+pub struct GameRolePlayArenaFightAnswerMessage<'a> {
+    #[protocol(var)]
+    pub fight_id: u16,
+    pub accept: bool,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6301)]
+pub struct GameRolePlayArenaUpdatePlayerInfosMessage<'a> {
+    pub solo: ArenaRankInfos<'a>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6783)]
+pub struct GameRolePlayArenaInvitationCandidatesAnswer<'a> {
+    pub candidates: std::borrow::Cow<'a, [LeagueFriendInformations<'a>]>,
+}

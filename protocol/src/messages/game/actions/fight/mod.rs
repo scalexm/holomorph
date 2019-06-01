@@ -1,45 +1,349 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
- use types::game::look::EntityLook; use messages::game::actions::AbstractGameActionMessage; use variants::AbstractFightDispellableEffectVariant; use types::game::actions::fight::GameActionMark; use variants::GameFightFighterInformationsVariant;
-impl_type!(AbstractGameActionFightTargetedAbilityMessage, 6118, base| AbstractGameActionMessage, target_id| f64, destination_cell_id| i16, critical| i8, silent_cast| bool);
-impl_type!(GameActionFightActivateGlyphTrapMessage, 6545, base| AbstractGameActionMessage, mark_id| i16, active| bool);
-impl_type!(GameActionFightCarryCharacterMessage, 5830, base| AbstractGameActionMessage, target_id| f64, cell_id| i16);
-impl_type!(GameActionFightCastOnTargetRequestMessage, 6330, spell_id| VarShort, target_id| f64);
-impl_type!(GameActionFightCastRequestMessage, 1005, spell_id| VarShort, cell_id| i16);
-impl_type!(GameActionFightChangeLookMessage, 5532, base| AbstractGameActionMessage, target_id| f64, entity_look| EntityLook);
-impl_type!(GameActionFightCloseCombatMessage, 6116, base| AbstractGameActionFightTargetedAbilityMessage, weapon_generic_id| VarShort);
-impl_type!(GameActionFightDeathMessage, 1099, base| AbstractGameActionMessage, target_id| f64);
-impl_type!(GameActionFightDispellableEffectMessage, 6070, base| AbstractGameActionMessage, effect| AbstractFightDispellableEffectVariant);
-impl_type!(GameActionFightDispellEffectMessage, 6113, base| GameActionFightDispellMessage, boost_uid| i32);
-impl_type!(GameActionFightDispellMessage, 5533, base| AbstractGameActionMessage, target_id| f64);
-impl_type!(GameActionFightDispellSpellMessage, 6176, base| GameActionFightDispellMessage, spell_id| VarShort);
-impl_type!(GameActionFightDodgePointLossMessage, 5828, base| AbstractGameActionMessage, target_id| f64, amount| VarShort);
-impl_type!(GameActionFightDropCharacterMessage, 5826, base| AbstractGameActionMessage, target_id| f64, cell_id| i16);
-impl_type!(GameActionFightExchangePositionsMessage, 5527, base| AbstractGameActionMessage, target_id| f64, caster_cell_id| i16, target_cell_id| i16);
-impl_type!(GameActionFightInvisibilityMessage, 5821, base| AbstractGameActionMessage, target_id| f64, state| i8);
-impl_type!(GameActionFightInvisibleDetectedMessage, 6320, base| AbstractGameActionMessage, target_id| f64, cell_id| i16);
-impl_type!(GameActionFightKillMessage, 5571, base| AbstractGameActionMessage, target_id| f64);
-impl_type!(GameActionFightLifeAndShieldPointsLostMessage, 6310, base| GameActionFightLifePointsLostMessage, shield_loss| VarShort);
-impl_type!(GameActionFightLifePointsGainMessage, 6311, base| AbstractGameActionMessage, target_id| f64, delta| VarInt);
-impl_type!(GameActionFightLifePointsLostMessage, 6312, base| AbstractGameActionMessage, target_id| f64, loss| VarInt, permanent_damages| VarInt);
-impl_type!(GameActionFightMarkCellsMessage, 5540, base| AbstractGameActionMessage, mark| GameActionMark);
-impl_type!(GameActionFightModifyEffectsDurationMessage, 6304, base| AbstractGameActionMessage, target_id| f64, delta| i16);
-impl_type!(GameActionFightNoSpellCastMessage, 6132, spell_level_id| VarInt);
-impl_type!(GameActionFightPointsVariationMessage, 1030, base| AbstractGameActionMessage, target_id| f64, delta| i16);
-impl_type!(GameActionFightReduceDamagesMessage, 5526, base| AbstractGameActionMessage, target_id| f64, amount| VarInt);
-impl_type!(GameActionFightReflectDamagesMessage, 5530, base| AbstractGameActionMessage, target_id| f64);
-impl_type!(GameActionFightReflectSpellMessage, 5531, base| AbstractGameActionMessage, target_id| f64);
-impl_type!(GameActionFightSlideMessage, 5525, base| AbstractGameActionMessage, target_id| f64, start_cell_id| i16, end_cell_id| i16);
-impl_type!(GameActionFightSpellCastMessage, 1010, base| AbstractGameActionFightTargetedAbilityMessage, spell_id| VarShort, spell_level| i8, portals_ids| Vec<i16>);
-impl_type!(GameActionFightSpellCooldownVariationMessage, 6219, base| AbstractGameActionMessage, target_id| f64, spell_id| VarShort, value| VarShort);
-impl_type!(GameActionFightSpellImmunityMessage, 6221, base| AbstractGameActionMessage, target_id| f64, spell_id| VarShort);
-impl_type!(GameActionFightStealKamaMessage, 5535, base| AbstractGameActionMessage, target_id| f64, amount| VarInt);
-impl_type!(GameActionFightSummonMessage, 5825, base| AbstractGameActionMessage, summon| GameFightFighterInformationsVariant);
-impl_type!(GameActionFightTackledMessage, 1004, base| AbstractGameActionMessage, tacklers_ids| Vec<f64>);
-impl_type!(GameActionFightTeleportOnSameMapMessage, 5528, base| AbstractGameActionMessage, target_id| f64, cell_id| i16);
-impl_type!(GameActionFightThrowCharacterMessage, 5829, base| AbstractGameActionMessage, target_id| f64, cell_id| i16);
-impl_type!(GameActionFightTriggerEffectMessage, 6147, base| GameActionFightDispellEffectMessage);
-impl_type!(GameActionFightTriggerGlyphTrapMessage, 5741, base| AbstractGameActionMessage, mark_id| i16, triggering_character_id| f64, triggered_spell_id| VarShort);
-impl_type!(GameActionFightUnmarkCellsMessage, 5570, base| AbstractGameActionMessage, mark_id| i16);
-impl_type!(GameActionFightVanishMessage, 6217, base| AbstractGameActionMessage, target_id| f64);
+use crate::messages::game::actions::AbstractGameActionMessage;
+use crate::types::game::actions::fight::GameActionMark;
+use crate::types::game::look::EntityLook;
+use crate::variants::AbstractFightDispellableEffectVariant;
+use crate::variants::GameFightFighterInformationsVariant;
+use protocol_derive::{Decode, Encode};
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6311)]
+pub struct GameActionFightLifePointsGainMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub target_id: f64,
+    #[protocol(var)]
+    pub delta: u32,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6545)]
+pub struct GameActionFightActivateGlyphTrapMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub mark_id: i16,
+    pub active: bool,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5531)]
+pub struct GameActionFightReflectSpellMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub target_id: f64,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5535)]
+pub struct GameActionFightStealKamaMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub target_id: f64,
+    #[protocol(var)]
+    pub amount: u64,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5741)]
+pub struct GameActionFightTriggerGlyphTrapMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub mark_id: i16,
+    #[protocol(var)]
+    pub mark_impact_cell: u16,
+    pub triggering_character_id: f64,
+    #[protocol(var)]
+    pub triggered_spell_id: u16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6147)]
+pub struct GameActionFightTriggerEffectMessage<'a> {
+    pub base: GameActionFightDispellEffectMessage<'a>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6221)]
+pub struct GameActionFightSpellImmunityMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub target_id: f64,
+    #[protocol(var)]
+    pub spell_id: u16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5826)]
+pub struct GameActionFightDropCharacterMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub target_id: f64,
+    pub cell_id: i16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6118)]
+pub struct AbstractGameActionFightTargetedAbilityMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    #[protocol(flag)]
+    pub silent_cast: bool,
+    #[protocol(flag)]
+    pub verbose_cast: bool,
+    pub target_id: f64,
+    pub destination_cell_id: i16,
+    pub critical: u8,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 1099)]
+pub struct GameActionFightDeathMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub target_id: f64,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 1005)]
+pub struct GameActionFightCastRequestMessage<'a> {
+    #[protocol(var)]
+    pub spell_id: u16,
+    pub cell_id: i16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5527)]
+pub struct GameActionFightExchangePositionsMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub target_id: f64,
+    pub caster_cell_id: i16,
+    pub target_cell_id: i16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6304)]
+pub struct GameActionFightModifyEffectsDurationMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub target_id: f64,
+    pub delta: i16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6217)]
+pub struct GameActionFightVanishMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub target_id: f64,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6132)]
+pub struct GameActionFightNoSpellCastMessage<'a> {
+    #[protocol(var)]
+    pub spell_level_id: u32,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5533)]
+pub struct GameActionFightDispellMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub target_id: f64,
+    pub verbose_cast: bool,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5525)]
+pub struct GameActionFightSlideMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub target_id: f64,
+    pub start_cell_id: i16,
+    pub end_cell_id: i16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6310)]
+pub struct GameActionFightLifeAndShieldPointsLostMessage<'a> {
+    pub base: GameActionFightLifePointsLostMessage<'a>,
+    #[protocol(var)]
+    pub shield_loss: u16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6219)]
+pub struct GameActionFightSpellCooldownVariationMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub target_id: f64,
+    #[protocol(var)]
+    pub spell_id: u16,
+    #[protocol(var)]
+    pub value: i16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6113)]
+pub struct GameActionFightDispellEffectMessage<'a> {
+    pub base: GameActionFightDispellMessage<'a>,
+    pub boost_uid: u32,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5526)]
+pub struct GameActionFightReduceDamagesMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub target_id: f64,
+    #[protocol(var)]
+    pub amount: u32,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6320)]
+pub struct GameActionFightInvisibleDetectedMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub target_id: f64,
+    pub cell_id: i16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5528)]
+pub struct GameActionFightTeleportOnSameMapMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub target_id: f64,
+    pub cell_id: i16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5530)]
+pub struct GameActionFightReflectDamagesMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub target_id: f64,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5540)]
+pub struct GameActionFightMarkCellsMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub mark: GameActionMark<'a>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5829)]
+pub struct GameActionFightThrowCharacterMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub target_id: f64,
+    pub cell_id: i16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5821)]
+pub struct GameActionFightInvisibilityMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub target_id: f64,
+    pub state: u8,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5570)]
+pub struct GameActionFightUnmarkCellsMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub mark_id: i16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6312)]
+pub struct GameActionFightLifePointsLostMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub target_id: f64,
+    #[protocol(var)]
+    pub loss: u32,
+    #[protocol(var)]
+    pub permanent_damages: u32,
+    #[protocol(var)]
+    pub element_id: i32,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6176)]
+pub struct GameActionFightDispellSpellMessage<'a> {
+    pub base: GameActionFightDispellMessage<'a>,
+    #[protocol(var)]
+    pub spell_id: u16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5571)]
+pub struct GameActionFightKillMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub target_id: f64,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 1004)]
+pub struct GameActionFightTackledMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub tacklers_ids: std::borrow::Cow<'a, [f64]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5828)]
+pub struct GameActionFightDodgePointLossMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub target_id: f64,
+    #[protocol(var)]
+    pub amount: u16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6116)]
+pub struct GameActionFightCloseCombatMessage<'a> {
+    pub base: AbstractGameActionFightTargetedAbilityMessage<'a>,
+    #[protocol(var)]
+    pub weapon_generic_id: u16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 1010)]
+pub struct GameActionFightSpellCastMessage<'a> {
+    pub base: AbstractGameActionFightTargetedAbilityMessage<'a>,
+    #[protocol(var)]
+    pub spell_id: u16,
+    pub spell_level: i16,
+    pub portals_ids: std::borrow::Cow<'a, [i16]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6070)]
+pub struct GameActionFightDispellableEffectMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub effect: AbstractFightDispellableEffectVariant<'a>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5532)]
+pub struct GameActionFightChangeLookMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub target_id: f64,
+    pub entity_look: EntityLook<'a>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 1030)]
+pub struct GameActionFightPointsVariationMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub target_id: f64,
+    pub delta: i16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5830)]
+pub struct GameActionFightCarryCharacterMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub target_id: f64,
+    pub cell_id: i16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5825)]
+pub struct GameActionFightSummonMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub summons: std::borrow::Cow<'a, [GameFightFighterInformationsVariant<'a>]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6330)]
+pub struct GameActionFightCastOnTargetRequestMessage<'a> {
+    #[protocol(var)]
+    pub spell_id: u16,
+    pub target_id: f64,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

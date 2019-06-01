@@ -1,10 +1,34 @@
-pub mod sequence;
 pub mod fight;
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+pub mod sequence;
 
-impl_type!(AbstractGameActionMessage, 1000, action_id| VarShort, source_id| f64);
-impl_type!(AbstractGameActionWithAckMessage, 1001, base| AbstractGameActionMessage, wait_ack_id| i16);
-impl_type!(GameActionAcknowledgementMessage, 957, valid| bool, action_id| i8);
-impl_type!(GameActionNoopMessage, 1002);
+use protocol_derive::{Decode, Encode};
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 957)]
+pub struct GameActionAcknowledgementMessage<'a> {
+    pub valid: bool,
+    pub action_id: i8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 1002)]
+pub struct GameActionNoopMessage<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 1000)]
+pub struct AbstractGameActionMessage<'a> {
+    #[protocol(var)]
+    pub action_id: u16,
+    pub source_id: f64,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 1001)]
+pub struct AbstractGameActionWithAckMessage<'a> {
+    pub base: AbstractGameActionMessage<'a>,
+    pub wait_ack_id: i16,
+}

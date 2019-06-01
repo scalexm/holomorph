@@ -1,5 +1,8 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(AlmanachCalendarDateMessage, 6341, date| i32);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6341)]
+pub struct AlmanachCalendarDateMessage<'a> {
+    pub date: i32,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

@@ -1,5 +1,9 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(CharacterReplayRequestMessage, 167, character_id| VarLong);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 167)]
+pub struct CharacterReplayRequestMessage<'a> {
+    #[protocol(var)]
+    pub character_id: u64,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

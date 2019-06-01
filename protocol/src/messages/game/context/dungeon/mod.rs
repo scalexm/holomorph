@@ -1,6 +1,19 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(DungeonKeyRingMessage, 6299, availables| Vec<VarShort>, unavailables| Vec<VarShort>);
-impl_type!(DungeonKeyRingUpdateMessage, 6296, dungeon_id| VarShort, available| bool);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6299)]
+pub struct DungeonKeyRingMessage<'a> {
+    #[protocol(var_contents)]
+    pub availables: std::borrow::Cow<'a, [u16]>,
+    #[protocol(var_contents)]
+    pub unavailables: std::borrow::Cow<'a, [u16]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6296)]
+pub struct DungeonKeyRingUpdateMessage<'a> {
+    #[protocol(var)]
+    pub dungeon_id: u16,
+    pub available: bool,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

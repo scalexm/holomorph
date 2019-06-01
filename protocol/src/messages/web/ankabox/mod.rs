@@ -1,6 +1,18 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(MailStatusMessage, 6275, unread| VarShort, total| VarShort);
-impl_type!(NewMailMessage, 6292, base| MailStatusMessage, senders_account_id| Vec<i32>);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6275)]
+pub struct MailStatusMessage<'a> {
+    #[protocol(var)]
+    pub unread: u16,
+    #[protocol(var)]
+    pub total: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6292)]
+pub struct NewMailMessage<'a> {
+    pub base: MailStatusMessage<'a>,
+    pub senders_account_id: std::borrow::Cow<'a, [u32]>,
+}

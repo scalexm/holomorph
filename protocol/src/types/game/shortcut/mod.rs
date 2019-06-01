@@ -1,12 +1,66 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(Shortcut, 369, slot| i8);
-impl_type!(ShortcutEmote, 389, base| Shortcut, emote_id| i8);
-impl_type!(ShortcutObject, 367, base| Shortcut);
-impl_type!(ShortcutObjectIdolsPreset, 492, base| ShortcutObject, preset_id| i8);
-impl_type!(ShortcutObjectItem, 371, base| ShortcutObject, item_uid| i32, item_gid| i32);
-impl_type!(ShortcutObjectPreset, 370, base| ShortcutObject, preset_id| i8);
-impl_type!(ShortcutSmiley, 388, base| Shortcut, smiley_id| VarShort);
-impl_type!(ShortcutSpell, 368, base| Shortcut, spell_id| VarShort);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 371)]
+pub struct ShortcutObjectItem<'a> {
+    pub base: ShortcutObject<'a>,
+    pub item_uid: i32,
+    pub item_gid: i32,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 370)]
+pub struct ShortcutObjectPreset<'a> {
+    pub base: ShortcutObject<'a>,
+    pub preset_id: i16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 367)]
+pub struct ShortcutObject<'a> {
+    pub base: Shortcut<'a>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 369)]
+pub struct Shortcut<'a> {
+    pub slot: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 389)]
+pub struct ShortcutEmote<'a> {
+    pub base: Shortcut<'a>,
+    pub emote_id: u8,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 388)]
+pub struct ShortcutSmiley<'a> {
+    pub base: Shortcut<'a>,
+    #[protocol(var)]
+    pub smiley_id: u16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 368)]
+pub struct ShortcutSpell<'a> {
+    pub base: Shortcut<'a>,
+    #[protocol(var)]
+    pub spell_id: u16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 492)]
+pub struct ShortcutObjectIdolsPreset<'a> {
+    pub base: ShortcutObject<'a>,
+    pub preset_id: i16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 544)]
+pub struct ShortcutEntitiesPreset<'a> {
+    pub base: Shortcut<'a>,
+    pub preset_id: i16,
+}

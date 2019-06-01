@@ -1,9 +1,32 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(AccountLinkRequiredMessage, 6607);
-impl_type!(NicknameAcceptedMessage, 5641);
-impl_type!(NicknameChoiceRequestMessage, 5639, nickname| String);
-impl_type!(NicknameRefusedMessage, 5638, reason| i8);
-impl_type!(NicknameRegistrationMessage, 5640);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6607)]
+pub struct AccountLinkRequiredMessage<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5638)]
+pub struct NicknameRefusedMessage<'a> {
+    pub reason: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5640)]
+pub struct NicknameRegistrationMessage<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5639)]
+pub struct NicknameChoiceRequestMessage<'a> {
+    pub nickname: &'a str,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5641)]
+pub struct NicknameAcceptedMessage<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

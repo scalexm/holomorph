@@ -1,10 +1,70 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
- use variants::CharacterMinimalPlusLookInformationsVariant; use variants::PrismInformationVariant; use types::game::context::roleplay::AllianceInformations; use types::game::data::items::ObjectItem; use types::game::fight::ProtectedEntityWaitingForHelpInfo;
-impl_type!(AllianceInsiderPrismInformation, 431, base| PrismInformation, last_time_slot_modification_date| i32, last_time_slot_modification_author_guild_id| VarInt, last_time_slot_modification_author_id| VarLong, last_time_slot_modification_author_name| String, modules_objects| Vec<ObjectItem>);
-impl_type!(AlliancePrismInformation, 427, base| PrismInformation, alliance| AllianceInformations);
-impl_type!(PrismFightersInformation, 443, sub_area_id| VarShort, waiting_for_help_info| ProtectedEntityWaitingForHelpInfo, ally_characters_informations| Vec<CharacterMinimalPlusLookInformationsVariant>, enemy_characters_informations| Vec<CharacterMinimalPlusLookInformationsVariant>);
-impl_type!(PrismGeolocalizedInformation, 434, base| PrismSubareaEmptyInfo, world_x| i16, world_y| i16, map_id| i32, prism| PrismInformationVariant);
-impl_type!(PrismInformation, 428, type_id| i8, state| i8, next_vulnerability_date| i32, placement_date| i32, reward_token_count| VarInt);
-impl_type!(PrismSubareaEmptyInfo, 438, sub_area_id| VarShort, alliance_id| VarInt);
+use crate::types::game::context::roleplay::AllianceInformations;
+use crate::types::game::data::items::ObjectItem;
+use crate::types::game::fight::ProtectedEntityWaitingForHelpInfo;
+use crate::variants::CharacterMinimalPlusLookInformationsVariant;
+use crate::variants::PrismInformationVariant;
+use protocol_derive::{Decode, Encode};
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 431)]
+pub struct AllianceInsiderPrismInformation<'a> {
+    pub base: PrismInformation<'a>,
+    pub last_time_slot_modification_date: u32,
+    #[protocol(var)]
+    pub last_time_slot_modification_author_guild_id: u32,
+    #[protocol(var)]
+    pub last_time_slot_modification_author_id: u64,
+    pub last_time_slot_modification_author_name: &'a str,
+    pub modules_objects: std::borrow::Cow<'a, [ObjectItem<'a>]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 438)]
+pub struct PrismSubareaEmptyInfo<'a> {
+    #[protocol(var)]
+    pub sub_area_id: u16,
+    #[protocol(var)]
+    pub alliance_id: u32,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 434)]
+pub struct PrismGeolocalizedInformation<'a> {
+    pub base: PrismSubareaEmptyInfo<'a>,
+    pub world_x: i16,
+    pub world_y: i16,
+    pub map_id: f64,
+    pub prism: PrismInformationVariant<'a>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 443)]
+pub struct PrismFightersInformation<'a> {
+    #[protocol(var)]
+    pub sub_area_id: u16,
+    pub waiting_for_help_info: ProtectedEntityWaitingForHelpInfo<'a>,
+    pub ally_characters_informations:
+        std::borrow::Cow<'a, [CharacterMinimalPlusLookInformationsVariant<'a>]>,
+    pub enemy_characters_informations:
+        std::borrow::Cow<'a, [CharacterMinimalPlusLookInformationsVariant<'a>]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 427)]
+pub struct AlliancePrismInformation<'a> {
+    pub base: PrismInformation<'a>,
+    pub alliance: AllianceInformations<'a>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 428)]
+pub struct PrismInformation<'a> {
+    pub type_id: u8,
+    pub state: u8,
+    pub next_vulnerability_date: u32,
+    pub placement_date: u32,
+    #[protocol(var)]
+    pub reward_token_count: u32,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

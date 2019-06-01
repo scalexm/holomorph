@@ -1,6 +1,16 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(CinematicMessage, 6053, cinematic_id| VarShort);
-impl_type!(URLOpenMessage, 6266, url_id| i8);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6053)]
+pub struct CinematicMessage<'a> {
+    #[protocol(var)]
+    pub cinematic_id: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6266)]
+pub struct URLOpenMessage<'a> {
+    pub url_id: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

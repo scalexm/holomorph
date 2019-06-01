@@ -1,18 +1,93 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
-use messages::game::character::replay::CharacterReplayRequestMessage;  use types::game::character::choice::CharacterBaseInformations; use types::game::character::choice::RemodelingInformation; use variants::CharacterBaseInformationsVariant; use types::game::character::choice::CharacterToRelookInformation; use types::game::character::choice::CharacterToRemodelInformations; use types::game::character::choice::CharacterToRecolorInformation;
-impl_type!(BasicCharactersListMessage, 6475, characters| Vec<CharacterBaseInformationsVariant>);
-impl_type!(CharacterFirstSelectionMessage, 6084, base| CharacterSelectionMessage, do_tutorial| bool);
-impl_type!(CharacterReplayWithRemodelRequestMessage, 6551, base| CharacterReplayRequestMessage, remodel| RemodelingInformation);
-impl_type!(CharacterSelectedErrorMessage, 5836);
-impl_type!(CharacterSelectedForceMessage, 6068, id| i32);
-impl_type!(CharacterSelectedForceReadyMessage, 6072);
-impl_type!(CharacterSelectedSuccessMessage, 153, infos| CharacterBaseInformations, is_collecting_stats| bool);
-impl_type!(CharacterSelectionMessage, 152, id| VarLong);
-impl_type!(CharacterSelectionWithRemodelMessage, 6549, base| CharacterSelectionMessage, remodel| RemodelingInformation);
-impl_type!(CharactersListErrorMessage, 5545);
-impl_type!(CharactersListMessage, 151, base| BasicCharactersListMessage, has_startup_actions| bool);
-impl_type!(CharactersListRequestMessage, 150);
-impl_type!(CharactersListWithModificationsMessage, 6120, base| CharactersListMessage, characters_to_recolor| Vec<CharacterToRecolorInformation>, characters_to_rename| Vec<i32>, unusable_characters| Vec<i32>, characters_to_relook| Vec<CharacterToRelookInformation>);
-impl_type!(CharactersListWithRemodelingMessage, 6550, base| CharactersListMessage, characters_to_remodel| Vec<CharacterToRemodelInformations>);
+use crate::messages::game::character::replay::CharacterReplayRequestMessage;
+use crate::types::game::character::choice::CharacterBaseInformations;
+use crate::types::game::character::choice::CharacterToRemodelInformations;
+use crate::types::game::character::choice::RemodelingInformation;
+use crate::variants::CharacterBaseInformationsVariant;
+use protocol_derive::{Decode, Encode};
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5545)]
+pub struct CharactersListErrorMessage<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6068)]
+pub struct CharacterSelectedForceMessage<'a> {
+    pub id: i32,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 150)]
+pub struct CharactersListRequestMessage<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6072)]
+pub struct CharacterSelectedForceReadyMessage<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6550)]
+pub struct CharactersListWithRemodelingMessage<'a> {
+    pub base: CharactersListMessage<'a>,
+    pub characters_to_remodel: std::borrow::Cow<'a, [CharacterToRemodelInformations<'a>]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6084)]
+pub struct CharacterFirstSelectionMessage<'a> {
+    pub base: CharacterSelectionMessage<'a>,
+    pub do_tutorial: bool,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 152)]
+pub struct CharacterSelectionMessage<'a> {
+    #[protocol(var)]
+    pub id: u64,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6549)]
+pub struct CharacterSelectionWithRemodelMessage<'a> {
+    pub base: CharacterSelectionMessage<'a>,
+    pub remodel: RemodelingInformation<'a>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6551)]
+pub struct CharacterReplayWithRemodelRequestMessage<'a> {
+    pub base: CharacterReplayRequestMessage<'a>,
+    pub remodel: RemodelingInformation<'a>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6475)]
+pub struct BasicCharactersListMessage<'a> {
+    pub characters: std::borrow::Cow<'a, [CharacterBaseInformationsVariant<'a>]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 151)]
+pub struct CharactersListMessage<'a> {
+    pub base: BasicCharactersListMessage<'a>,
+    pub has_startup_actions: bool,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 153)]
+pub struct CharacterSelectedSuccessMessage<'a> {
+    pub infos: CharacterBaseInformations<'a>,
+    pub is_collecting_stats: bool,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5836)]
+pub struct CharacterSelectedErrorMessage<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

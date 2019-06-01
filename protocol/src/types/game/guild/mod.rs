@@ -1,8 +1,52 @@
 pub mod tax;
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
- use types::game::character::CharacterMinimalInformations; use variants::PlayerStatusVariant;
-impl_type!(GuildEmblem, 87, symbol_shape| VarShort, symbol_color| i32, background_shape| i8, background_color| i32);
-impl_type!(GuildMember, 88, base| CharacterMinimalInformations, breed| i8, sex| bool, rank| VarShort, given_experience| VarLong, experience_given_percent| i8, rights| VarInt, connected| i8, alignment_side| i8, hours_since_last_connection| i16, mood_smiley_id| VarShort, account_id| i32, achievement_points| i32, status| PlayerStatusVariant);
-impl_type!(HavenBagFurnitureInformation, 498, cell_id| VarShort, funiture_id| i32, orientation| i8);
+
+use crate::types::game::character::CharacterMinimalInformations;
+use crate::variants::PlayerStatusVariant;
+use protocol_derive::{Decode, Encode};
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 88)]
+pub struct GuildMember<'a> {
+    pub base: CharacterMinimalInformations<'a>,
+    #[protocol(flag)]
+    pub sex: bool,
+    #[protocol(flag)]
+    pub haven_bag_shared: bool,
+    pub breed: i8,
+    #[protocol(var)]
+    pub rank: u16,
+    #[protocol(var)]
+    pub given_experience: u64,
+    pub experience_given_percent: u8,
+    #[protocol(var)]
+    pub rights: u32,
+    pub connected: u8,
+    pub alignment_side: i8,
+    pub hours_since_last_connection: u16,
+    #[protocol(var)]
+    pub mood_smiley_id: u16,
+    pub account_id: u32,
+    pub achievement_points: i32,
+    pub status: PlayerStatusVariant<'a>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 87)]
+pub struct GuildEmblem<'a> {
+    #[protocol(var)]
+    pub symbol_shape: u16,
+    pub symbol_color: i32,
+    pub background_shape: u8,
+    pub background_color: i32,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 498)]
+pub struct HavenBagFurnitureInformation<'a> {
+    #[protocol(var)]
+    pub cell_id: u16,
+    pub funiture_id: i32,
+    pub orientation: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

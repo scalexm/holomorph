@@ -1,7 +1,26 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(GameRolePlayDelayedActionFinishedMessage, 6150, delayed_character_id| f64, delay_type_id| i8);
-impl_type!(GameRolePlayDelayedActionMessage, 6153, delayed_character_id| f64, delay_type_id| i8, delay_end_time| f64);
-impl_type!(GameRolePlayDelayedObjectUseMessage, 6425, base| GameRolePlayDelayedActionMessage, object_gid| VarShort);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6425)]
+pub struct GameRolePlayDelayedObjectUseMessage<'a> {
+    pub base: GameRolePlayDelayedActionMessage<'a>,
+    #[protocol(var)]
+    pub object_gid: u16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6153)]
+pub struct GameRolePlayDelayedActionMessage<'a> {
+    pub delayed_character_id: f64,
+    pub delay_type_id: u8,
+    pub delay_end_time: f64,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6150)]
+pub struct GameRolePlayDelayedActionFinishedMessage<'a> {
+    pub delayed_character_id: f64,
+    pub delay_type_id: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

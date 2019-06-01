@@ -1,6 +1,10 @@
 pub mod compass;
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
- use types::game::context::roleplay::AtlasPointsInformations;
-impl_type!(AtlasPointInformationsMessage, 5956, type_| AtlasPointsInformations);
+
+use crate::types::game::context::roleplay::AtlasPointsInformations;
+use protocol_derive::{Decode, Encode};
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5956)]
+pub struct AtlasPointInformationsMessage<'a> {
+    pub type_: AtlasPointsInformations<'a>,
+}

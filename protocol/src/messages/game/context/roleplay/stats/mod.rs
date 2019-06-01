@@ -1,6 +1,20 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(StatsUpgradeRequestMessage, 5610, use_additionnal| bool, stat_id| i8, boost_point| VarShort);
-impl_type!(StatsUpgradeResultMessage, 5609, result| i8, nb_charac_boost| VarShort);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5609)]
+pub struct StatsUpgradeResultMessage<'a> {
+    pub result: i8,
+    #[protocol(var)]
+    pub nb_charac_boost: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5610)]
+pub struct StatsUpgradeRequestMessage<'a> {
+    pub use_additionnal: bool,
+    pub stat_id: u8,
+    #[protocol(var)]
+    pub boost_point: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

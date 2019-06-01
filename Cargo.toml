@@ -1,40 +1,6 @@
-[package]
-name = "holomorph"
-version = "0.1.0"
-authors = ["scalexm <martin.alex32@hotmail.fr>"]
+[workspace]
 
-[dependencies]
-rand = "*"
-log = "*"
-env_logger = "*"
-time = "*"
-rustc-serialize = "*"
-lazy_static = "*"
-shared = { path = "shared" }
-protocol = { path = "protocol", features = ["diesel"] }
-diesel = { git = "https://github.com/sgrif/diesel", features = ["large-tables"] }
-diesel_codegen = { git = "https://github.com/sgrif/diesel", default-features = false, features = ["nightly"] }
-quasi = { version = "^0.4.0", default-features = false }
-quasi_macros = { version = "^0.4.0" }
-eventual = { git = "https://github.com/carllerche/eventual" }
-openssl = "*"
-
-[profile.release]
-debug = true
-
-[[bin]]
-name = "auth"
-path = "src/auth/main.rs"
-
-[[bin]]
-name = "game"
-path = "src/game/main.rs"
-
-[lib]
-name = "codegen"
-path = "src/codegen.rs"
-plugin = true
-
-[[test]]
-name = "test"
-path = "test/test.rs"
+members = [
+    "protocol",
+    "protocol_derive",
+]

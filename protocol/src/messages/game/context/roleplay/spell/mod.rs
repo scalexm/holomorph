@@ -1,11 +1,18 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(SpellForgetUIMessage, 5565, open| bool);
-impl_type!(SpellForgottenMessage, 5834, spells_id| Vec<VarShort>, boost_point| VarShort);
-impl_type!(SpellItemBoostMessage, 6011, stat_id| VarInt, spell_id| VarShort, value| VarShort);
-impl_type!(SpellUpgradeFailureMessage, 1202);
-impl_type!(SpellUpgradeRequestMessage, 5608, spell_id| VarShort, spell_level| i8);
-impl_type!(SpellUpgradeSuccessMessage, 1201, spell_id| i32, spell_level| i8);
-impl_type!(ValidateSpellForgetMessage, 1700, spell_id| VarShort);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6707)]
+pub struct SpellVariantActivationRequestMessage<'a> {
+    #[protocol(var)]
+    pub spell_id: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6705)]
+pub struct SpellVariantActivationMessage<'a> {
+    #[protocol(var)]
+    pub spell_id: u16,
+    pub result: bool,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

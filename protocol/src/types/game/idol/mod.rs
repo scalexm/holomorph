@@ -1,6 +1,21 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(Idol, 489, id| VarShort, xp_bonus_percent| VarShort, drop_bonus_percent| VarShort);
-impl_type!(PartyIdol, 490, base| Idol, owners_ids| Vec<VarLong>);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 489)]
+pub struct Idol<'a> {
+    #[protocol(var)]
+    pub id: u16,
+    #[protocol(var)]
+    pub xp_bonus_percent: u16,
+    #[protocol(var)]
+    pub drop_bonus_percent: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 490)]
+pub struct PartyIdol<'a> {
+    pub base: Idol<'a>,
+    #[protocol(var_contents)]
+    pub owners_ids: std::borrow::Cow<'a, [u64]>,
+}

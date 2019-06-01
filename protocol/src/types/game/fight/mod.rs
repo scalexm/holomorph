@@ -1,5 +1,10 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(ProtectedEntityWaitingForHelpInfo, 186, time_left_before_fight| i32, wait_time_for_placement| i32, nb_position_for_defensors| i8);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 186)]
+pub struct ProtectedEntityWaitingForHelpInfo<'a> {
+    pub time_left_before_fight: i32,
+    pub wait_time_for_placement: i32,
+    pub nb_position_for_defensors: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

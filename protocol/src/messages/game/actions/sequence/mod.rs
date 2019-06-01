@@ -1,6 +1,19 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(SequenceEndMessage, 956, action_id| VarShort, author_id| f64, sequence_type| i8);
-impl_type!(SequenceStartMessage, 955, sequence_type| i8, author_id| f64);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 956)]
+pub struct SequenceEndMessage<'a> {
+    #[protocol(var)]
+    pub action_id: u16,
+    pub author_id: f64,
+    pub sequence_type: i8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 955)]
+pub struct SequenceStartMessage<'a> {
+    pub sequence_type: i8,
+    pub author_id: f64,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

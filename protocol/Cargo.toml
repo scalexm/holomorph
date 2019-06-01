@@ -1,15 +1,29 @@
 [package]
 name = "protocol"
 version = "0.1.0"
-authors = ["scalexm <martin.alex32@hotmail.fr>"]
+authors = ["scalexm <alexandre@scalexm.fr>"]
+edition = "2018"
 
 [dependencies]
-byteorder = "*"
-diesel = { git = "https://github.com/sgrif/diesel", optional = true }
+bytes = "0.4"
+tokio-codec = { version = "0.2.0", git = "https://github.com/scalexm/tokio" }
+regex = "1"
+lazy_static = "1"
+serde = { version = "1", features = ["derive"] }
+docopt = "1"
+protocol_derive = { path = "../protocol_derive" }
 
-[profile.release]
-debug = true
+[dev-dependencies]
+criterion = "0.2"
 
-[lib]
-name = "protocol"
-path = "src/lib.rs"
+[[bin]]
+name = "gen"
+path = "gen/main.rs"
+
+[[bench]]
+name = "int32"
+harness = false
+
+[[bench]]
+name = "var_int"
+harness = false

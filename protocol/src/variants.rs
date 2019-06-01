@@ -1,450 +1,469 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-use types::game::interactive::*;
-use types::game::character::status::*;
-use types::game::character::choice::*;
-use types::game::approach::*;
-use types::game::idol::*;
-use types::game::shortcut::*;
-use types::game::context::{
-    TaxCollectorStaticExtendedInformations,
-    TaxCollectorStaticInformations,
-    IdentifiedEntityDispositionInformations,
-    GameRolePlayTaxCollectorInformations,
-    FightEntityDispositionInformations,
-    EntityDispositionInformations,
-    GameContextActorInformations,
-    MapCoordinatesExtended,
-    MapCoordinatesAndId,
-    MapCoordinates,
-};
-use types::game::guild::tax::*;
-use types::game::social::*;
-use types::game::context::roleplay::*;
-use types::game::context::fight::*;
-use types::game::prism::*;
-use types::game::character::*;
-use types::game::context::roleplay::quest::*;
-use types::game::interactive::skill::*;
-use types::game::context::roleplay::treasure_hunt::*;
-use types::game::house::*;
-use types::game::friend::*;
-use types::game::paddock::*;
-use types::game::context::roleplay::party::*;
-use types::game::mount::*;
-use types::game::actions::fight::*;
-use types::game::data::items::effects::*;
-use types::common::basic::*;
+use crate::types::common::basic::*;
+use crate::types::game::actions::fight::*;
+use crate::types::game::approach::*;
+use crate::types::game::character::choice::*;
+use crate::types::game::character::status::*;
+use crate::types::game::character::*;
+use crate::types::game::context::fight::*;
+use crate::types::game::context::roleplay::party::*;
+use crate::types::game::context::roleplay::quest::*;
+use crate::types::game::context::roleplay::treasure_hunt::*;
+use crate::types::game::context::roleplay::*;
+use crate::types::game::context::*;
+use crate::types::game::data::items::effects::*;
+use crate::types::game::friend::*;
+use crate::types::game::guild::tax::*;
+use crate::types::game::idol::*;
+use crate::types::game::interactive::skill::*;
+use crate::types::game::interactive::*;
+use crate::types::game::paddock::*;
+use crate::types::game::prism::*;
+use crate::types::game::shortcut::*;
+use crate::types::game::social::*;
 
-impl_variant!(
-    InteractiveElementSkillVariant,
-    InteractiveElementSkill| InteractiveElementSkill,
-    InteractiveElementNamedSkill| InteractiveElementNamedSkill
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum InteractiveElementSkillVariant<'a> {
+    InteractiveElementSkill(InteractiveElementSkill<'a>),
+    InteractiveElementNamedSkill(InteractiveElementNamedSkill<'a>),
+}
 
-impl_variant!(
-    InteractiveElementVariant,
-    InteractiveElement| InteractiveElement,
-    InteractiveElementWithAgeBonus| InteractiveElementWithAgeBonus
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum InteractiveElementVariant<'a> {
+    InteractiveElement(InteractiveElement<'a>),
+    InteractiveElementWithAgeBonus(InteractiveElementWithAgeBonus<'a>),
+}
 
-impl_variant!(
-    PlayerStatusVariant,
-    PlayerStatus| PlayerStatus,
-    PlayerStatusExtended| PlayerStatusExtended
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum PlayerStatusVariant<'a> {
+    PlayerStatus(PlayerStatus<'a>),
+    PlayerStatusExtended(PlayerStatusExtended<'a>),
+}
 
-impl PlayerStatusVariant {
-    pub fn status_id(&self) -> i8 {
-        match *self {
-            PlayerStatusVariant::PlayerStatus(ref s) => s.status_id,
-            PlayerStatusVariant::PlayerStatusExtended(ref s) => s.base.status_id,
+impl PlayerStatusVariant<'_> {
+    pub fn status_id(&self) -> u8 {
+        match self {
+            PlayerStatusVariant::PlayerStatus(s) => s.status_id,
+            PlayerStatusVariant::PlayerStatusExtended(s) => s.base.status_id,
         }
     }
 }
 
-impl_variant!(
-    CharacterBaseInformationsVariant,
-    CharacterBaseInformations| CharacterBaseInformations,
-    CharacterHardcoreOrEpicInformations| CharacterHardcoreOrEpicInformations
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum CharacterBaseInformationsVariant<'a> {
+    CharacterBaseInformations(CharacterBaseInformations<'a>),
+    CharacterHardcoreOrEpicInformations(CharacterHardcoreOrEpicInformations<'a>),
+}
 
-impl_variant!(
-    ServerSessionConstantVariant,
-    ServerSessionConstant| ServerSessionConstant,
-    ServerSessionConstantInteger| ServerSessionConstantInteger,
-    ServerSessionConstantLong| ServerSessionConstantLong,
-    ServerSessionConstantString| ServerSessionConstantString
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum ServerSessionConstantVariant<'a> {
+    ServerSessionConstant(ServerSessionConstant<'a>),
+    ServerSessionConstantInteger(ServerSessionConstantInteger<'a>),
+    ServerSessionConstantLong(ServerSessionConstantLong<'a>),
+    ServerSessionConstantString(ServerSessionConstantString<'a>),
+}
 
-impl_variant!(
-    IdolVariant,
-    Idol| Idol,
-    PartyIdol| PartyIdol
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum IdolVariant<'a> {
+    Idol(Idol<'a>),
+    PartyIdol(PartyIdol<'a>),
+}
 
-impl_variant!(
-    ShortcutVariant,
-    Shortcut| Shortcut,
-    ShortcutEmote| ShortcutEmote,
-    ShortcutObject| ShortcutObject,
-    ShortcutObjectItem| ShortcutObjectItem,
-    ShortcutObjectPreset| ShortcutObjectPreset,
-    ShortcutSmiley| ShortcutSmiley,
-    ShortcutSpell| ShortcutSpell
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum ShortcutVariant<'a> {
+    Shortcut(Shortcut<'a>),
+    ShortcutEmote(ShortcutEmote<'a>),
+    ShortcutObject(ShortcutObject<'a>),
+    ShortcutObjectItem(ShortcutObjectItem<'a>),
+    ShortcutObjectPreset(ShortcutObjectPreset<'a>),
+    ShortcutSmiley(ShortcutSmiley<'a>),
+    ShortcutSpell(ShortcutSpell<'a>),
+}
 
-impl_variant!(
-    MapCoordinatesVariant,
-    MapCoordinates| MapCoordinates,
-    MapCoordinatesAndId| MapCoordinatesAndId,
-    MapCoordinatesExtended| MapCoordinatesExtended
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum MapCoordinatesVariant<'a> {
+    MapCoordinates(MapCoordinates<'a>),
+    MapCoordinatesAndId(MapCoordinatesAndId<'a>),
+    MapCoordinatesExtended(MapCoordinatesExtended<'a>),
+}
 
-impl_variant!(
-    TaxCollectorInformationsVariant,
-    TaxCollectorInformations| TaxCollectorInformations
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum TaxCollectorInformationsVariant<'a> {
+    TaxCollectorInformations(TaxCollectorInformations<'a>),
+}
 
-impl_variant!(
-    GuildVersatileInformationsVariant,
-    GuildVersatileInformations| GuildVersatileInformations,
-    GuildInAllianceVersatileInformations| GuildInAllianceVersatileInformations
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum GuildVersatileInformationsVariant<'a> {
+    GuildVersatileInformations(GuildVersatileInformations<'a>),
+    GuildInAllianceVersatileInformations(GuildInAllianceVersatileInformations<'a>),
+}
 
-impl_variant!(
-    GuildFactSheetInformationsVariant,
-    GuildFactSheetInformations| GuildFactSheetInformations,
-    GuildInsiderFactSheetInformations| GuildInsiderFactSheetInformations
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum GuildFactSheetInformationsVariant<'a> {
+    GuildFactSheetInformations(GuildFactSheetInformations<'a>),
+    GuildInsiderFactSheetInformations(GuildInsiderFactSheetInformations<'a>),
+}
 
-impl_variant!(
-    GameContextActorInformationsVariant,
-    GameContextActorInformations| GameContextActorInformations,
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum GameContextActorInformationsVariant<'a> {
+    GameContextActorInformations(GameContextActorInformations<'a>),
 
-    GameFightFighterInformations| GameFightFighterInformations,
-    GameFightCompanionInformations| GameFightCompanionInformations,
-    GameFightAIInformations| GameFightAIInformations,
-    GameFightFighterNamedInformations| GameFightFighterNamedInformations,
-    GameFightMonsterInformations| GameFightMonsterInformations,
-    GameFightCharacterInformations| GameFightCharacterInformations,
-    GameFightMonsterWithAlignmentInformations| GameFightMonsterWithAlignmentInformations,
-    GameFightMutantInformations| GameFightMutantInformations,
-    GameFightTaxCollectorInformations| GameFightTaxCollectorInformations,
+    GameFightFighterInformations(GameFightFighterInformations<'a>),
+    GameFightAIInformations(GameFightAIInformations<'a>),
+    GameFightFighterNamedInformations(GameFightFighterNamedInformations<'a>),
+    GameFightMonsterInformations(GameFightMonsterInformations<'a>),
+    GameFightCharacterInformations(GameFightCharacterInformations<'a>),
+    GameFightMonsterWithAlignmentInformations(GameFightMonsterWithAlignmentInformations<'a>),
+    GameFightMutantInformations(GameFightMutantInformations<'a>),
+    GameFightTaxCollectorInformations(GameFightTaxCollectorInformations<'a>),
 
-    GameRolePlayTaxCollectorInformations| GameRolePlayTaxCollectorInformations,
-    GameRolePlayActorInformations| GameRolePlayActorInformations,
-    GameRolePlayNamedActorInformations| GameRolePlayNamedActorInformations,
-    GameRolePlayNpcInformations| GameRolePlayNpcInformations,
-    GameRolePlayNpcWithQuestInformations| GameRolePlayNpcWithQuestInformations,
-    GameRolePlayPortalInformations| GameRolePlayPortalInformations,
-    GameRolePlayPrismInformations| GameRolePlayPrismInformations,
-    GameRolePlayTreasureHintInformations| GameRolePlayTreasureHintInformations,
-    GameRolePlayMerchantInformations| GameRolePlayMerchantInformations,
-    GameRolePlayHumanoidInformations| GameRolePlayHumanoidInformations,
-    GameRolePlayMutantInformations| GameRolePlayMutantInformations,
-    GameRolePlayCharacterInformations| GameRolePlayCharacterInformations,
-    GameRolePlayGroupMonsterInformations| GameRolePlayGroupMonsterInformations,
-    GameRolePlayGroupMonsterWaveInformations| GameRolePlayGroupMonsterWaveInformations
-);
+    GameRolePlayTaxCollectorInformations(GameRolePlayTaxCollectorInformations<'a>),
+    GameRolePlayActorInformations(GameRolePlayActorInformations<'a>),
+    GameRolePlayNamedActorInformations(GameRolePlayNamedActorInformations<'a>),
+    GameRolePlayNpcInformations(GameRolePlayNpcInformations<'a>),
+    GameRolePlayNpcWithQuestInformations(GameRolePlayNpcWithQuestInformations<'a>),
+    GameRolePlayPortalInformations(GameRolePlayPortalInformations<'a>),
+    GameRolePlayPrismInformations(GameRolePlayPrismInformations<'a>),
+    GameRolePlayTreasureHintInformations(GameRolePlayTreasureHintInformations<'a>),
+    GameRolePlayMerchantInformations(GameRolePlayMerchantInformations<'a>),
+    GameRolePlayHumanoidInformations(GameRolePlayHumanoidInformations<'a>),
+    GameRolePlayMutantInformations(GameRolePlayMutantInformations<'a>),
+    GameRolePlayCharacterInformations(GameRolePlayCharacterInformations<'a>),
+    GameRolePlayGroupMonsterInformations(GameRolePlayGroupMonsterInformations<'a>),
+    GameRolePlayGroupMonsterWaveInformations(GameRolePlayGroupMonsterWaveInformations<'a>),
+}
 
-impl_variant!(
-    PrismInformationVariant,
-    PrismInformation| PrismInformation,
-    AlliancePrismInformation| AlliancePrismInformation,
-    AllianceInsiderPrismInformation| AllianceInsiderPrismInformation
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum PrismInformationVariant<'a> {
+    PrismInformation(PrismInformation<'a>),
+    AlliancePrismInformation(AlliancePrismInformation<'a>),
+    AllianceInsiderPrismInformation(AllianceInsiderPrismInformation<'a>),
+}
 
-impl_variant!(
-    CharacterMinimalPlusLookInformationsVariant,
-    CharacterMinimalPlusLookInformations| CharacterMinimalPlusLookInformations,
-    CharacterMinimalPlusLookAndGradeInformations| CharacterMinimalPlusLookAndGradeInformations
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum CharacterMinimalPlusLookInformationsVariant<'a> {
+    CharacterMinimalPlusLookInformations(CharacterMinimalPlusLookInformations<'a>),
+    CharacterMinimalPlusLookAndGradeInformations(CharacterMinimalPlusLookAndGradeInformations<'a>),
+}
 
-impl_variant!(
-    QuestObjectiveInformationsVariant,
-    QuestObjectiveInformations| QuestObjectiveInformations,
-    QuestObjectiveInformationsWithCompletion| QuestObjectiveInformationsWithCompletion
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum QuestObjectiveInformationsVariant<'a> {
+    QuestObjectiveInformations(QuestObjectiveInformations<'a>),
+    QuestObjectiveInformationsWithCompletion(QuestObjectiveInformationsWithCompletion<'a>),
+}
 
-impl_variant!(
-    SkillActionDescriptionVariant,
-    SkillActionDescription| SkillActionDescription,
-    SkillActionDescriptionCollect| SkillActionDescriptionCollect,
-    SkillActionDescriptionCraft| SkillActionDescriptionCraft,
-    SkillActionDescriptionTimed| SkillActionDescriptionTimed
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum SkillActionDescriptionVariant<'a> {
+    SkillActionDescription(SkillActionDescription<'a>),
+    SkillActionDescriptionCollect(SkillActionDescriptionCollect<'a>),
+    SkillActionDescriptionCraft(SkillActionDescriptionCraft<'a>),
+    SkillActionDescriptionTimed(SkillActionDescriptionTimed<'a>),
+}
 
-impl_variant!(
-    HumanOptionVariant,
-    HumanOption| HumanOption,
-    HumanOptionAlliance| HumanOptionAlliance,
-    HumanOptionEmote| HumanOptionEmote,
-    HumanOptionFollowers| HumanOptionFollowers,
-    HumanOptionGuild| HumanOptionGuild,
-    HumanOptionObjectUse| HumanOptionObjectUse,
-    HumanOptionOrnament| HumanOptionOrnament,
-    HumanOptionTitle| HumanOptionTitle
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum HumanOptionVariant<'a> {
+    HumanOption(HumanOption<'a>),
+    HumanOptionAlliance(HumanOptionAlliance<'a>),
+    HumanOptionEmote(HumanOptionEmote<'a>),
+    HumanOptionFollowers(HumanOptionFollowers<'a>),
+    HumanOptionGuild(HumanOptionGuild<'a>),
+    HumanOptionObjectUse(HumanOptionObjectUse<'a>),
+    HumanOptionOrnament(HumanOptionOrnament<'a>),
+    HumanOptionTitle(HumanOptionTitle<'a>),
+}
 
-impl_variant!(
-    GroupMonsterStaticInformationsVariant,
-    GroupMonsterStaticInformations| GroupMonsterStaticInformations,
-    GroupMonsterStaticInformationsWithAlternatives| GroupMonsterStaticInformationsWithAlternatives
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum GroupMonsterStaticInformationsVariant<'a> {
+    GroupMonsterStaticInformations(GroupMonsterStaticInformations<'a>),
+    GroupMonsterStaticInformationsWithAlternatives(
+        GroupMonsterStaticInformationsWithAlternatives<'a>,
+    ),
+}
 
-impl_variant!(
-    PortalInformationVariant,
-    PortalInformation| PortalInformation
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum PortalInformationVariant<'a> {
+    PortalInformation(PortalInformation<'a>),
+}
 
-impl_variant!(
-    HumanInformationsVariant,
-    HumanInformations| HumanInformations
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum HumanInformationsVariant<'a> {
+    HumanInformations(HumanInformations<'a>),
+}
 
-impl_variant!(
-    FightTeamMemberInformationsVariant,
-    FightTeamMemberInformations| FightTeamMemberInformations,
-    FightTeamMemberCompanionInformations| FightTeamMemberCompanionInformations,
-    FightTeamMemberCharacterInformations| FightTeamMemberCharacterInformations,
-    FightTeamMemberMonsterInformations| FightTeamMemberMonsterInformations,
-    FightTeamMemberTaxCollectorInformations| FightTeamMemberTaxCollectorInformations,
-    FightTeamMemberWithAllianceCharacterInformations| FightTeamMemberWithAllianceCharacterInformations
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum FightTeamMemberInformationsVariant<'a> {
+    FightTeamMemberInformations(FightTeamMemberInformations<'a>),
+    FightTeamMemberCharacterInformations(FightTeamMemberCharacterInformations<'a>),
+    FightTeamMemberMonsterInformations(FightTeamMemberMonsterInformations<'a>),
+    FightTeamMemberTaxCollectorInformations(FightTeamMemberTaxCollectorInformations<'a>),
+    FightTeamMemberWithAllianceCharacterInformations(
+        FightTeamMemberWithAllianceCharacterInformations<'a>,
+    ),
+}
 
-impl_variant!(
-    GameFightMinimalStatsVariant,
-    GameFightMinimalStats| GameFightMinimalStats,
-    GameFightMinimalStatsPreparation| GameFightMinimalStatsPreparation
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum GameFightMinimalStatsVariant<'a> {
+    GameFightMinimalStats(GameFightMinimalStats<'a>),
+    GameFightMinimalStatsPreparation(GameFightMinimalStatsPreparation<'a>),
+}
 
-impl_variant!(
-    ObjectEffectVariant,
-    ObjectEffect| ObjectEffect,
-    ObjectEffectCreature| ObjectEffectCreature,
-    ObjectEffectDate| ObjectEffectDate,
-    ObjectEffectDice| ObjectEffectDice,
-    ObjectEffectDuration| ObjectEffectDuration,
-    ObjectEffectInteger| ObjectEffectInteger,
-    ObjectEffectLadder| ObjectEffectLadder,
-    ObjectEffectMinMax| ObjectEffectMinMax,
-    ObjectEffectMount| ObjectEffectMount,
-    ObjectEffectString| ObjectEffectString
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum ObjectEffectVariant<'a> {
+    ObjectEffect(ObjectEffect<'a>),
+    ObjectEffectCreature(ObjectEffectCreature<'a>),
+    ObjectEffectDate(ObjectEffectDate<'a>),
+    ObjectEffectDice(ObjectEffectDice<'a>),
+    ObjectEffectDuration(ObjectEffectDuration<'a>),
+    ObjectEffectInteger(ObjectEffectInteger<'a>),
+    ObjectEffectLadder(ObjectEffectLadder<'a>),
+    ObjectEffectMinMax(ObjectEffectMinMax<'a>),
+    ObjectEffectMount(ObjectEffectMount<'a>),
+    ObjectEffectString(ObjectEffectString<'a>),
+}
 
-impl_variant!(
-    AbstractFightDispellableEffectVariant,
-    AbstractFightDispellableEffect| AbstractFightDispellableEffect,
-    FightTemporaryBoostEffect| FightTemporaryBoostEffect,
-    FightTemporaryBoostStateEffect| FightTemporaryBoostStateEffect,
-    FightTemporaryBoostWeaponDamagesEffect| FightTemporaryBoostWeaponDamagesEffect,
-    FightTemporarySpellBoostEffect| FightTemporarySpellBoostEffect,
-    FightTemporarySpellImmunityEffect| FightTemporarySpellImmunityEffect,
-    FightTriggeredEffect| FightTriggeredEffect
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum AbstractFightDispellableEffectVariant<'a> {
+    AbstractFightDispellableEffect(AbstractFightDispellableEffect<'a>),
+    FightTemporaryBoostEffect(FightTemporaryBoostEffect<'a>),
+    FightTemporaryBoostStateEffect(FightTemporaryBoostStateEffect<'a>),
+    FightTemporaryBoostWeaponDamagesEffect(FightTemporaryBoostWeaponDamagesEffect<'a>),
+    FightTemporarySpellBoostEffect(FightTemporarySpellBoostEffect<'a>),
+    FightTemporarySpellImmunityEffect(FightTemporarySpellImmunityEffect<'a>),
+    FightTriggeredEffect(FightTriggeredEffect<'a>),
+}
 
-impl_variant!(
-    TaxCollectorComplementaryInformationsVariant,
-    TaxCollectorComplementaryInformations| TaxCollectorComplementaryInformations,
-    TaxCollectorGuildInformations| TaxCollectorGuildInformations,
-    TaxCollectorLootInformations| TaxCollectorLootInformations,
-    TaxCollectorWaitingForHelpInformations| TaxCollectorWaitingForHelpInformations
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum TaxCollectorComplementaryInformationsVariant<'a> {
+    TaxCollectorComplementaryInformations(TaxCollectorComplementaryInformations<'a>),
+    TaxCollectorGuildInformations(TaxCollectorGuildInformations<'a>),
+    TaxCollectorLootInformations(TaxCollectorLootInformations<'a>),
+    TaxCollectorWaitingForHelpInformations(TaxCollectorWaitingForHelpInformations<'a>),
+}
 
-impl_variant!(
-    FightTeamInformationsVariant,
-    FightTeamInformations| FightTeamInformations,
-    FightAllianceTeamInformations| FightAllianceTeamInformations
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum FightTeamInformationsVariant<'a> {
+    FightTeamInformations(FightTeamInformations<'a>),
+    FightAllianceTeamInformations(FightAllianceTeamInformations<'a>),
+}
 
-impl_variant!(
-    FightResultAdditionalDataVariant,
-    FightResultAdditionalData| FightResultAdditionalData,
-    FightResultExperienceData| FightResultExperienceData,
-    FightResultPvpData| FightResultPvpData
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum FightResultAdditionalDataVariant<'a> {
+    FightResultAdditionalData(FightResultAdditionalData<'a>),
+    FightResultExperienceData(FightResultExperienceData<'a>),
+    FightResultPvpData(FightResultPvpData<'a>),
+}
 
-impl_variant!(
-    EntityDispositionInformationsVariant,
-    EntityDispositionInformations| EntityDispositionInformations,
-    FightEntityDispositionInformations| FightEntityDispositionInformations,
-    IdentifiedEntityDispositionInformations| IdentifiedEntityDispositionInformations
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum EntityDispositionInformationsVariant<'a> {
+    EntityDispositionInformations(EntityDispositionInformations<'a>),
+    FightEntityDispositionInformations(FightEntityDispositionInformations<'a>),
+    IdentifiedEntityDispositionInformations(IdentifiedEntityDispositionInformations<'a>),
+}
 
-impl_variant!(
-    AllianceFactSheetInformationsVariant,
-    AllianceFactSheetInformations| AllianceFactSheetInformations
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum AllianceFactSheetInformationsVariant<'a> {
+    AllianceFactSheetInformations(AllianceFactSheetInformations<'a>),
+}
 
-impl_variant!(
-    PrismSubareaEmptyInfoVariant,
-    PrismSubareaEmptyInfo| PrismSubareaEmptyInfo,
-    PrismGeolocalizedInformation| PrismGeolocalizedInformation
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum PrismSubareaEmptyInfoVariant<'a> {
+    PrismSubareaEmptyInfo(PrismSubareaEmptyInfo<'a>),
+    PrismGeolocalizedInformation(PrismGeolocalizedInformation<'a>),
+}
 
-impl_variant!(
-    UpdateMountBoostVariant,
-    UpdateMountBoost| UpdateMountBoost,
-    UpdateMountIntBoost| UpdateMountIntBoost
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum AbstractSocialGroupInfosVariant<'a> {
+    AbstractSocialGroupInfos(AbstractSocialGroupInfos<'a>),
+    BasicGuildInformations(BasicGuildInformations<'a>),
+    BasicAllianceInformations(BasicAllianceInformations<'a>),
+}
 
-impl_variant!(
-    HouseInformationsVariant,
-    HouseInformations| HouseInformations,
-    HouseInformationsExtended| HouseInformationsExtended
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum GameFightFighterInformationsVariant<'a> {
+    GameFightFighterInformations(GameFightFighterInformations<'a>),
+    GameFightAIInformations(GameFightAIInformations<'a>),
+    GameFightFighterNamedInformations(GameFightFighterNamedInformations<'a>),
+    GameFightMonsterInformations(GameFightMonsterInformations<'a>),
+    GameFightCharacterInformations(GameFightCharacterInformations<'a>),
+    GameFightMonsterWithAlignmentInformations(GameFightMonsterWithAlignmentInformations<'a>),
+    GameFightMutantInformations(GameFightMutantInformations<'a>),
+    GameFightTaxCollectorInformations(GameFightTaxCollectorInformations<'a>),
+}
 
-impl_variant!(
-    AbstractSocialGroupInfosVariant,
-    AbstractSocialGroupInfos| AbstractSocialGroupInfos,
-    BasicGuildInformations| BasicGuildInformations,
-    BasicAllianceInformations| BasicAllianceInformations
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum FriendInformationsVariant<'a> {
+    FriendInformations(FriendInformations<'a>),
+    FriendOnlineInformations(FriendOnlineInformations<'a>),
+}
 
-impl_variant!(
-    GameFightFighterInformationsVariant,
-    GameFightFighterInformations| GameFightFighterInformations,
-    GameFightCompanionInformations| GameFightCompanionInformations,
-    GameFightAIInformations| GameFightAIInformations,
-    GameFightFighterNamedInformations| GameFightFighterNamedInformations,
-    GameFightMonsterInformations| GameFightMonsterInformations,
-    GameFightCharacterInformations| GameFightCharacterInformations,
-    GameFightMonsterWithAlignmentInformations| GameFightMonsterWithAlignmentInformations,
-    GameFightMutantInformations| GameFightMutantInformations,
-    GameFightTaxCollectorInformations| GameFightTaxCollectorInformations
-);
-
-impl_variant!(
-    FriendInformationsVariant,
-    FriendInformations| FriendInformations,
-    FriendOnlineInformations| FriendOnlineInformations
-);
-
-impl FriendInformationsVariant {
-    pub fn name(&self) -> &str {
-        match *self {
-            FriendInformationsVariant::FriendInformations(ref infos) => &infos.base.account_name,
-            FriendInformationsVariant::FriendOnlineInformations(ref infos) => {
-                &infos.base.base.account_name
-            },
+impl<'a> FriendInformationsVariant<'a> {
+    pub fn name(&self) -> &'a str {
+        match self {
+            FriendInformationsVariant::FriendInformations(infos) => infos.base.account_name,
+            FriendInformationsVariant::FriendOnlineInformations(infos) => {
+                infos.base.base.account_name
+            }
         }
     }
 }
 
-impl_type!(SessionIgnoredInformations, 9999, name| String);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum IgnoredInformationsVariant<'a> {
+    IgnoredInformations(IgnoredInformations<'a>),
+    IgnoredOnlineInformations(IgnoredOnlineInformations<'a>),
+}
 
-impl_variant!(
-    IgnoredInformationsVariant,
-    IgnoredInformations| IgnoredInformations,
-    IgnoredOnlineInformations| IgnoredOnlineInformations,
-    SessionIgnoredInformations| SessionIgnoredInformations
-);
-
-impl IgnoredInformationsVariant {
-    pub fn name(&self) -> &str {
-        match *self {
-            IgnoredInformationsVariant::IgnoredInformations(ref infos) => &infos.base.account_name,
-            IgnoredInformationsVariant::IgnoredOnlineInformations(ref infos) => {
-                &infos.base.base.account_name
-            },
-            IgnoredInformationsVariant::SessionIgnoredInformations(ref infos) => &infos.name,
+impl<'a> IgnoredInformationsVariant<'a> {
+    pub fn name(&self) -> &'a str {
+        match self {
+            IgnoredInformationsVariant::IgnoredInformations(infos) => infos.base.account_name,
+            IgnoredInformationsVariant::IgnoredOnlineInformations(infos) => {
+                infos.base.base.account_name
+            }
         }
     }
 }
 
-impl_variant!(
-    FriendSpouseInformationsVariant,
-    FriendSpouseInformations| FriendSpouseInformations,
-    FriendSpouseOnlineInformations| FriendSpouseOnlineInformations
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum FriendSpouseInformationsVariant<'a> {
+    FriendSpouseInformations(FriendSpouseInformations<'a>),
+    FriendSpouseOnlineInformations(FriendSpouseOnlineInformations<'a>),
+}
 
-impl_variant!(
-    PaddockInformationsVariant,
-    PaddockInformations| PaddockInformations,
-    PaddockContentInformations| PaddockContentInformations,
-    PaddockBuyableInformations| PaddockBuyableInformations,
-    PaddockAbandonnedInformations| PaddockAbandonnedInformations,
-    PaddockPrivateInformations| PaddockPrivateInformations
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum PaddockInformationsVariant<'a> {
+    PaddockInformations(PaddockInformations<'a>),
+    PaddockContentInformations(PaddockContentInformations<'a>),
+    PaddockBuyableInformations(PaddockBuyableInformations<'a>),
+}
 
-impl_variant!(
-    FightResultListEntryVariant,
-    FightResultListEntry| FightResultListEntry,
-    FightResultFighterListEntry| FightResultFighterListEntry,
-    FightResultMutantListEntry| FightResultMutantListEntry,
-    FightResultPlayerListEntry| FightResultPlayerListEntry,
-    FightResultTaxCollectorListEntry| FightResultTaxCollectorListEntry
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum FightResultListEntryVariant<'a> {
+    FightResultListEntry(FightResultListEntry<'a>),
+    FightResultFighterListEntry(FightResultFighterListEntry<'a>),
+    FightResultMutantListEntry(FightResultMutantListEntry<'a>),
+    FightResultPlayerListEntry(FightResultPlayerListEntry<'a>),
+    FightResultTaxCollectorListEntry(FightResultTaxCollectorListEntry<'a>),
+}
 
-impl_variant!(
-    TreasureHuntStepVariant,
-    TreasureHuntStep| TreasureHuntStep,
-    TreasureHuntStepDig| TreasureHuntStepDig,
-    TreasureHuntStepFight| TreasureHuntStepFight,
-    TreasureHuntStepFollowDirection| TreasureHuntStepFollowDirection,
-    TreasureHuntStepFollowDirectionToHint| TreasureHuntStepFollowDirectionToHint,
-    TreasureHuntStepFollowDirectionToPOI| TreasureHuntStepFollowDirectionToPOI
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum TreasureHuntStepVariant<'a> {
+    TreasureHuntStep(TreasureHuntStep<'a>),
+    TreasureHuntStepDig(TreasureHuntStepDig<'a>),
+    TreasureHuntStepFight(TreasureHuntStepFight<'a>),
+    TreasureHuntStepFollowDirection(TreasureHuntStepFollowDirection<'a>),
+    TreasureHuntStepFollowDirectionToHint(TreasureHuntStepFollowDirectionToHint<'a>),
+    TreasureHuntStepFollowDirectionToPOI(TreasureHuntStepFollowDirectionToPOI<'a>),
+}
 
-impl_variant!(
-    PartyMemberInformationsVariant,
-    PartyMemberInformations| PartyMemberInformations,
-    PartyMemberArenaInformations| PartyMemberArenaInformations
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum PartyMemberInformationsVariant<'a> {
+    PartyMemberInformations(PartyMemberInformations<'a>),
+    PartyMemberArenaInformations(PartyMemberArenaInformations<'a>),
+}
 
-impl_variant!(
-    QuestActiveInformationsVariant,
-    QuestActiveInformations| QuestActiveInformations,
-    QuestActiveDetailedInformations| QuestActiveDetailedInformations
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum QuestActiveInformationsVariant<'a> {
+    QuestActiveInformations(QuestActiveInformations<'a>),
+    QuestActiveDetailedInformations(QuestActiveDetailedInformations<'a>),
+}
 
-impl_variant!(
-    TaxCollectorStaticInformationsVariant,
-    TaxCollectorStaticInformations| TaxCollectorStaticInformations,
-    TaxCollectorStaticExtendedInformations| TaxCollectorStaticExtendedInformations
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum TaxCollectorStaticInformationsVariant<'a> {
+    TaxCollectorStaticInformations(TaxCollectorStaticInformations<'a>),
+    TaxCollectorStaticExtendedInformations(TaxCollectorStaticExtendedInformations<'a>),
+}
 
-impl_variant!(
-    PartyIdolVariant,
-    PartyIdol| PartyIdol
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum PartyIdolVariant<'a> {
+    PartyIdol(PartyIdol<'a>),
+}
 
-impl_variant!(
-    GameRolePlayActorInformationsVariant,
-    GameRolePlayTaxCollectorInformations| GameRolePlayTaxCollectorInformations,
-    GameRolePlayActorInformations| GameRolePlayActorInformations,
-    GameRolePlayNamedActorInformations| GameRolePlayNamedActorInformations,
-    GameRolePlayNpcInformations| GameRolePlayNpcInformations,
-    GameRolePlayNpcWithQuestInformations| GameRolePlayNpcWithQuestInformations,
-    GameRolePlayPortalInformations| GameRolePlayPortalInformations,
-    GameRolePlayPrismInformations| GameRolePlayPrismInformations,
-    GameRolePlayTreasureHintInformations| GameRolePlayTreasureHintInformations,
-    GameRolePlayMerchantInformations| GameRolePlayMerchantInformations,
-    GameRolePlayHumanoidInformations| GameRolePlayHumanoidInformations,
-    GameRolePlayMutantInformations| GameRolePlayMutantInformations,
-    GameRolePlayCharacterInformations| GameRolePlayCharacterInformations,
-    GameRolePlayGroupMonsterInformations| GameRolePlayGroupMonsterInformations,
-    GameRolePlayGroupMonsterWaveInformations| GameRolePlayGroupMonsterWaveInformations
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum GameRolePlayActorInformationsVariant<'a> {
+    GameRolePlayTaxCollectorInformations(GameRolePlayTaxCollectorInformations<'a>),
+    GameRolePlayActorInformations(GameRolePlayActorInformations<'a>),
+    GameRolePlayNamedActorInformations(GameRolePlayNamedActorInformations<'a>),
+    GameRolePlayNpcInformations(GameRolePlayNpcInformations<'a>),
+    GameRolePlayNpcWithQuestInformations(GameRolePlayNpcWithQuestInformations<'a>),
+    GameRolePlayPortalInformations(GameRolePlayPortalInformations<'a>),
+    GameRolePlayPrismInformations(GameRolePlayPrismInformations<'a>),
+    GameRolePlayTreasureHintInformations(GameRolePlayTreasureHintInformations<'a>),
+    GameRolePlayMerchantInformations(GameRolePlayMerchantInformations<'a>),
+    GameRolePlayHumanoidInformations(GameRolePlayHumanoidInformations<'a>),
+    GameRolePlayMutantInformations(GameRolePlayMutantInformations<'a>),
+    GameRolePlayCharacterInformations(GameRolePlayCharacterInformations<'a>),
+    GameRolePlayGroupMonsterInformations(GameRolePlayGroupMonsterInformations<'a>),
+    GameRolePlayGroupMonsterWaveInformations(GameRolePlayGroupMonsterWaveInformations<'a>),
+}
 
-impl_variant!(
-    GameFightFighterLightInformationsVariant,
-    GameFightFighterLightInformations| GameFightFighterLightInformations,
-    GameFightFighterNamedLightInformations| GameFightFighterNamedLightInformations,
-    GameFightFighterMonsterLightInformations| GameFightFighterMonsterLightInformations,
-    GameFightFighterTaxCollectorLightInformations| GameFightFighterTaxCollectorLightInformations,
-    GameFightFighterCompanionLightInformations| GameFightFighterCompanionLightInformations
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum GameFightFighterLightInformationsVariant<'a> {
+    GameFightFighterLightInformations(GameFightFighterLightInformations<'a>),
+    GameFightFighterNamedLightInformations(GameFightFighterNamedLightInformations<'a>),
+    GameFightFighterMonsterLightInformations(GameFightFighterMonsterLightInformations<'a>),
+    GameFightFighterTaxCollectorLightInformations(
+        GameFightFighterTaxCollectorLightInformations<'a>,
+    ),
+}
 
-impl_variant!(
-    StatisticDataVariant,
-    StatisticData| StatisticData,
-    StatisticDataBoolean| StatisticDataBoolean,
-    StatisticDataByte| StatisticDataByte,
-    StatisticDataInt| StatisticDataInt,
-    StatisticDataShort| StatisticDataShort,
-    StatisticDataString| StatisticDataString
-);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum StatisticDataVariant<'a> {
+    StatisticData(StatisticData<'a>),
+    StatisticDataBoolean(StatisticDataBoolean<'a>),
+    StatisticDataByte(StatisticDataByte<'a>),
+    StatisticDataInt(StatisticDataInt<'a>),
+    StatisticDataShort(StatisticDataShort<'a>),
+    StatisticDataString(StatisticDataString<'a>),
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub struct Foo<'a> {
+    _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum AcquaintanceInformationVariant<'a> {
+    Foo(Foo<'a>),
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum AchievementAchievedVariant<'a> {
+    Foo(Foo<'a>),
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum PartyInvitationMemberInformationsVariant<'a> {
+    Foo(Foo<'a>),
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum HouseInformationsVariant<'a> {
+    Foo(Foo<'a>),
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum HouseInstanceInformationsVariant<'a> {
+    Foo(Foo<'a>),
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum UpdateMountCharacteristicVariant<'a> {
+    Foo(Foo<'a>),
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum PresetVariant<'a> {
+    Foo(Foo<'a>),
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum PartyEntityBaseInformationVariant<'a> {
+    Foo(Foo<'a>),
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+pub enum PaddockBuyableInformationsVariant<'a> {
+    Foo(Foo<'a>),
+}

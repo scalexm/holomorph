@@ -1,6 +1,24 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(ActorAlignmentInformations, 201, alignment_side| i8, alignment_value| i8, alignment_grade| i8, character_power| f64);
-impl_type!(ActorExtendedAlignmentInformations, 202, base| ActorAlignmentInformations, honor| VarShort, honor_grade_floor| VarShort, honor_next_grade_floor| VarShort, aggressable| i8);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 201)]
+pub struct ActorAlignmentInformations<'a> {
+    pub alignment_side: i8,
+    pub alignment_value: u8,
+    pub alignment_grade: u8,
+    pub character_power: f64,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 202)]
+pub struct ActorExtendedAlignmentInformations<'a> {
+    pub base: ActorAlignmentInformations<'a>,
+    #[protocol(var)]
+    pub honor: u16,
+    #[protocol(var)]
+    pub honor_grade_floor: u16,
+    #[protocol(var)]
+    pub honor_next_grade_floor: u16,
+    pub aggressable: u8,
+}

@@ -1,5 +1,9 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(PopupWarningMessage, 6134, lock_duration| i8, author| String, content| String);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6134)]
+pub struct PopupWarningMessage<'a> {
+    pub lock_duration: u8,
+    pub author: &'a str,
+    pub content: &'a str,
+}

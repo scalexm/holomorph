@@ -1,13 +1,76 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
- use variants::ShortcutVariant;
-impl_type!(ShortcutBarAddErrorMessage, 6227, error| i8);
-impl_type!(ShortcutBarAddRequestMessage, 6225, bar_type| i8, shortcut| ShortcutVariant);
-impl_type!(ShortcutBarContentMessage, 6231, bar_type| i8, shortcuts| Vec<ShortcutVariant>);
-impl_type!(ShortcutBarRefreshMessage, 6229, bar_type| i8, shortcut| ShortcutVariant);
-impl_type!(ShortcutBarRemovedMessage, 6224, bar_type| i8, slot| i8);
-impl_type!(ShortcutBarRemoveErrorMessage, 6222, error| i8);
-impl_type!(ShortcutBarRemoveRequestMessage, 6228, bar_type| i8, slot| i8);
-impl_type!(ShortcutBarSwapErrorMessage, 6226, error| i8);
-impl_type!(ShortcutBarSwapRequestMessage, 6230, bar_type| i8, first_slot| i8, second_slot| i8);
+use crate::variants::ShortcutVariant;
+use protocol_derive::{Decode, Encode};
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6227)]
+pub struct ShortcutBarAddErrorMessage<'a> {
+    pub error: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6706)]
+pub struct ShortcutBarReplacedMessage<'a> {
+    pub bar_type: u8,
+    pub shortcut: ShortcutVariant<'a>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6222)]
+pub struct ShortcutBarRemoveErrorMessage<'a> {
+    pub error: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6230)]
+pub struct ShortcutBarSwapRequestMessage<'a> {
+    pub bar_type: u8,
+    pub first_slot: u8,
+    pub second_slot: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6231)]
+pub struct ShortcutBarContentMessage<'a> {
+    pub bar_type: u8,
+    pub shortcuts: std::borrow::Cow<'a, [ShortcutVariant<'a>]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6224)]
+pub struct ShortcutBarRemovedMessage<'a> {
+    pub bar_type: u8,
+    pub slot: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6225)]
+pub struct ShortcutBarAddRequestMessage<'a> {
+    pub bar_type: u8,
+    pub shortcut: ShortcutVariant<'a>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6229)]
+pub struct ShortcutBarRefreshMessage<'a> {
+    pub bar_type: u8,
+    pub shortcut: ShortcutVariant<'a>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6228)]
+pub struct ShortcutBarRemoveRequestMessage<'a> {
+    pub bar_type: u8,
+    pub slot: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6226)]
+pub struct ShortcutBarSwapErrorMessage<'a> {
+    pub error: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

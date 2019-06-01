@@ -1,15 +1,96 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(OrnamentGainedMessage, 6368, ornament_id| i16);
-impl_type!(OrnamentSelectedMessage, 6369, ornament_id| VarShort);
-impl_type!(OrnamentSelectErrorMessage, 6370, reason| i8);
-impl_type!(OrnamentSelectRequestMessage, 6374, ornament_id| VarShort);
-impl_type!(TitleGainedMessage, 6364, title_id| VarShort);
-impl_type!(TitleLostMessage, 6371, title_id| VarShort);
-impl_type!(TitlesAndOrnamentsListMessage, 6367, titles| Vec<VarShort>, ornaments| Vec<VarShort>, active_title| VarShort, active_ornament| VarShort);
-impl_type!(TitlesAndOrnamentsListRequestMessage, 6363);
-impl_type!(TitleSelectedMessage, 6366, title_id| VarShort);
-impl_type!(TitleSelectErrorMessage, 6373, reason| i8);
-impl_type!(TitleSelectRequestMessage, 6365, title_id| VarShort);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6368)]
+pub struct OrnamentGainedMessage<'a> {
+    pub ornament_id: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6364)]
+pub struct TitleGainedMessage<'a> {
+    #[protocol(var)]
+    pub title_id: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6370)]
+pub struct OrnamentSelectErrorMessage<'a> {
+    pub reason: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6373)]
+pub struct TitleSelectErrorMessage<'a> {
+    pub reason: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6369)]
+pub struct OrnamentSelectedMessage<'a> {
+    #[protocol(var)]
+    pub ornament_id: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6371)]
+pub struct TitleLostMessage<'a> {
+    #[protocol(var)]
+    pub title_id: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6366)]
+pub struct TitleSelectedMessage<'a> {
+    #[protocol(var)]
+    pub title_id: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6363)]
+pub struct TitlesAndOrnamentsListRequestMessage<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6367)]
+pub struct TitlesAndOrnamentsListMessage<'a> {
+    #[protocol(var_contents)]
+    pub titles: std::borrow::Cow<'a, [u16]>,
+    #[protocol(var_contents)]
+    pub ornaments: std::borrow::Cow<'a, [u16]>,
+    #[protocol(var)]
+    pub active_title: u16,
+    #[protocol(var)]
+    pub active_ornament: u16,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6365)]
+pub struct TitleSelectRequestMessage<'a> {
+    #[protocol(var)]
+    pub title_id: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6374)]
+pub struct OrnamentSelectRequestMessage<'a> {
+    #[protocol(var)]
+    pub ornament_id: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6770)]
+pub struct OrnamentLostMessage<'a> {
+    pub ornament_id: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

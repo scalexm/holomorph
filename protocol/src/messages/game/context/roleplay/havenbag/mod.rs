@@ -1,21 +1,111 @@
 pub mod meeting;
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
- use types::game::guild::HavenBagFurnitureInformation;
-impl_type!(ChangeHavenBagRoomRequestMessage, 6638, room_id| i8);
-impl_type!(ChangeThemeRequestMessage, 6639, theme| i8);
-impl_type!(CloseHavenBagFurnitureSequenceRequestMessage, 6621);
-impl_type!(EditHavenBagCancelRequestMessage, 6619);
-impl_type!(EditHavenBagFinishedMessage, 6628);
-impl_type!(EditHavenBagRequestMessage, 6626);
-impl_type!(EditHavenBagStartMessage, 6632);
-impl_type!(EnterHavenBagRequestMessage, 6636);
-impl_type!(ExitHavenBagRequestMessage, 6631);
-impl_type!(HavenBagDailyLoteryMessage, 6644, return_type| i8, token_id| String);
-impl_type!(HavenBagFurnituresMessage, 6634, furnitures_infos| Vec<HavenBagFurnitureInformation>);
-impl_type!(HavenBagFurnituresRequestMessage, 6637, cell_ids| Vec<VarShort>, funiture_ids| Vec<i32>, orientations| Vec<u8>);
-impl_type!(HavenBagPackListMessage, 6620, pack_ids| Vec<u8>);
-impl_type!(KickHavenBagRequest, 6650, guest_id| VarLong);
-impl_type!(OpenHavenBagFurnitureSequenceRequestMessage, 6635);
-impl_type!(RoomAvailableUpdateMessage, 6630, nb_room| i8);
+
+use crate::types::game::guild::HavenBagFurnitureInformation;
+use protocol_derive::{Decode, Encode};
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6652)]
+pub struct KickHavenBagRequestMessage<'a> {
+    #[protocol(var)]
+    pub guest_id: u64,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6620)]
+pub struct HavenBagPackListMessage<'a> {
+    pub pack_ids: &'a [i8],
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6619)]
+pub struct EditHavenBagCancelRequestMessage<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6636)]
+pub struct EnterHavenBagRequestMessage<'a> {
+    #[protocol(var)]
+    pub haven_bag_owner: u64,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6621)]
+pub struct CloseHavenBagFurnitureSequenceRequestMessage<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6644)]
+pub struct HavenBagDailyLoteryMessage<'a> {
+    pub return_type: u8,
+    pub game_action_id: &'a str,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6634)]
+pub struct HavenBagFurnituresMessage<'a> {
+    pub furnitures_infos: std::borrow::Cow<'a, [HavenBagFurnitureInformation<'a>]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6638)]
+pub struct ChangeHavenBagRoomRequestMessage<'a> {
+    pub room_id: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6639)]
+pub struct ChangeThemeRequestMessage<'a> {
+    pub theme: i8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6632)]
+pub struct EditHavenBagStartMessage<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6630)]
+pub struct RoomAvailableUpdateMessage<'a> {
+    pub nb_room: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6626)]
+pub struct EditHavenBagRequestMessage<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6637)]
+pub struct HavenBagFurnituresRequestMessage<'a> {
+    #[protocol(var_contents)]
+    pub cell_ids: std::borrow::Cow<'a, [u16]>,
+    pub funiture_ids: std::borrow::Cow<'a, [i32]>,
+    pub orientations: &'a [u8],
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6628)]
+pub struct EditHavenBagFinishedMessage<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6631)]
+pub struct ExitHavenBagRequestMessage<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6635)]
+pub struct OpenHavenBagFurnitureSequenceRequestMessage<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

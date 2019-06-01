@@ -1,12 +1,79 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
- use types::game::idol::PartyIdol; use variants::IdolVariant; use variants::PartyIdolVariant;
-impl_type!(IdolFightPreparationUpdateMessage, 6586, idol_source| i8, idols| Vec<IdolVariant>);
-impl_type!(IdolListMessage, 6585, chosen_idols| Vec<VarShort>, party_chosen_idols| Vec<VarShort>, party_idols| Vec<PartyIdolVariant>);
-impl_type!(IdolPartyLostMessage, 6580, idol_id| VarShort);
-impl_type!(IdolPartyRefreshMessage, 6583, party_idol| PartyIdol);
-impl_type!(IdolPartyRegisterRequestMessage, 6582, register| bool);
-impl_type!(IdolSelectedMessage, 6581, activate| Flag, party| Flag, idol_id| VarShort);
-impl_type!(IdolSelectErrorMessage, 6584, activate| Flag, party| Flag, reason| i8, idol_id| VarShort);
-impl_type!(IdolSelectRequestMessage, 6587, activate| Flag, party| Flag, idol_id| VarShort);
+use crate::types::game::idol::PartyIdol;
+use crate::variants::IdolVariant;
+use crate::variants::PartyIdolVariant;
+use protocol_derive::{Decode, Encode};
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6584)]
+pub struct IdolSelectErrorMessage<'a> {
+    #[protocol(flag)]
+    pub activate: bool,
+    #[protocol(flag)]
+    pub party: bool,
+    pub reason: u8,
+    #[protocol(var)]
+    pub idol_id: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6585)]
+pub struct IdolListMessage<'a> {
+    #[protocol(var_contents)]
+    pub chosen_idols: std::borrow::Cow<'a, [u16]>,
+    #[protocol(var_contents)]
+    pub party_chosen_idols: std::borrow::Cow<'a, [u16]>,
+    pub party_idols: std::borrow::Cow<'a, [PartyIdolVariant<'a>]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6582)]
+pub struct IdolPartyRegisterRequestMessage<'a> {
+    pub register: bool,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6583)]
+pub struct IdolPartyRefreshMessage<'a> {
+    pub party_idol: PartyIdol<'a>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6586)]
+pub struct IdolFightPreparationUpdateMessage<'a> {
+    pub idol_source: u8,
+    pub idols: std::borrow::Cow<'a, [IdolVariant<'a>]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6587)]
+pub struct IdolSelectRequestMessage<'a> {
+    #[protocol(flag)]
+    pub activate: bool,
+    #[protocol(flag)]
+    pub party: bool,
+    #[protocol(var)]
+    pub idol_id: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6581)]
+pub struct IdolSelectedMessage<'a> {
+    #[protocol(flag)]
+    pub activate: bool,
+    #[protocol(flag)]
+    pub party: bool,
+    #[protocol(var)]
+    pub idol_id: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6580)]
+pub struct IdolPartyLostMessage<'a> {
+    #[protocol(var)]
+    pub idol_id: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

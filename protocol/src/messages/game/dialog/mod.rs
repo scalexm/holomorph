@@ -1,7 +1,21 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(LeaveDialogMessage, 5502, dialog_type| i8);
-impl_type!(LeaveDialogRequestMessage, 5501);
-impl_type!(PauseDialogMessage, 6012, dialog_type| i8);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6012)]
+pub struct PauseDialogMessage<'a> {
+    pub dialog_type: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5502)]
+pub struct LeaveDialogMessage<'a> {
+    pub dialog_type: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5501)]
+pub struct LeaveDialogRequestMessage<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

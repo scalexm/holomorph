@@ -1,9 +1,36 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(CheckFileMessage, 6156, filename_hash| String, type_| i8, value| String);
-impl_type!(CheckFileRequestMessage, 6154, filename| String, type_| i8);
-impl_type!(CheckIntegrityMessage, 6372, data| VarIntVec<u8>);
-impl_type!(ClientKeyMessage, 5607, key| String);
-impl_type!(RawDataMessage, 6253, content| VarIntVec<u8>);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5607)]
+pub struct ClientKeyMessage<'a> {
+    pub key: &'a str,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6372)]
+pub struct CheckIntegrityMessage<'a> {
+    #[protocol(var)]
+    pub data: &'a [i8],
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6253)]
+pub struct RawDataMessage<'a> {
+    #[protocol(var)]
+    pub content: &'a [u8],
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6156)]
+pub struct CheckFileMessage<'a> {
+    pub filename_hash: &'a str,
+    pub type_: u8,
+    pub value: &'a str,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6154)]
+pub struct CheckFileRequestMessage<'a> {
+    pub filename: &'a str,
+    pub type_: u8,
+}

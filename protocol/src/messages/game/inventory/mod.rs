@@ -1,13 +1,35 @@
-pub mod storage;
-pub mod spells;
-pub mod preset;
-pub mod items;
 pub mod exchanges;
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+pub mod items;
+pub mod spells;
+pub mod storage;
 
-impl_type!(KamasUpdateMessage, 5537, kamas_total| VarInt);
-impl_type!(ObjectAveragePricesErrorMessage, 6336);
-impl_type!(ObjectAveragePricesGetMessage, 6334);
-impl_type!(ObjectAveragePricesMessage, 6335, ids| Vec<VarShort>, avg_prices| Vec<VarInt>);
+use protocol_derive::{Decode, Encode};
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6334)]
+pub struct ObjectAveragePricesGetMessage<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6335)]
+pub struct ObjectAveragePricesMessage<'a> {
+    #[protocol(var_contents)]
+    pub ids: std::borrow::Cow<'a, [u16]>,
+    #[protocol(var_contents)]
+    pub avg_prices: std::borrow::Cow<'a, [u64]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6336)]
+pub struct ObjectAveragePricesErrorMessage<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5537)]
+pub struct KamasUpdateMessage<'a> {
+    #[protocol(var)]
+    pub kamas_total: u64,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

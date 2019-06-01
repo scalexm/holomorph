@@ -1,19 +1,95 @@
-pub mod smiley;
-pub mod report;
 pub mod channel;
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
- use types::game::data::items::ObjectItem;
-impl_type!(ChatAbstractClientMessage, 850, content| String);
-impl_type!(ChatAbstractServerMessage, 880, channel| i8, content| String, timestamp| i32, fingerprint| String);
-impl_type!(ChatAdminServerMessage, 6135, base| ChatServerMessage);
-impl_type!(ChatClientMultiMessage, 861, base| ChatAbstractClientMessage, channel| i8);
-impl_type!(ChatClientMultiWithObjectMessage, 862, base| ChatClientMultiMessage, objects| Vec<ObjectItem>);
-impl_type!(ChatClientPrivateMessage, 851, base| ChatAbstractClientMessage, receiver| String);
-impl_type!(ChatClientPrivateWithObjectMessage, 852, base| ChatClientPrivateMessage, objects| Vec<ObjectItem>);
-impl_type!(ChatErrorMessage, 870, reason| i8);
-impl_type!(ChatServerCopyMessage, 882, base| ChatAbstractServerMessage, receiver_id| VarLong, receiver_name| String);
-impl_type!(ChatServerCopyWithObjectMessage, 884, base| ChatServerCopyMessage, objects| Vec<ObjectItem>);
-impl_type!(ChatServerMessage, 881, base| ChatAbstractServerMessage, sender_id| f64, sender_name| String, sender_account_id| i32);
-impl_type!(ChatServerWithObjectMessage, 883, base| ChatServerMessage, objects| Vec<ObjectItem>);
+pub mod community;
+pub mod smiley;
+
+use crate::types::game::data::items::ObjectItem;
+use protocol_derive::{Decode, Encode};
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 870)]
+pub struct ChatErrorMessage<'a> {
+    pub reason: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6135)]
+pub struct ChatAdminServerMessage<'a> {
+    pub base: ChatServerMessage<'a>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 862)]
+pub struct ChatClientMultiWithObjectMessage<'a> {
+    pub base: ChatClientMultiMessage<'a>,
+    pub objects: std::borrow::Cow<'a, [ObjectItem<'a>]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 882)]
+pub struct ChatServerCopyMessage<'a> {
+    pub base: ChatAbstractServerMessage<'a>,
+    #[protocol(var)]
+    pub receiver_id: u64,
+    pub receiver_name: &'a str,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 881)]
+pub struct ChatServerMessage<'a> {
+    pub base: ChatAbstractServerMessage<'a>,
+    pub sender_id: f64,
+    pub sender_name: &'a str,
+    pub prefix: &'a str,
+    pub sender_account_id: u32,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 850)]
+pub struct ChatAbstractClientMessage<'a> {
+    pub content: &'a str,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 884)]
+pub struct ChatServerCopyWithObjectMessage<'a> {
+    pub base: ChatServerCopyMessage<'a>,
+    pub objects: std::borrow::Cow<'a, [ObjectItem<'a>]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 883)]
+pub struct ChatServerWithObjectMessage<'a> {
+    pub base: ChatServerMessage<'a>,
+    pub objects: std::borrow::Cow<'a, [ObjectItem<'a>]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 851)]
+pub struct ChatClientPrivateMessage<'a> {
+    pub base: ChatAbstractClientMessage<'a>,
+    pub receiver: &'a str,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 880)]
+pub struct ChatAbstractServerMessage<'a> {
+    pub channel: u8,
+    pub content: &'a str,
+    pub timestamp: u32,
+    pub fingerprint: &'a str,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 852)]
+pub struct ChatClientPrivateWithObjectMessage<'a> {
+    pub base: ChatClientPrivateMessage<'a>,
+    pub objects: std::borrow::Cow<'a, [ObjectItem<'a>]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 861)]
+pub struct ChatClientMultiMessage<'a> {
+    pub base: ChatAbstractClientMessage<'a>,
+    pub channel: u8,
+}

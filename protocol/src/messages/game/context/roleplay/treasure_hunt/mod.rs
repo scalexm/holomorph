@@ -1,19 +1,118 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
- use variants::TreasureHuntStepVariant; use types::game::context::roleplay::treasure_hunt::TreasureHuntFlag;
-impl_type!(PortalUseRequestMessage, 6492, portal_id| VarInt);
-impl_type!(TreasureHuntAvailableRetryCountUpdateMessage, 6491, quest_type| i8, available_retry_count| i32);
-impl_type!(TreasureHuntDigRequestAnswerFailedMessage, 6509, base| TreasureHuntDigRequestAnswerMessage, wrong_flag_count| i8);
-impl_type!(TreasureHuntDigRequestAnswerMessage, 6484, quest_type| i8, result| i8);
-impl_type!(TreasureHuntDigRequestMessage, 6485, quest_type| i8);
-impl_type!(TreasureHuntFinishedMessage, 6483, quest_type| i8);
-impl_type!(TreasureHuntFlagRemoveRequestMessage, 6510, quest_type| i8, index| i8);
-impl_type!(TreasureHuntFlagRequestAnswerMessage, 6507, quest_type| i8, result| i8, index| i8);
-impl_type!(TreasureHuntFlagRequestMessage, 6508, quest_type| i8, index| i8);
-impl_type!(TreasureHuntGiveUpRequestMessage, 6487, quest_type| i8);
-impl_type!(TreasureHuntLegendaryRequestMessage, 6499, legendary_id| VarShort);
-impl_type!(TreasureHuntMessage, 6486, quest_type| i8, start_map_id| i32, known_steps_list| Vec<TreasureHuntStepVariant>, total_step_count| i8, check_point_current| VarInt, check_point_total| VarInt, available_retry_count| i32, flags| Vec<TreasureHuntFlag>);
-impl_type!(TreasureHuntRequestAnswerMessage, 6489, quest_type| i8, result| i8);
-impl_type!(TreasureHuntRequestMessage, 6488, quest_level| i8, quest_type| i8);
-impl_type!(TreasureHuntShowLegendaryUIMessage, 6498, available_legendary_ids| Vec<VarShort>);
+use crate::types::game::context::roleplay::treasure_hunt::TreasureHuntFlag;
+use crate::variants::TreasureHuntStepVariant;
+use protocol_derive::{Decode, Encode};
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6509)]
+pub struct TreasureHuntDigRequestAnswerFailedMessage<'a> {
+    pub base: TreasureHuntDigRequestAnswerMessage<'a>,
+    pub wrong_flag_count: u8,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6491)]
+pub struct TreasureHuntAvailableRetryCountUpdateMessage<'a> {
+    pub quest_type: u8,
+    pub available_retry_count: i32,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6508)]
+pub struct TreasureHuntFlagRequestMessage<'a> {
+    pub quest_type: u8,
+    pub index: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6484)]
+pub struct TreasureHuntDigRequestAnswerMessage<'a> {
+    pub quest_type: u8,
+    pub result: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6498)]
+pub struct TreasureHuntShowLegendaryUIMessage<'a> {
+    #[protocol(var_contents)]
+    pub available_legendary_ids: std::borrow::Cow<'a, [u16]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6499)]
+pub struct TreasureHuntLegendaryRequestMessage<'a> {
+    #[protocol(var)]
+    pub legendary_id: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6507)]
+pub struct TreasureHuntFlagRequestAnswerMessage<'a> {
+    pub quest_type: u8,
+    pub result: u8,
+    pub index: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6489)]
+pub struct TreasureHuntRequestAnswerMessage<'a> {
+    pub quest_type: u8,
+    pub result: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6510)]
+pub struct TreasureHuntFlagRemoveRequestMessage<'a> {
+    pub quest_type: u8,
+    pub index: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6483)]
+pub struct TreasureHuntFinishedMessage<'a> {
+    pub quest_type: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6492)]
+pub struct PortalUseRequestMessage<'a> {
+    #[protocol(var)]
+    pub portal_id: u32,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6487)]
+pub struct TreasureHuntGiveUpRequestMessage<'a> {
+    pub quest_type: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6486)]
+pub struct TreasureHuntMessage<'a> {
+    pub quest_type: u8,
+    pub start_map_id: f64,
+    pub known_steps_list: std::borrow::Cow<'a, [TreasureHuntStepVariant<'a>]>,
+    pub total_step_count: u8,
+    #[protocol(var)]
+    pub check_point_current: u32,
+    #[protocol(var)]
+    pub check_point_total: u32,
+    pub available_retry_count: i32,
+    pub flags: std::borrow::Cow<'a, [TreasureHuntFlag<'a>]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6485)]
+pub struct TreasureHuntDigRequestMessage<'a> {
+    pub quest_type: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

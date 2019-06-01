@@ -1,14 +1,77 @@
-pub mod zaap;
 pub mod meeting;
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
- use variants::InteractiveElementVariant; use types::game::interactive::InteractiveElement; use types::game::interactive::StatedElement;
-impl_type!(InteractiveElementUpdatedMessage, 5708, interactive_element| InteractiveElement);
-impl_type!(InteractiveMapUpdateMessage, 5002, interactive_elements| Vec<InteractiveElementVariant>);
-impl_type!(InteractiveUsedMessage, 5745, entity_id| VarLong, elem_id| VarInt, skill_id| VarShort, duration| VarShort);
-impl_type!(InteractiveUseEndedMessage, 6112, elem_id| VarInt, skill_id| VarShort);
-impl_type!(InteractiveUseErrorMessage, 6384, elem_id| VarInt, skill_instance_uid| VarInt);
-impl_type!(InteractiveUseRequestMessage, 5001, elem_id| VarInt, skill_instance_uid| VarInt);
-impl_type!(StatedElementUpdatedMessage, 5709, stated_element| StatedElement);
-impl_type!(StatedMapUpdateMessage, 5716, stated_elements| Vec<StatedElement>);
+pub mod skill;
+pub mod zaap;
+
+use crate::types::game::interactive::InteractiveElement;
+use crate::types::game::interactive::StatedElement;
+use crate::variants::InteractiveElementVariant;
+use protocol_derive::{Decode, Encode};
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5708)]
+pub struct InteractiveElementUpdatedMessage<'a> {
+    pub interactive_element: InteractiveElement<'a>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5002)]
+pub struct InteractiveMapUpdateMessage<'a> {
+    pub interactive_elements: std::borrow::Cow<'a, [InteractiveElementVariant<'a>]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6112)]
+pub struct InteractiveUseEndedMessage<'a> {
+    #[protocol(var)]
+    pub elem_id: u32,
+    #[protocol(var)]
+    pub skill_id: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6384)]
+pub struct InteractiveUseErrorMessage<'a> {
+    #[protocol(var)]
+    pub elem_id: u32,
+    #[protocol(var)]
+    pub skill_instance_uid: u32,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5745)]
+pub struct InteractiveUsedMessage<'a> {
+    #[protocol(var)]
+    pub entity_id: u64,
+    #[protocol(var)]
+    pub elem_id: u32,
+    #[protocol(var)]
+    pub skill_id: u16,
+    #[protocol(var)]
+    pub duration: u16,
+    pub can_move: bool,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5001)]
+pub struct InteractiveUseRequestMessage<'a> {
+    #[protocol(var)]
+    pub elem_id: u32,
+    #[protocol(var)]
+    pub skill_instance_uid: u32,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5716)]
+pub struct StatedMapUpdateMessage<'a> {
+    pub stated_elements: std::borrow::Cow<'a, [StatedElement<'a>]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5709)]
+pub struct StatedElementUpdatedMessage<'a> {
+    pub stated_element: StatedElement<'a>,
+}

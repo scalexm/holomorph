@@ -1,6 +1,16 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(ClientUIOpenedByObjectMessage, 6463, base| ClientUIOpenedMessage, uid| VarInt);
-impl_type!(ClientUIOpenedMessage, 6459, type_| i8);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6463)]
+pub struct ClientUIOpenedByObjectMessage<'a> {
+    pub base: ClientUIOpenedMessage<'a>,
+    #[protocol(var)]
+    pub uid: u32,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6459)]
+pub struct ClientUIOpenedMessage<'a> {
+    pub type_: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

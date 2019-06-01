@@ -1,8 +1,28 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(GameRolePlayFreeSoulRequestMessage, 745);
-impl_type!(GameRolePlayGameOverMessage, 746);
-impl_type!(GameRolePlayPlayerLifeStatusMessage, 5996, state| i8, phenix_map_id| i32);
-impl_type!(WarnOnPermaDeathMessage, 6512, enable| bool);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6512)]
+pub struct WarnOnPermaDeathMessage<'a> {
+    pub enable: bool,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5996)]
+pub struct GameRolePlayPlayerLifeStatusMessage<'a> {
+    pub state: u8,
+    pub phenix_map_id: f64,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 746)]
+pub struct GameRolePlayGameOverMessage<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 745)]
+pub struct GameRolePlayFreeSoulRequestMessage<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

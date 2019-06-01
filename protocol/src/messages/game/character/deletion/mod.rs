@@ -1,6 +1,16 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(CharacterDeletionErrorMessage, 166, reason| i8);
-impl_type!(CharacterDeletionRequestMessage, 165, character_id| VarLong, secret_answer_hash| String);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 165)]
+pub struct CharacterDeletionRequestMessage<'a> {
+    #[protocol(var)]
+    pub character_id: u64,
+    pub secret_answer_hash: &'a str,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 166)]
+pub struct CharacterDeletionErrorMessage<'a> {
+    pub reason: u8,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

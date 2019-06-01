@@ -1,0 +1,1 @@
+r"function serializeAs_\w+\(output:ICustomDataOutput\) : void\s+\{(?s)(.*)\}\s*(override )?public function deserialize\("

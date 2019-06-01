@@ -1,7 +1,23 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
- use variants::PlayerStatusVariant;
-impl_type!(PlayerStatusUpdateErrorMessage, 6385);
-impl_type!(PlayerStatusUpdateMessage, 6386, account_id| i32, player_id| VarLong, status| PlayerStatusVariant);
-impl_type!(PlayerStatusUpdateRequestMessage, 6387, status| PlayerStatusVariant);
+use crate::variants::PlayerStatusVariant;
+use protocol_derive::{Decode, Encode};
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6385)]
+pub struct PlayerStatusUpdateErrorMessage<'a> {
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6387)]
+pub struct PlayerStatusUpdateRequestMessage<'a> {
+    pub status: PlayerStatusVariant<'a>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6386)]
+pub struct PlayerStatusUpdateMessage<'a> {
+    pub account_id: u32,
+    #[protocol(var)]
+    pub player_id: u64,
+    pub status: PlayerStatusVariant<'a>,
+}

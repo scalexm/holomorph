@@ -1,5 +1,49 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(ActorRestrictionsInformations, 204, cant_be_aggressed| Flag, cant_be_challenged| Flag, cant_trade| Flag, cant_be_attacked_by_mutant| Flag, cant_run| Flag, force_slow_walk| Flag, cant_minimize| Flag, cant_move| Flag, cant_aggress| Flag, cant_challenge| Flag, cant_exchange| Flag, cant_attack| Flag, cant_chat| Flag, cant_be_merchant| Flag, cant_use_object| Flag, cant_use_tax_collector| Flag, cant_use_interactive| Flag, cant_speak_to_npc| Flag, cant_change_zone| Flag, cant_attack_monster| Flag, cant_walk8_directions| Flag);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 204)]
+pub struct ActorRestrictionsInformations<'a> {
+    #[protocol(flag)]
+    pub cant_be_aggressed: bool,
+    #[protocol(flag)]
+    pub cant_be_challenged: bool,
+    #[protocol(flag)]
+    pub cant_trade: bool,
+    #[protocol(flag)]
+    pub cant_be_attacked_by_mutant: bool,
+    #[protocol(flag)]
+    pub cant_run: bool,
+    #[protocol(flag)]
+    pub force_slow_walk: bool,
+    #[protocol(flag)]
+    pub cant_minimize: bool,
+    #[protocol(flag)]
+    pub cant_move: bool,
+    #[protocol(flag)]
+    pub cant_aggress: bool,
+    #[protocol(flag)]
+    pub cant_challenge: bool,
+    #[protocol(flag)]
+    pub cant_exchange: bool,
+    #[protocol(flag)]
+    pub cant_attack: bool,
+    #[protocol(flag)]
+    pub cant_chat: bool,
+    #[protocol(flag)]
+    pub cant_be_merchant: bool,
+    #[protocol(flag)]
+    pub cant_use_object: bool,
+    #[protocol(flag)]
+    pub cant_use_tax_collector: bool,
+    #[protocol(flag)]
+    pub cant_use_interactive: bool,
+    #[protocol(flag)]
+    pub cant_speak_to_npc: bool,
+    #[protocol(flag)]
+    pub cant_change_zone: bool,
+    #[protocol(flag)]
+    pub cant_attack_monster: bool,
+    #[protocol(flag)]
+    pub cant_walk8_directions: bool,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}

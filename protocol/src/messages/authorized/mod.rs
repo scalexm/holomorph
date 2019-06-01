@@ -1,8 +1,28 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(AdminCommandMessage, 76, content| String);
-impl_type!(AdminQuietCommandMessage, 5662, base| AdminCommandMessage);
-impl_type!(ConsoleCommandsListMessage, 6127, aliases| Vec<String>, args| Vec<String>, descriptions| Vec<String>);
-impl_type!(ConsoleMessage, 75, type_| i8, content| String);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 6127)]
+pub struct ConsoleCommandsListMessage<'a> {
+    pub aliases: std::borrow::Cow<'a, [&'a str]>,
+    pub args: std::borrow::Cow<'a, [&'a str]>,
+    pub descriptions: std::borrow::Cow<'a, [&'a str]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5662)]
+pub struct AdminQuietCommandMessage<'a> {
+    pub base: AdminCommandMessage<'a>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 76)]
+pub struct AdminCommandMessage<'a> {
+    pub content: &'a str,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 75)]
+pub struct ConsoleMessage<'a> {
+    pub type_: u8,
+    pub content: &'a str,
+}

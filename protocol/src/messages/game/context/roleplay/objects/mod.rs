@@ -1,8 +1,35 @@
-use std::io::{Read, Write};
-use std::io::Result;
-use protocol::*;
+use protocol_derive::{Decode, Encode};
 
-impl_type!(ObjectGroundAddedMessage, 3017, cell_id| VarShort, object_gid| VarShort);
-impl_type!(ObjectGroundListAddedMessage, 5925, cells| Vec<VarShort>, reference_ids| Vec<VarShort>);
-impl_type!(ObjectGroundRemovedMessage, 3014, cell| VarShort);
-impl_type!(ObjectGroundRemovedMultipleMessage, 5944, cells| Vec<VarShort>);
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 3017)]
+pub struct ObjectGroundAddedMessage<'a> {
+    #[protocol(var)]
+    pub cell_id: u16,
+    #[protocol(var)]
+    pub object_gid: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5925)]
+pub struct ObjectGroundListAddedMessage<'a> {
+    #[protocol(var_contents)]
+    pub cells: std::borrow::Cow<'a, [u16]>,
+    #[protocol(var_contents)]
+    pub reference_ids: std::borrow::Cow<'a, [u16]>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 3014)]
+pub struct ObjectGroundRemovedMessage<'a> {
+    #[protocol(var)]
+    pub cell: u16,
+    pub _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode)]
+#[protocol(id = 5944)]
+pub struct ObjectGroundRemovedMultipleMessage<'a> {
+    #[protocol(var_contents)]
+    pub cells: std::borrow::Cow<'a, [u16]>,
+}
