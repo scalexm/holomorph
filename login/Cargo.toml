@@ -1,0 +1,23 @@
+[package]
+name = "login"
+version = "0.1.0"
+authors = ["scalexm <alexandre@scalexm.fr>"]
+edition = "2018"
+
+[dependencies]
+runtime = "0.3.0-alpha.4"
+runtime-tokio = "0.3.0-alpha.4"
+tokio-threadpool = { version = "0.1" }
+tokio-codec = { version = "0.2.0", git = "https://github.com/scalexm/tokio" }
+futures01 = { package = "futures", version = "0.1" }
+futures-preview = { version = "0.3.0-alpha.16", features = ["async-await", "compat"] }
+openssl = "0.10"
+toml = "0.5"
+serde = { version = "1", features = ["derive"] }
+protocol = { path = "../protocol" }
+database = { path = "../database" }
+diesel = { version = "1", features = ["postgres", "r2d2"] }
+hashbrown = "0.4"
+log = "0.4"
+env_logger = "0.6"
+rand = "0.6"
