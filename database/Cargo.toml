@@ -1,0 +1,8 @@
+[package]
+name = "database"
+version = "0.1.0"
+authors = ["scalexm <alexandre@scalexm.fr>"]
+edition = "2018"
+
+[dependencies]
+diesel = { version = "1", features = ["postgres"] }

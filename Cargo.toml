@@ -3,4 +3,5 @@
 members = [
     "protocol",
     "protocol_derive",
+    "database",
 ]
