@@ -1,0 +1,13 @@
+[package]
+name = "signature"
+version = "0.1.0"
+authors = ["scalexm <alexandre@scalexm.fr>"]
+edition = "2018"
+
+[dependencies]
+openssl = "0.10"
+rand = "0.6"
+md5 = "0.6"
+base64 = "0.10"
+docopt = "1"
+serde = { version = "1", features = ["derive"] }
