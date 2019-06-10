@@ -13,15 +13,15 @@
 //!   but the length can also be encoded as a dynamic `u32`
 //!
 //! This crate defines the `Decode` and `Encode` traits which can be auto-derived
-//! with the use of the `protocol_derive` proc-macro, as well as a `Codec` type
-//! implementing `tokio_codec::Encoder` and `tokio_codec::Decoder` to decode /
-//! encode frames from / to a `TcpStream`.
+//! with the use of the `protocol_derive` proc-macro, as well as a `Framed` wrapper
+//! to decode / encode Dofus frames from / to a `TcpStream`.
 //!
 //! This crate also contains the definitions of all the messages and types used
 //! in the Dofus protocol, auto-generated from the decompiled sources of the Dofus
 //! client with the use of a small CLI tool to be found in `protocol_gen`.
 
 #![feature(specialization)]
+#![feature(async_await)]
 #![deny(rust_2018_idioms)]
 
 pub mod constants;
@@ -32,6 +32,7 @@ mod test;
 pub mod types;
 pub mod variants;
 
+use bytes::{Buf, BufMut, BytesMut};
 use std::borrow::Cow;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -63,17 +64,17 @@ pub trait Decode<'a>: Sized {
 }
 
 /// Types implementing the [Encode](self::Encode) trait can be encoded to
-/// a `Vec<u8>` with the Dofus protocol conventions.
+/// a `BytesMut` with the Dofus protocol conventions.
 pub trait Encode {
     const ID: u16 = 0;
 
-    fn encode(&self, dst: &mut Vec<u8>);
+    fn encode(&self, dst: &mut BytesMut);
 }
 
 impl<T: Encode + ?Sized> Encode for &T {
     const ID: u16 = T::ID;
 
-    fn encode(&self, dst: &mut Vec<u8>) {
+    fn encode(&self, dst: &mut BytesMut) {
         (*self).encode(dst)
     }
 }
@@ -87,74 +88,39 @@ impl<'a, T: ?Sized> Decode<'a> for std::marker::PhantomData<T> {
 
 impl<T: ?Sized> Encode for std::marker::PhantomData<T> {
     #[inline]
-    fn encode(&self, _dst: &mut Vec<u8>) {}
+    fn encode(&self, _dst: &mut BytesMut) {}
 }
-
-macro_rules! impl_byte {
-    ($t: ty) => {
-        impl<'a> Decode<'a> for $t {
-            #[inline]
-            fn decode(src: &mut &'a [u8]) -> Result<Self, Error> {
-                if src.len() < 1 {
-                    return Err(Error::NotEnoughData);
-                }
-                let v = src[0] as $t;
-                *src = &src[1..];
-                Ok(v)
-            }
-        }
-
-        impl Encode for $t {
-            #[inline]
-            fn encode(&self, dst: &mut Vec<u8>) {
-                dst.push(*self as u8);
-            }
-        }
-    };
-}
-
-impl_byte!(i8);
-impl_byte!(u8);
 
 macro_rules! impl_primitive {
     ($t: ty, $read: ident, $write: ident) => {
         impl<'a> Decode<'a> for $t {
             #[inline]
             fn decode(src: &mut &'a [u8]) -> Result<Self, Error> {
-                use bytes::{BigEndian, ByteOrder};
                 if src.len() < std::mem::size_of::<$t>() {
                     return Err(Error::NotEnoughData);
                 }
-                let v = BigEndian::$read(src);
-                *src = &src[std::mem::size_of::<$t>()..];
-                Ok(v)
+                Ok(src.$read())
             }
         }
 
         impl Encode for $t {
             #[inline]
-            fn encode(&self, dst: &mut Vec<u8>) {
-                use bytes::{BigEndian, ByteOrder};
+            fn encode(&self, dst: &mut BytesMut) {
                 dst.reserve(std::mem::size_of::<$t>());
-                unsafe {
-                    let scratch = std::slice::from_raw_parts_mut(
-                        dst.as_mut_ptr().add(dst.len()),
-                        std::mem::size_of::<$t>(),
-                    );
-                    BigEndian::$write(scratch, *self);
-                    dst.set_len(dst.len() + std::mem::size_of::<$t>());
-                }
+                dst.$write(*self);
             }
         }
     };
 }
 
-impl_primitive!(i16, read_i16, write_i16);
-impl_primitive!(i32, read_i32, write_i32);
-impl_primitive!(u16, read_u16, write_u16);
-impl_primitive!(u32, read_u32, write_u32);
-impl_primitive!(f32, read_f32, write_f32);
-impl_primitive!(f64, read_f64, write_f64);
+impl_primitive!(i8, get_i8, put_i8);
+impl_primitive!(i16, get_i16, put_i16);
+impl_primitive!(i32, get_i32, put_i32);
+impl_primitive!(u8, get_u8, put_u8);
+impl_primitive!(u16, get_u16, put_u16);
+impl_primitive!(u32, get_u32, put_u32);
+impl_primitive!(f32, get_f32, put_f32);
+impl_primitive!(f64, get_f64, put_f64);
 
 impl<'a> Decode<'a> for bool {
     #[inline]
@@ -170,8 +136,9 @@ impl<'a> Decode<'a> for bool {
 
 impl Encode for bool {
     #[inline]
-    fn encode(&self, dst: &mut Vec<u8>) {
-        dst.push(*self as u8);
+    fn encode(&self, dst: &mut BytesMut) {
+        dst.reserve(1);
+        dst.put_u8(*self as u8);
     }
 }
 
@@ -189,8 +156,8 @@ impl<'a, T: Decode<'a>> Decode<'a> for Vec<T> {
 
 impl<T: Encode> Encode for [T] {
     #[inline]
-    default fn encode(&self, dst: &mut Vec<u8>) {
-        Encode::encode(&(self.len() as u16), dst);
+    default fn encode(&self, dst: &mut BytesMut) {
+        (self.len() as u16).encode(dst);
         for v in self {
             v.encode(dst);
         }
@@ -206,8 +173,8 @@ impl<'a, T: Clone + Decode<'a>> Decode<'a> for Cow<'a, [T]> {
 
 impl<'a, T: Clone + Encode> Encode for Cow<'a, [T]> {
     #[inline]
-    fn encode(&self, src: &mut Vec<u8>) {
-        (**self).encode(src);
+    fn encode(&self, dst: &mut BytesMut) {
+        (**self).encode(dst);
     }
 }
 
@@ -228,8 +195,8 @@ impl<'a> Decode<'a> for &'a [u8] {
 
 impl Encode for [u8] {
     #[inline]
-    fn encode(&self, dst: &mut Vec<u8>) {
-        Encode::encode(&(self.len() as u16), dst);
+    fn encode(&self, dst: &mut BytesMut) {
+        (self.len() as u16).encode(dst);
         dst.extend_from_slice(self);
     }
 }
@@ -245,8 +212,8 @@ impl<'a> Decode<'a> for &'a [i8] {
 
 impl Encode for [i8] {
     #[inline]
-    fn encode(&self, dst: &mut Vec<u8>) {
-        Encode::encode(&(self.len() as u16), dst);
+    fn encode(&self, dst: &mut BytesMut) {
+        (self.len() as u16).encode(dst);
         dst.extend_from_slice(unsafe {
             std::slice::from_raw_parts(self.as_ptr() as *const u8, self.len())
         });
@@ -264,7 +231,7 @@ impl<'a> Decode<'a> for &'a str {
 
 impl Encode for str {
     #[inline]
-    fn encode(&self, dst: &mut Vec<u8>) {
+    fn encode(&self, dst: &mut BytesMut) {
         (self.len() as u16).encode(dst);
         dst.extend_from_slice(self.as_bytes());
     }
@@ -297,7 +264,7 @@ macro_rules! impl_var_primitive {
 
         impl Encode for Var<$t> {
             #[inline]
-            fn encode(&self, dst: &mut Vec<u8>) {
+            fn encode(&self, dst: &mut BytesMut) {
                 dst.reserve(std::mem::size_of::<$t>() * 8 / 7 + 1);
                 let mut offset = unsafe { dst.as_mut_ptr().add(dst.len()) };
                 let mut x = self.0 as $signed;
@@ -340,8 +307,8 @@ impl<'a> Decode<'a> for Var<&'a [u8]> {
 
 impl Encode for Var<&[u8]> {
     #[inline]
-    fn encode(&self, dst: &mut Vec<u8>) {
-        Encode::encode(&Var(self.0.len() as u32), dst);
+    fn encode(&self, dst: &mut BytesMut) {
+        Var(self.0.len() as u32).encode(dst);
         dst.extend_from_slice(self.0);
     }
 }
@@ -360,8 +327,8 @@ impl<'a> Decode<'a> for Var<&'a [i8]> {
 
 impl Encode for Var<&[i8]> {
     #[inline]
-    fn encode(&self, dst: &mut Vec<u8>) {
-        Encode::encode(&Var(self.0.len() as u32), dst);
+    fn encode(&self, dst: &mut BytesMut) {
+        Var(self.0.len() as u32).encode(dst);
         dst.extend_from_slice(unsafe {
             std::slice::from_raw_parts(self.0.as_ptr() as *const u8, self.0.len())
         });
@@ -389,7 +356,7 @@ macro_rules! impl_array {
 
         impl<T: Encode> Encode for [T; $N] {
             #[inline]
-            fn encode(&self, dst: &mut Vec<u8>) {
+            fn encode(&self, dst: &mut BytesMut) {
                 for x in self {
                     x.encode(dst);
                 }

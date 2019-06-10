@@ -1,4 +1,4 @@
-use crate::session::{Session, State, TcpStreamExt, AES_IV_LEN};
+use crate::session::{Session, State, AES_IV_LEN};
 use log::{debug, error};
 use protocol::messages::connection::ServerSelectionMessage;
 
@@ -90,11 +90,12 @@ impl Session {
 
         debug!("server selected: {}", gs.id());
 
+        let ports = &[gs.port() as u32];
         self.stream
-            .send_msg(SelectedServerDataMessage {
+            .send(SelectedServerDataMessage {
                 server_id: gs.id() as _,
                 address: gs.host(),
-                ports: std::borrow::Cow::Borrowed(&[gs.port() as u32]),
+                ports: std::borrow::Cow::Borrowed(ports),
                 can_create_new_character: true,
 
                 // Just convert from an `&[u8]` to an `&[i8]`.
@@ -125,7 +126,7 @@ impl Session {
             };
 
             self.stream
-                .send_msg(SelectedServerRefusedMessage {
+                .send(SelectedServerRefusedMessage {
                     server_id: msg.server_id,
                     error: reason,
                     server_status: self
