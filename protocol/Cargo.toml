@@ -7,18 +7,10 @@ edition = "2018"
 [dependencies]
 bytes = "0.4"
 tokio-codec = { version = "0.2.0", git = "https://github.com/scalexm/tokio" }
-regex = "1"
-lazy_static = "1"
-serde = { version = "1", features = ["derive"] }
-docopt = "1"
 protocol_derive = { path = "../protocol_derive" }
 
 [dev-dependencies]
 criterion = "0.2"
-
-[[bin]]
-name = "gen"
-path = "gen/main.rs"
 
 [[bench]]
 name = "int32"

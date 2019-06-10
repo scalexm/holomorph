@@ -21,4 +21,4 @@ encode frames from / to a `TcpStream`.
 
 This crate also contains the definitions of all the messages and types used
 in the Dofus protocol, auto-generated from the decompiled sources of the Dofus
-client with the use of a small CLI tool to be found in `gen/main.rs`.
+client with the use of a small CLI tool to be found in `protocol_gen`.

@@ -3,6 +3,7 @@
 members = [
     "protocol",
     "protocol_derive",
+    "protocol_gen",
     "database",
     "signature",
     "login",

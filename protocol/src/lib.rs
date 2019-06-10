@@ -19,18 +19,18 @@
 //!
 //! This crate also contains the definitions of all the messages and types used
 //! in the Dofus protocol, auto-generated from the decompiled sources of the Dofus
-//! client with the use of a small CLI tool to be found in `gen/main.rs`.
+//! client with the use of a small CLI tool to be found in `protocol_gen`.
 
 #![feature(specialization)]
 #![deny(rust_2018_idioms)]
 
-#[cfg(test)]
-mod test;
+pub mod constants;
 pub mod frame;
 pub mod messages;
+#[cfg(test)]
+mod test;
 pub mod types;
 pub mod variants;
-pub mod constants;
 
 use std::borrow::Cow;
 
