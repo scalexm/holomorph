@@ -1,12 +1,11 @@
 mod handlers;
 
 use crate::server::Server;
-use log::debug;
-use protocol::frame::{Codec, Frame};
-use protocol::{Decode, Encode};
+use log::{debug, error};
+use protocol::frame::Framed;
+use protocol::Decode;
 use runtime::net::TcpStream;
 use std::sync::Arc;
-use tokio_codec::Framed;
 
 const SALT_LEN: usize = 32;
 const AES_KEY_LEN: usize = 32;
@@ -30,7 +29,7 @@ enum State {
 }
 
 pub struct Session {
-    stream: Framed<TcpStream, Codec>,
+    stream: Framed<TcpStream>,
     state: State,
     server: Arc<Server>,
 }
@@ -38,7 +37,7 @@ pub struct Session {
 impl Session {
     pub fn new(stream: TcpStream, server: Arc<Server>) -> Self {
         Self {
-            stream: Framed::new(stream, Codec::new()),
+            stream: Framed::new(stream),
             state: State::Init,
             server,
         }
@@ -57,13 +56,11 @@ impl Session {
             self.stream.get_ref().peer_addr()
         );
 
-        self.stream
-            .send_msg(ProtocolRequired {
-                required_version: 1924,
-                current_version: 1924,
-                _phantom: std::marker::PhantomData,
-            })
-            .await?;
+        self.stream.write(ProtocolRequired {
+            required_version: 1924,
+            current_version: 1924,
+            _phantom: std::marker::PhantomData,
+        })?;
 
         let salt: String = {
             let mut rng = rand::thread_rng();
@@ -73,17 +70,17 @@ impl Session {
                 .collect()
         };
 
-        self.stream
-            .send_msg(HelloConnectMessage {
-                salt: &salt,
-                key: unsafe {
-                    std::slice::from_raw_parts(
-                        self.server.public_key.as_ptr() as *const i8,
-                        self.server.public_key.len(),
-                    )
-                },
-            })
-            .await?;
+        self.stream.write(HelloConnectMessage {
+            salt: &salt,
+            key: unsafe {
+                std::slice::from_raw_parts(
+                    self.server.public_key.as_ptr() as *const i8,
+                    self.server.public_key.len(),
+                )
+            },
+        })?;
+
+        self.stream.flush().await?;
 
         while let Some(frame) = self.stream.next().await {
             let frame = frame?;
@@ -92,14 +89,16 @@ impl Session {
 
             match frame.id() {
                 <IdentificationMessage<'_> as Decode<'_>>::ID => {
-                    if let Ok(msg) = IdentificationMessage::decode(&mut frame.payload()) {
-                        self.handle_identification(msg).await?;
+                    match IdentificationMessage::decode(&mut frame.payload()) {
+                        Ok(msg) => self.handle_identification(msg).await?,
+                        Err(err) => error!("decode error: {}", err),
                     }
                 }
 
                 <ServerSelectionMessage<'_> as Decode<'_>>::ID => {
-                    if let Ok(msg) = ServerSelectionMessage::decode(&mut frame.payload()) {
-                        self.handle_server_selection(msg).await?;
+                    match ServerSelectionMessage::decode(&mut frame.payload()) {
+                        Ok(msg) => self.handle_server_selection(msg).await?,
+                        Err(err) => error!("decode error: {}", err),
                     }
                 }
                 _ => (),
@@ -107,24 +106,5 @@ impl Session {
         }
 
         Ok(())
-    }
-}
-
-trait TcpStreamExt: std::marker::Unpin + futures::sink::Sink<Frame> {
-    fn send_msg<T>(&mut self, msg: T) -> futures::sink::Send<Self, Frame>
-    where
-        T: Encode + std::marker::Unpin;
-}
-
-impl TcpStreamExt for Framed<TcpStream, Codec> {
-    fn send_msg<T>(&mut self, msg: T) -> futures::sink::Send<Self, Frame>
-    where
-        T: Encode + std::marker::Unpin,
-    {
-        use futures::SinkExt;
-
-        let mut buf = vec![];
-        msg.encode(&mut buf);
-        self.send(Frame::new(T::ID, buf))
     }
 }

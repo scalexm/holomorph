@@ -1,8 +1,9 @@
 use super::{Decode, Encode, Var};
+use bytes::BytesMut;
 
 #[test]
 fn test_string() {
-    let mut buf = Vec::new();
+    let mut buf = BytesMut::new();
     "salut".encode(&mut buf);
     "helloéà❤️".encode(&mut buf);
 
@@ -16,7 +17,7 @@ fn test_string() {
 
 #[test]
 fn test_primitive() {
-    let mut buf = Vec::new();
+    let mut buf = BytesMut::new();
     5u8.encode(&mut buf);
     (-5i8).encode(&mut buf);
     1_234u16.encode(&mut buf);
@@ -39,7 +40,7 @@ fn test_primitive() {
 
 #[test]
 fn test_var() {
-    let mut buf = Vec::new();
+    let mut buf = BytesMut::new();
     Var(-200i32).encode(&mut buf);
     Var(-400_000i32).encode(&mut buf);
     Var(400_000i32).encode(&mut buf);

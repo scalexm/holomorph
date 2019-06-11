@@ -1,3 +1,4 @@
+use bytes::BytesMut;
 use protocol::{Decode, Encode};
 use protocol_derive::{Decode, Encode};
 use std::borrow::Cow;
@@ -50,7 +51,7 @@ enum FooBaz<'a> {
 
 #[test]
 fn test_codegen() {
-    let mut buf = Vec::new();
+    let mut buf = BytesMut::new();
 
     let g = &[1, 2, 3];
     let bar1 = Bar {

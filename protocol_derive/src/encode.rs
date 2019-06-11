@@ -16,7 +16,7 @@ pub fn expand_derive(input: DeriveInput) -> proc_macro::TokenStream {
         impl #impl_generics #krate::Encode for #name #ty_generics #where_clause {
             const ID: u16 = #id as u16;
 
-            fn encode(&self, dst: &mut Vec<u8>) {
+            fn encode(&self, dst: &mut bytes::BytesMut) {
                 #method_body
             }
         }

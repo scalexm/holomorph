@@ -5,9 +5,10 @@ authors = ["scalexm <alexandre@scalexm.fr>"]
 edition = "2018"
 
 [dependencies]
-bytes = "0.4"
-tokio-codec = { version = "0.2.0", git = "https://github.com/scalexm/tokio" }
+bytes = { git = "https://github.com/tokio-rs/bytes" }
 protocol_derive = { path = "../protocol_derive" }
+pin-utils = "0.1.0-alpha.4"
+futures-preview = "0.3.0-alpha.16"
 
 [dev-dependencies]
 criterion = "0.2"

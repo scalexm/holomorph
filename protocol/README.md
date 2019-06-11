@@ -15,9 +15,8 @@ things:
   but the length can also be encoded as a dynamic `u32`
 
 This crate defines the `Decode` and `Encode` traits which can be auto-derived
-with the use of the `protocol_derive` proc-macro, as well as a `Codec` type
-implementing `tokio_codec::Encoder` and `tokio_codec::Decoder` to decode /
-encode frames from / to a `TcpStream`.
+with the use of the `protocol_derive` proc-macro, as well as a `Framed` wrapper
+to decode / encode Dofus frames from / to a `TcpStream`.
 
 This crate also contains the definitions of all the messages and types used
 in the Dofus protocol, auto-generated from the decompiled sources of the Dofus

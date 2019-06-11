@@ -14,3 +14,4 @@ quote = "0.6"
 
 [dev-dependencies]
 protocol = { path = "../protocol" }
+bytes = { git = "https://github.com/tokio-rs/bytes" }

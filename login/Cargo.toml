@@ -8,7 +8,6 @@ edition = "2018"
 runtime = "0.3.0-alpha.4"
 runtime-tokio = "0.3.0-alpha.4"
 tokio-threadpool = { version = "0.1" }
-tokio-codec = { version = "0.2.0", git = "https://github.com/scalexm/tokio" }
 futures01 = { package = "futures", version = "0.1" }
 futures-preview = { version = "0.3.0-alpha.16", features = ["async-await", "compat"] }
 openssl = "0.10"

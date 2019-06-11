@@ -1,4 +1,4 @@
-use crate::session::{Account, Session, State, TcpStreamExt, AES_KEY_LEN, SALT_LEN};
+use crate::session::{Account, Session, State, AES_KEY_LEN, SALT_LEN};
 use crate::RSA_KEY_SIZE;
 use diesel::PgConnection;
 use hashbrown::HashMap;
@@ -154,7 +154,7 @@ impl Session {
                 };
 
                 self.stream
-                    .send_msg(IdentificationFailedMessage {
+                    .send(IdentificationFailedMessage {
                         reason,
                         _phantom: std::marker::PhantomData,
                     })
@@ -164,7 +164,7 @@ impl Session {
         };
 
         self.stream
-            .send_msg(IdentificationSuccessMessage {
+            .send(IdentificationSuccessMessage {
                 account_creation: 0.,
                 account_id: authenticated.account.id as u32,
                 has_rights: false,
@@ -219,7 +219,7 @@ impl Session {
         }
 
         self.stream
-            .send_msg(ServersListMessage {
+            .send(ServersListMessage {
                 servers: game_server_information.into(),
                 already_connected_to_server_id: 0,
                 can_create_new_character: true,
