@@ -6,6 +6,7 @@ use log::info;
 use openssl::pkey::Private;
 use openssl::rsa::Rsa;
 use std::sync::atomic::AtomicU8;
+use holomorph::{ContextualError, WithContext};
 
 pub struct Server {
     pub config: Config,
@@ -16,16 +17,17 @@ pub struct Server {
 }
 
 impl Server {
-    pub fn load(&mut self) -> Result<(), diesel::result::Error> {
+    pub fn load(&mut self) -> Result<(), ContextualError> {
         use database::game_servers::dsl::*;
 
         let conn = self
             .database_pool
             .get()
-            .expect("could not get a database connection from the pool");
+            .context("could not get a database connection from the pool")?;
 
         self.game_servers = game_servers
-            .load::<(i16, String, i16)>(&conn)?
+            .load::<(i16, String, i16)>(&conn)
+            .context("could not load game servers")?
             .into_iter()
             .map(GameServer::new)
             .collect();

@@ -1,6 +1,12 @@
-[workspace]
+[package]
+name = "holomorph"
+version = "0.1.0"
+authors = ["scalexm <alexandre@scalexm.fr>"]
+edition = "2018"
 
+[workspace]
 members = [
+    ".",
     "protocol",
     "protocol_derive",
     "protocol_gen",
