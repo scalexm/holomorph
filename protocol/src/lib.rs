@@ -125,20 +125,14 @@ impl_primitive!(f64, get_f64, put_f64);
 impl<'a> Decode<'a> for bool {
     #[inline]
     fn decode(src: &mut &'a [u8]) -> Result<Self, Error> {
-        if src.len() < 1 {
-            return Err(Error::NotEnoughData);
-        }
-        let v = src[0] != 0;
-        *src = &src[1..];
-        Ok(v)
+        u8::decode(src).map(|v| v != 0)
     }
 }
 
 impl Encode for bool {
     #[inline]
     fn encode(&self, dst: &mut BytesMut) {
-        dst.reserve(1);
-        dst.put_u8(*self as u8);
+        (*self as u8).encode(dst);
     }
 }
 
@@ -250,8 +244,7 @@ macro_rules! impl_var_primitive {
                 let mut value: $signed = 0;
                 let mut offset = 0;
                 while offset < len {
-                    let b = src[0];
-                    *src = &src[1..];
+                    let b = src.get_u8();
                     value += ((b & 0x7F) as $signed) << 7 * offset;
                     if b & 0x80 == 0 {
                         return Ok(Var(value as _));
