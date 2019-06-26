@@ -11,20 +11,12 @@ const SALT_LEN: usize = 32;
 const AES_KEY_LEN: usize = 32;
 const AES_IV_LEN: usize = 16;
 
-#[derive(PartialEq, Eq, Debug, Queryable)]
-struct Account {
-    id: i32,
-    login: String,
-    nickname: String,
-    last_server: Option<i16>,
-}
-
 #[derive(PartialEq, Eq, Debug)]
 enum State {
     Init,
     Logged {
-        account: Account,
         aes_key: [u8; AES_KEY_LEN],
+        ticket: String,
     },
 }
 

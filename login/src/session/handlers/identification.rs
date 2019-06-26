@@ -1,9 +1,17 @@
-use crate::session::{Account, Session, State, AES_KEY_LEN, SALT_LEN};
+use crate::session::{Session, State, AES_KEY_LEN, SALT_LEN};
 use crate::RSA_KEY_SIZE;
 use diesel::PgConnection;
 use hashbrown::HashMap;
 use log::{debug, error};
 use protocol::messages::connection::IdentificationMessage;
+
+#[derive(PartialEq, Eq, Debug, Queryable)]
+struct Account {
+    id: i32,
+    login: String,
+    nickname: String,
+    last_server: Option<i16>,
+}
 
 struct Authenticated {
     account: Account,
@@ -14,6 +22,7 @@ fn authenticate(
     conn: &PgConnection,
     login: &str,
     password: &str,
+    ticket: &str,
 ) -> diesel::result::QueryResult<Authenticated> {
     use database::accounts::dsl;
     use database::characters::dsl as chars_dsl;
@@ -32,6 +41,12 @@ fn authenticate(
         .filter(chars_dsl::account_id.eq(&account.id))
         .select((chars_dsl::server_id,))
         .load::<(i16,)>(conn)?;
+
+    debug!("setting ticket to {}", ticket);
+
+    diesel::update(dsl::accounts.find(account.id))
+        .set(dsl::ticket.eq(ticket))
+        .execute(conn)?;
 
     let mut character_counts: HashMap<i16, u8> = HashMap::new();
     for (server_id,) in query_result {
@@ -56,6 +71,9 @@ impl Session {
         use protocol::messages::connection::IdentificationSuccessMessage;
         use protocol::messages::connection::ServersListMessage;
         use protocol::types::connection::GameServerInformations;
+        use rand::Rng;
+
+        const TICKET_LEN: usize = 32;
 
         if self.state != State::Init {
             return Ok(());
@@ -69,15 +87,17 @@ impl Session {
             std::slice::from_raw_parts(msg.credentials.as_ptr() as *const u8, msg.credentials.len())
         };
 
+        let ticket: String = {
+            let mut rng = rand::thread_rng();
+            std::iter::repeat(())
+                .map(|()| rng.sample(rand::distributions::Alphanumeric))
+                .take(TICKET_LEN)
+                .collect()
+        };
+
         debug!("moving to background thread");
         let server = &self.server;
 
-        // FIXME: once `diesel` starts integrating with async runtimes, we'll
-        // only need the `blocking` call to hold for the RSA decryption: at
-        // this point, we'll just configure the number of backup threads of
-        // `tokio_threadpool` to an appropriate (low-ish) number, and use
-        // `LoginQueueMessage` etc. when a client is waiting for a backup
-        // thread to become available.
         let fut = super::compat_poll_fn(|| {
             tokio_threadpool::blocking(|| {
                 use openssl::rsa::Padding;
@@ -120,8 +140,8 @@ impl Session {
                     .database_pool
                     .get()
                     .map_err(IdentificationError::DatabasePoolError)?;
-                let authenticated =
-                    authenticate(&conn, login, password).map_err(IdentificationError::SqlError)?;
+                let authenticated = authenticate(&conn, login, password, &ticket)
+                    .map_err(IdentificationError::SqlError)?;
 
                 Ok((authenticated, aes_key))
             })
@@ -153,31 +173,47 @@ impl Session {
                     }
                 };
 
-                self.stream
+                return self
+                    .stream
                     .send(IdentificationFailedMessage {
                         reason,
                         _phantom: std::marker::PhantomData,
                     })
-                    .await?;
-                return Ok(());
+                    .await;
             }
         };
 
-        self.stream
-            .send(IdentificationSuccessMessage {
-                account_creation: 0.,
-                account_id: authenticated.account.id as u32,
-                has_rights: false,
-                havenbag_available_room: 0,
-                login: &authenticated.account.login,
-                community_id: 0,
-                secret_question: "foo?",
-                nickname: &authenticated.account.nickname,
-                was_already_connected: false,
-                subscription_elapsed_duration: 0.,
-                subscription_end_date: 0.,
-            })
-            .await?;
+        self.stream.write(IdentificationSuccessMessage {
+            account_creation: 0.,
+            account_id: authenticated.account.id as u32,
+            has_rights: false,
+            havenbag_available_room: 0,
+            login: &authenticated.account.login,
+            community_id: 0,
+            secret_question: "foo?",
+            nickname: &authenticated.account.nickname,
+            was_already_connected: false,
+            subscription_elapsed_duration: 0.,
+            subscription_end_date: 0.,
+        })?;
+
+        debug!("successfully logged in");
+
+        self.state = State::Logged { aes_key, ticket };
+
+        if msg.autoconnect {
+            // Is `msg.autoconnect` really used? It seems that the client
+            // just automatically sends a `ServerSelection` message when
+            // auto-connect is enabled.
+            if let Some(server_id) = authenticated.account.last_server {
+                debug!("auto-connecting to game server");
+                // `select_server` will take care of flushing the stream in
+                // case of success.
+                if self.select_server(server_id).await? == 0 {
+                    return Ok(());
+                }
+            }
+        }
 
         let game_server_information: Vec<_> = self
             .server
@@ -197,36 +233,13 @@ impl Session {
             })
             .collect();
 
-        debug!("successfully logged in");
+        self.stream.write(ServersListMessage {
+            servers: game_server_information.into(),
+            already_connected_to_server_id: 0,
+            can_create_new_character: true,
+        })?;
 
-        let last_server = authenticated.account.last_server;
-
-        self.state = State::Logged {
-            account: authenticated.account,
-            aes_key,
-        };
-
-        if msg.autoconnect {
-            // Is `msg.autoconnect` really used? It seems that the client
-            // just automatically sends a `ServerSelection` message when
-            // auto-connect is enabled.
-            if let Some(server_id) = last_server {
-                debug!("auto-connecting to game server");
-                if self.select_server(server_id).await?.is_ok() {
-                    return Ok(());
-                }
-            }
-        }
-
-        self.stream
-            .send(ServersListMessage {
-                servers: game_server_information.into(),
-                already_connected_to_server_id: 0,
-                can_create_new_character: true,
-            })
-            .await?;
-
-        Ok(())
+        self.stream.flush().await
     }
 }
 

@@ -2,45 +2,25 @@ use crate::session::{Session, State, AES_IV_LEN};
 use log::{debug, error};
 use protocol::messages::connection::ServerSelectionMessage;
 
-const TICKET_LEN: usize = 32;
-
 impl Session {
-    pub async fn select_server(
-        &mut self,
-        server_id: i16,
-    ) -> std::io::Result<Result<(), ServerSelectionError>> {
+    pub async fn select_server(&mut self, server_id: i16) -> std::io::Result<u8> {
         use protocol::constants::server_connection_error;
         use protocol::constants::server_status;
         use protocol::messages::connection::SelectedServerDataMessage;
-        use rand::Rng;
 
-        let (account, aes_key) = match &self.state {
-            State::Logged { account, aes_key } => (account, aes_key),
-            _ => return Ok(Ok(())),
+        let (aes_key, ticket) = match &self.state {
+            State::Logged { aes_key, ticket } => (aes_key, ticket),
+            _ => return Ok(0),
         };
 
         let gs = match self.server.game_servers.get(&server_id) {
             Some(gs) => gs,
-            None => {
-                return Ok(Err(ServerSelectionError::KnownReason(
-                    server_connection_error::NO_REASON,
-                )));
-            }
+            None => return Ok(server_connection_error::NO_REASON),
         };
 
         if gs.status() != server_status::ONLINE {
-            return Ok(Err(ServerSelectionError::KnownReason(
-                server_connection_error::DUE_TO_STATUS,
-            )));
+            return Ok(server_connection_error::DUE_TO_STATUS);
         }
-
-        let mut ticket: String = {
-            let mut rng = rand::thread_rng();
-            std::iter::repeat(())
-                .map(|()| rng.sample(rand::distributions::Alphanumeric))
-                .take(TICKET_LEN)
-                .collect()
-        };
 
         let encrypted = match openssl::symm::encrypt(
             openssl::symm::Cipher::aes_256_cbc(),
@@ -49,82 +29,40 @@ impl Session {
             ticket.as_bytes(),
         ) {
             Ok(encrypted) => encrypted,
-            Err(err) => return Ok(Err(ServerSelectionError::EncryptionError(err))),
+            Err(err) => {
+                error!("encryption error: {}", err);
+                return Ok(server_connection_error::NO_REASON);
+            }
         };
 
-        let account_id = account.id;
-
-        debug!(
-            "server selection with ticket = {}, moving to background thread",
-            ticket
-        );
-        let server = &self.server;
-
-        // FIXME: once diesel starts integrating with async runtimes, we won't
-        // need this `blocking` call.
-        let fut = super::compat_poll_fn(|| {
-            tokio_threadpool::blocking(|| {
-                use database::accounts::dsl;
-                use diesel::prelude::*;
-
-                let conn = server
-                    .database_pool
-                    .get()
-                    .map_err(ServerSelectionError::DatabasePoolError)?;
-
-                diesel::update(dsl::accounts.find(account_id))
-                    .set((
-                        dsl::ticket.eq(std::mem::replace(&mut ticket, String::new())),
-                        dsl::last_server.eq(Some(server_id)),
-                    ))
-                    .execute(&conn)
-                    .map_err(ServerSelectionError::SqlError)
-            })
-        })
-        .await
-        .unwrap();
-
-        if let Err(err) = fut {
-            return Ok(Err(err));
-        }
-
-        debug!("server selected: {}", gs.id());
+        debug!("server selected: {}, ticket = {}", gs.id(), ticket);
 
         let ports = &[gs.port() as u32];
-        self.stream
-            .send(SelectedServerDataMessage {
-                server_id: gs.id() as _,
-                address: gs.host(),
-                ports: std::borrow::Cow::Borrowed(ports),
-                can_create_new_character: true,
+        self.stream.write(SelectedServerDataMessage {
+            server_id: gs.id() as _,
+            address: gs.host(),
+            ports: std::borrow::Cow::Borrowed(ports),
+            can_create_new_character: true,
 
-                // Just convert from an `&[u8]` to an `&[i8]`.
-                ticket: unsafe {
-                    std::slice::from_raw_parts(encrypted.as_ptr() as *const i8, encrypted.len())
-                },
-            })
-            .await?;
+            // Just convert from an `&[u8]` to an `&[i8]`.
+            ticket: unsafe {
+                std::slice::from_raw_parts(encrypted.as_ptr() as *const i8, encrypted.len())
+            },
+        })?;
+        self.stream.flush().await?;
         self.stream.get_ref().shutdown(std::net::Shutdown::Both)?;
 
-        Ok(Ok(()))
+        Ok(0)
     }
 
     pub async fn handle_server_selection<'a>(
         &'a mut self,
         msg: ServerSelectionMessage<'a>,
     ) -> std::io::Result<()> {
-        use protocol::constants::server_connection_error;
         use protocol::messages::connection::SelectedServerRefusedMessage;
 
-        if let Err(err) = self.select_server(msg.server_id as _).await? {
-            let reason = match err {
-                ServerSelectionError::KnownReason(reason) => reason,
-                err => {
-                    error!("unexpected error: {}", err);
-                    server_connection_error::NO_REASON
-                }
-            };
-
+        let reason = self.select_server(msg.server_id as _).await?;
+        if reason != 0 {
             self.stream
                 .send(SelectedServerRefusedMessage {
                     server_id: msg.server_id,
@@ -139,25 +77,6 @@ impl Session {
                 })
                 .await?;
         }
-
         Ok(())
-    }
-}
-
-pub enum ServerSelectionError {
-    EncryptionError(openssl::error::ErrorStack),
-    SqlError(diesel::result::Error),
-    DatabasePoolError(diesel::r2d2::PoolError),
-    KnownReason(u8),
-}
-
-impl std::fmt::Display for ServerSelectionError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ServerSelectionError::EncryptionError(err) => write!(f, "{}", err),
-            ServerSelectionError::DatabasePoolError(err) => write!(f, "{}", err),
-            ServerSelectionError::SqlError(err) => write!(f, "{}", err),
-            ServerSelectionError::KnownReason(err) => write!(f, "{}", err),
-        }
     }
 }
